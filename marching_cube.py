@@ -324,8 +324,8 @@ plot_points_normal(points, normals)
 
 bbox_vertices = generate_bounding_box_points(V, scale_factor=1.5)
 
-
 box_division = 30
+# box_division = 100
 # Then create a matching cube mesh
 matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
                                                      
