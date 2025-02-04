@@ -69,18 +69,64 @@ def scale_grid(V, scale=2.0, center=True):
         V_scaled = V_scaled - scale/2
     return V_scaled
 
-# Now your main code becomes:
-GV,_ = gpytoolbox.regular_cube_mesh(100)
-GV = scale_grid(GV, scale=4.0)  # Makes domain go from -2 to 2 instead of 0 to 1
-
-# Generate a grid
+# # Now your main code becomes:
 # GV,_ = gpytoolbox.regular_cube_mesh(100)
-# # Evaluate scalar function on grid
-S = fun3(GV)
-# Compute isosurface
-V,F = gpytoolbox.marching_cubes(S,GV,100,100,100,0.5)
+# GV = scale_grid(GV, scale=4.0)  # Makes domain go from -2 to 2 instead of 0 to 1
 
-ps.init()
-ps_mesh = ps.register_surface_mesh("my mesh", V, F)
-ps.set_ground_plane_mode("none")
-ps.show()
+# # Generate a grid
+# # GV,_ = gpytoolbox.regular_cube_mesh(100)
+# # # Evaluate scalar function on grid
+# S = fun3(GV)
+# # Compute isosurface
+# V,F = gpytoolbox.marching_cubes(S,GV,100,100,100,0.5)
+
+# ps.init()
+# ps_mesh = ps.register_surface_mesh("my mesh", V, F)
+# ps.set_ground_plane_mode("none")
+# ps.show()
+
+
+def show_all_functions():
+    # List of all functions and their recommended isovalues
+    function_list = [
+        (fun, "Simple Sphere", 0.5),
+        (fun2, "Gyroid", 0.0),
+        (fun3, "Spherical Harmonics", 1.0),
+        (fun4, "Metaballs", 2.0),
+        (fun5, "Wave Interference", 0.0),
+        (fun6, "Twisted Torus", 0.0),
+        (fun7, "Fractal Surface", 0.0)
+    ]
+    
+    # Initialize grid once
+    GV,_ = gpytoolbox.regular_cube_mesh(100)
+    GV = scale_grid(GV, scale=4.0)
+    
+    # Initialize polyscope
+    ps.init()
+    
+    # Process each function
+    for func, name, isovalue in function_list:
+        # Evaluate function
+        S = func(GV)
+        
+        # Compute isosurface
+        V,F = gpytoolbox.marching_cubes(S,GV,100,100,100,isovalue)
+        
+        # Register mesh with unique name
+        ps_mesh = ps.register_surface_mesh(name, V, F)
+        
+        # Set visualization options
+        ps.set_ground_plane_mode("none")
+        
+        # Show the mesh
+        print(f"\nShowing: {name}")
+        print("Close the window to see the next shape")
+        ps.show()
+        
+        # Remove the current mesh before showing the next one
+        ps.remove_all_structures()
+
+# Run the visualization
+if __name__ == "__main__":
+    show_all_functions()

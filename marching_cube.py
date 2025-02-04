@@ -9,7 +9,7 @@ from collections import defaultdict
 import polyscope.imgui as psim
 from scipy.spatial.distance import pdist
 import gpytoolbox
-
+import sys 
 
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
@@ -296,18 +296,22 @@ parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
+parser.add_argument('--box_division', type=int, default=100,
+                    help='Box division parameter (default: 100)')
 
 args = parser.parse_args()
 
 normal_file = args.normal_file
 surface_file = args.surface_file
+box_division = args.box_division
 
 
 V, E, N = load_normal_data(normal_file)
 
 print('np.mean(V)', np.mean(V))
 
-plot_normal_data(V, E, N)
+# move it to later so that I can run the script to get all obj
+# plot_normal_data(V, E, N)
 
 points, normals = resample_for_points_normal(V, E, N, 0.01)
 
@@ -315,7 +319,6 @@ print(len(points))
 print(len(normals))
 
 
-plot_points_normal(points, normals)
 
 
 
@@ -324,7 +327,7 @@ plot_points_normal(points, normals)
 
 bbox_vertices = generate_bounding_box_points(V, scale_factor=1.5)
 
-box_division = 30
+# box_division = 30
 # box_division = 100
 # Then create a matching cube mesh
 matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
@@ -358,8 +361,18 @@ mean_wns = np.mean(wns)
 print('new mean_wns on matched_vertices:', mean_wns)  
 print('max wns on matched_vertices:', np.max(wns))
 
+
+if surface_file:
+    export_obj(SV, SF, surface_file)
+    sys.exit()
+
+
+
+plot_normal_data(V, E, N)
+plot_points_normal(points, normals)
 # Display initial mesh
 ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+
 
 
 def callback():
@@ -415,10 +428,14 @@ def callback():
     
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
         last_value = slider_value
-        
+    
     if psim.Button("Export button"):
         if surface_file:
             export_obj(SV, SF, surface_file)
+        else:
+            export_obj(SV, SF, 'output.obj')
+
+
 
 ps.set_user_callback(callback)
 ps.set_ground_plane_mode("none")

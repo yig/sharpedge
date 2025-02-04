@@ -1,0 +1,77 @@
+import glob
+import subprocess
+import shutil
+
+from pathlib import Path
+from plot2gltf import GLTFGeometryExporter
+from utility_io import load_sketch_polyline_data, load_obj
+
+def export_sketch_surface_gltf(polylines, SV, SF, filename):
+    '''
+    Export the sketch and the surface to file, as gltf.
+
+    polylines: polyline of the sketch 
+    SV: surface vertices
+    SF: surface faces
+    
+    '''
+    # Initialize exporter
+    exporter = GLTFGeometryExporter()
+
+    POLYLINE_RADIUS = 0.002
+
+    for polyline in polylines:
+        exporter.add_cylinder_strips(polyline, radius=POLYLINE_RADIUS,add_spheres=False)
+    exporter.add_triangles(SV, SF, color=(0.5, 0.5, 0.5)) 
+
+    exporter.save(filename)
+    print(f"GLTF file saved as: {filename}")
+
+
+
+
+
+
+def generate_all_surface_from_normal_files( normal_files ):
+    ## generate all the surface obj 
+    # get all the normal files
+    for normal_file in normal_files:
+        base_name = Path(normal_file).stem 
+        surface_file = 'surface/' + base_name + '.obj'
+        subprocess.run(['python', 'marching_cube.py', str(normal_file), str(surface_file)])
+
+def generate_sketch_and_surface_gltf(normal_files):        
+    ## export all the sketch_
+    for normal_file in normal_files:
+        base_name = Path(normal_file).stem 
+        surface_file = 'surface/' + base_name + '.obj'
+        sketch_file_name = base_name + '.obj'
+        gltf_surface_file = 'gltfs/surfaces/' + base_name + '.gltf'
+        # find sketch_file_path in folder and subfolder of sketches
+        sketch_file_path = next(Path('sketches').rglob(sketch_file_name), None)
+        if sketch_file_path is None:
+            print(f"Could not find {sketch_file_name} in sketches directory")
+        else:
+            V, E, P  = load_sketch_polyline_data(sketch_file_path)
+            polylines = [[V[p] for p in polyline] for polyline in P]
+            SV, SF = load_obj(surface_file)
+            export_sketch_surface_gltf(polylines, SV, SF, gltf_surface_file)
+
+
+def copy_all_normal_gltfs(normal_gltf_files):
+   copy_folder = Path('gltfs/normals')
+   copy_folder.mkdir(parents=True, exist_ok=True)
+   
+   for normal_gltf in normal_gltf_files:
+       shutil.copy2(normal_gltf, copy_folder)
+
+
+
+
+
+# normal_files = glob.glob('normal/*.normal')  
+# generate_all_surface_from_normal_files( normal_files )
+# generate_sketch_and_surface_gltf(normal_files)
+
+normal_gltf_files = glob.glob('normal/*.gltf')
+copy_all_normal_gltfs(normal_gltf_files)
