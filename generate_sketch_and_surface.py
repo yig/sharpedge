@@ -34,7 +34,7 @@ parser = argparse.ArgumentParser(description='Export sketch and surface to a glt
 parser.add_argument('sketch_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
-                    help='The surface file obj saved, if not provided, no surface_file will be generated.')
+                    help='The saved surface file (.obj).')
 parser.add_argument('gltf_file', nargs='?',
                     help='The gltf file obj saved.')
 

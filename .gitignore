@@ -9,5 +9,6 @@ __pycache__/
 imgui.ini
 .polyscope.ini
 
-math_tex/
+tex_math/
+playground/
 3d-sketches-curated-dataset-main/
