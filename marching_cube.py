@@ -340,8 +340,23 @@ last_area = 1.0
 
 base_points_area = np.ones((points.shape[0], )) / points.shape[0]
 
+
+wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
+sorted_wns = np.sort(wns)[::-1]
+mean_wns = np.mean(wns)
+# print('sorted_wns on original points', sorted_wns)
+print('new mean_wns on original points:', mean_wns)  
+print('max wns on original points:', np.max(wns))
+
+
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
 SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
+
+sorted_wns = np.sort(wns)[::-1]
+mean_wns = np.mean(wns)
+# print('sorted_wns on matched_vertices', sorted_wns)
+print('new mean_wns on matched_vertices:', mean_wns)  
+print('max wns on matched_vertices:', np.max(wns))
 
 # Display initial mesh
 ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
