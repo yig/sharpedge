@@ -1,0 +1,7207 @@
+{
+  "accessors": [
+    {
+      "bufferView": 0,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 66,
+      "type": "VEC3",
+      "max": [
+        1.0,
+        0.5,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -0.5,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 2,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "normalized": false,
+      "count": 192,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 1,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 66,
+      "type": "VEC3",
+      "max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -1.0,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 3,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 18,
+      "type": "VEC3",
+      "max": [
+        1.0,
+        0.5,
+        1.0
+      ],
+      "min": [
+        -1.0,
+        -0.5,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 5,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "normalized": false,
+      "count": 96,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 18,
+      "type": "VEC3",
+      "max": [
+        0.8944271802902222,
+        1.0,
+        0.8944271802902222
+      ],
+      "min": [
+        -0.8944271802902222,
+        -1.0,
+        -0.8944271802902222
+      ]
+    },
+    {
+      "bufferView": 6,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 256,
+      "type": "VEC3",
+      "max": [
+        0.9945219159126282,
+        0.9890738129615784,
+        1.0
+      ],
+      "min": [
+        -0.9727892279624939,
+        -0.9890738129615784,
+        -1.0
+      ]
+    },
+    {
+      "bufferView": 8,
+      "byteOffset": 0,
+      "componentType": 5125,
+      "normalized": false,
+      "count": 1440,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 7,
+      "byteOffset": 0,
+      "componentType": 5126,
+      "normalized": false,
+      "count": 256,
+      "type": "VEC3",
+      "max": [
+        0.9945219159126282,
+        0.9890738129615784,
+        1.0
+      ],
+      "min": [
+        -0.9727892279624939,
+        -0.9890738129615784,
+        -1.0
+      ]
+    }
+  ],
+  "asset": {
+    "generator": "pygltflib@v1.16.2",
+    "version": "2.0"
+  },
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 792,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 792,
+      "byteLength": 792,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1584,
+      "byteLength": 768,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2352,
+      "byteLength": 216,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2568,
+      "byteLength": 216,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2784,
+      "byteLength": 384,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3168,
+      "byteLength": 3072,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6240,
+      "byteLength": 3072,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 9312,
+      "byteLength": 5760,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "data:application/octet-stream;base64,AACAPwAAAL8AAAAAXoNsPwAAAL8V78M+8wQ1PwAAAL/zBDU/Fe/DPgAAAL9eg2w/MjGNJAAAAL8AAIA/Fe/DvgAAAL9eg2w/8wQ1vwAAAL/zBDU/XoNsvwAAAL8V78M+AACAvwAAAL8yMQ0lXoNsvwAAAL8V78O+8wQ1vwAAAL/zBDW/Fe/DvgAAAL9eg2y/yslTpQAAAL8AAIC/Fe/DPgAAAL9eg2y/8wQ1PwAAAL/zBDW/XoNsPwAAAL8V78O+AACAPwAAAD8AAAAAXoNsPwAAAD8V78M+8wQ1PwAAAD/zBDU/Fe/DPgAAAD9eg2w/MjGNJAAAAD8AAIA/Fe/DvgAAAD9eg2w/8wQ1vwAAAD/zBDU/XoNsvwAAAD8V78M+AACAvwAAAD8yMQ0lXoNsvwAAAD8V78O+8wQ1vwAAAD/zBDW/Fe/DvgAAAD9eg2y/yslTpQAAAD8AAIC/Fe/DPgAAAD9eg2y/8wQ1PwAAAD/zBDW/XoNsPwAAAD8V78O+AAAAAAAAAL8AAAAAAAAAAAAAAD8AAAAAAACAPwAAAL8AAAAAAACAPwAAAD8AAAAAXoNsPwAAAL8V78M+XoNsPwAAAD8V78M+8wQ1PwAAAL/zBDU/8wQ1PwAAAD/zBDU/Fe/DPgAAAL9eg2w/Fe/DPgAAAD9eg2w/MjGNJAAAAL8AAIA/MjGNJAAAAD8AAIA/Fe/DvgAAAL9eg2w/Fe/DvgAAAD9eg2w/8wQ1vwAAAL/zBDU/8wQ1vwAAAD/zBDU/XoNsvwAAAL8V78M+XoNsvwAAAD8V78M+AACAvwAAAL8yMQ0lAACAvwAAAD8yMQ0lXoNsvwAAAL8V78O+XoNsvwAAAD8V78O+8wQ1vwAAAL/zBDW/8wQ1vwAAAD/zBDW/Fe/DvgAAAL9eg2y/Fe/DvgAAAD9eg2y/yslTpQAAAL8AAIC/yslTpQAAAD8AAIC/Fe/DPgAAAL9eg2y/Fe/DPgAAAD9eg2y/8wQ1PwAAAL/zBDW/8wQ1PwAAAD/zBDW/XoNsPwAAAL8V78O+XoNsPwAAAD8V78O+AACAPwAAAAAAAAAAXoNsPwAAAAAV78M+8wQ1PwAAAADzBDU/Fe/DPgAAAABeg2w/MjGNJAAAAAAAAIA/Fe/DvgAAAABeg2w/8wQ1vwAAAADzBDU/XoNsvwAAAAAV78M+AACAvwAAAAAyMQ0l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QgAAAEMAAABSAAAAQwAAAFMAAABSAAAAQwAAAEQAAABTAAAARAAAAFQAAABTAAAARAAAAEUAAABUAAAARQAAAFUAAABUAAAARQAAAEYAAABVAAAARgAAAFYAAABVAAAARgAAAEcAAABWAAAARwAAAFcAAABWAAAARwAAAEgAAABXAAAASAAAAFgAAABXAAAASAAAAEkAAABYAAAASQAAAFkAAABYAAAASQAAAEoAAABZAAAASgAAAFoAAABZAAAASgAAAEsAAABaAAAASwAAAFsAAABaAAAASwAAAEwAAABbAAAATAAAAFwAAABbAAAATAAAAE0AAABcAAAATQAAAF0AAABcAAAATQAAAE4AAABdAAAATgAAAF4AAABdAAAATgAAAE8AAABeAAAATwAAAF8AAABeAAAAUAAAAFEAAABgAAAAUQAAAGEAAABgAAAAUQAAAFIAAABhAAAAUgAAAGIAAABhAAAAUgAAAFMAAABiAAAAUwAAAGMAAABiAAAAUwAAAFQAAABjAAAAVAAAAGQAAABjAAAAVAAAAFUAAABkAAAAVQAAAGUAAABkAAAAVQAAAFYAAABlAAAAVgAAAGYAAABlAAAAVgAAAFcAAABmAAAAVwAAAGcAAABmAAAAVwAAAFgAAABnAAAAWAAAAGgAAABnAAAAWAAAAFkAAABoAAAAWQAAAGkAAABoAAAAWQAAAFoAAABpAAAAWgAAAGoAAABpAAAAWgAAAFsAAABqAAAAWwAAAGsAAABqAAAAWwAAAFwAAABrAAAAXAAAAGwAAABrAAAAXAAAAF0AAABsAAAAXQAAAG0AAABsAAAAXQAAAF4AAABtAAAAXgAAAG4AAABtAAAAXgAAAF8AAABuAAAAXwAAAG8AAABuAAAAYAAAAGEAAABwAAAAYQAAAHEAAABwAAAAYQAAAGIAAABxAAAAYgAAAHIAAABxAAAAYgAAAGMAAAByAAAAYwAAAHMAAAByAAAAYwAAAGQAAABzAAAAZAAAAHQAAABzAAAAZAAAAGUAAAB0AAAAZQAAAHUAAAB0AAAAZQAAAGYAAAB1AAAAZgAAAHYAAAB1AAAAZgAAAGcAAAB2AAAAZwAAAHcAAAB2AAAAZwAAAGgAAAB3AAAAaAAAAHgAAAB3AAAAaAAAAGkAAAB4AAAAaQAAAHkAAAB4AAAAaQAAAGoAAAB5AAAAagAAAHoAAAB5AAAAagAAAGsAAAB6AAAAawAAAHsAAAB6AAAAawAAAGwAAAB7AAAAbAAAAHwAAAB7AAAAbAAAAG0AAAB8AAAAbQAAAH0AAAB8AAAAbQAAAG4AAAB9AAAAbgAAAH4AAAB9AAAAbgAAAG8AAAB+AAAAbwAAAH8AAAB+AAAAcAAAAHEAAACAAAAAcQAAAIEAAACAAAAAcQAAAHIAAACBAAAAcgAAAIIAAACBAAAAcgAAAHMAAACCAAAAcwAAAIMAAACCAAAAcwAAAHQAAACDAAAAdAAAAIQAAACDAAAAdAAAAHUAAACEAAAAdQAAAIUAAACEAAAAdQAAAHYAAACFAAAAdgAAAIYAAACFAAAAdgAAAHcAAACGAAAAdwAAAIcAAACGAAAAdwAAAHgAAACHAAAAeAAAAIgAAACHAAAAeAAAAHkAAACIAAAAeQAAAIkAAACIAAAAeQAAAHoAAACJAAAAegAAAIoAAACJAAAAegAAAHsAAACKAAAAewAAAIsAAACKAAAAewAAAHwAAACLAAAAfAAAAIwAAACLAAAAfAAAAH0AAACMAAAAfQAAAI0AAACMAAAAfQAAAH4AAACNAAAAfgAAAI4AAACNAAAAfgAAAH8AAACOAAAAfwAAAI8AAACOAAAAgAAAAIEAAACQAAAAgQAAAJEAAACQAAAAgQAAAIIAAACRAAAAggAAAJIAAACRAAAAggAAAIMAAACSAAAAgwAAAJMAAACSAAAAgwAAAIQAAACTAAAAhAAAAJQAAACTAAAAhAAAAIUAAACUAAAAhQAAAJUAAACUAAAAhQAAAIYAAACVAAAAhgAAAJYAAACVAAAAhgAAAIcAAACWAAAAhwAAAJcAAACWAAAAhwAAAIgAAACXAAAAiAAAAJgAAACXAAAAiAAAAIkAAACYAAAAiQAAAJkAAACYAAAAiQAAAIoAAACZAAAAigAAAJoAAACZAAAAigAAAIsAAACaAAAAiwAAAJsAAACaAAAAiwAAAIwAAACbAAAAjAAAAJwAAACbAAAAjAAAAI0AAACcAAAAjQAAAJ0AAACcAAAAjQAAAI4AAACdAAAAjgAAAJ4AAACdAAAAjgAAAI8AAACeAAAAjwAAAJ8AAACeAAAAkAAAAJEAAACgAAAAkQAAAKEAAACgAAAAkQAAAJIAAAChAAAAkgAAAKIAAAChAAAAkgAAAJMAAACiAAAAkwAAAKMAAACiAAAAkwAAAJQAAACjAAAAlAAAAKQAAACjAAAAlAAAAJUAAACkAAAAlQAAAKUAAACkAAAAlQAAAJYAAAClAAAAlgAAAKYAAAClAAAAlgAAAJcAAACmAAAAlwAAAKcAAACmAAAAlwAAAJgAAACnAAAAmAAAAKgAAACnAAAAmAAAAJkAAACoAAAAmQAAAKkAAACoAAAAmQAAAJoAAACpAAAAmgAAAKoAAACpAAAAmgAAAJsAAACqAAAAmwAAAKsAAACqAAAAmwAAAJwAAACrAAAAnAAAAKwAAACrAAAAnAAAAJ0AAACsAAAAnQAAAK0AAACsAAAAnQAAAJ4AAACtAAAAngAAAK4AAACtAAAAngAAAJ8AAACuAAAAnwAAAK8AAACuAAAAoAAAAKEAAACwAAAAoQAAALEAAACwAAAAoQAAAKIAAACxAAAAogAAALIAAACxAAAAogAAAKMAAACyAAAAowAAALMAAACyAAAAowAAAKQAAACzAAAApAAAALQAAACzAAAApAAAAKUAAAC0AAAApQAAALUAAAC0AAAApQAAAKYAAAC1AAAApgAAALYAAAC1AAAApgAAAKcAAAC2AAAApwAAALcAAAC2AAAApwAAAKgAAAC3AAAAqAAAALgAAAC3AAAAqAAAAKkAAAC4AAAAqQAAALkAAAC4AAAAqQAAAKoAAAC5AAAAqgAAALoAAAC5AAAAqgAAAKsAAAC6AAAAqwAAALsAAAC6AAAAqwAAAKwAAAC7AAAArAAAALwAAAC7AAAArAAAAK0AAAC8AAAArQAAAL0AAAC8AAAArQAAAK4AAAC9AAAArgAAAL4AAAC9AAAArgAAAK8AAAC+AAAArwAAAL8AAAC+AAAAsAAAALEAAADAAAAAsQAAAMEAAADAAAAAsQAAALIAAADBAAAAsgAAAMIAAADBAAAAsgAAALMAAADCAAAAswAAAMMAAADCAAAAswAAALQAAADDAAAAtAAAAMQAAADDAAAAtAAAALUAAADEAAAAtQAAAMUAAADEAAAAtQAAALYAAADFAAAAtgAAAMYAAADFAAAAtgAAALcAAADGAAAAtwAAAMcAAADGAAAAtwAAALgAAADHAAAAuAAAAMgAAADHAAAAuAAAALkAAADIAAAAuQAAAMkAAADIAAAAuQAAALoAAADJAAAAugAAAMoAAADJAAAAugAAALsAAADKAAAAuwAAAMsAAADKAAAAuwAAALwAAADLAAAAvAAAAMwAAADLAAAAvAAAAL0AAADMAAAAvQAAAM0AAADMAAAAvQAAAL4AAADNAAAAvgAAAM4AAADNAAAAvgAAAL8AAADOAAAAvwAAAM8AAADOAAAAwAAAAMEAAADQAAAAwQAAANEAAADQAAAAwQAAAMIAAADRAAAAwgAAANIAAADRAAAAwgAAAMMAAADSAAAAwwAAANMAAADSAAAAwwAAAMQAAADTAAAAxAAAANQAAADTAAAAxAAAAMUAAADUAAAAxQAAANUAAADUAAAAxQAAAMYAAADVAAAAxgAAANYAAADVAAAAxgAAAMcAAADWAAAAxwAAANcAAADWAAAAxwAAAMgAAADXAAAAyAAAANgAAADXAAAAyAAAAMkAAADYAAAAyQAAANkAAADYAAAAyQAAAMoAAADZAAAAygAAANoAAADZAAAAygAAAMsAAADaAAAAywAAANsAAADaAAAAywAAAMwAAADbAAAAzAAAANwAAADbAAAAzAAAAM0AAADcAAAAzQAAAN0AAADcAAAAzQAAAM4AAADdAAAAzgAAAN4AAADdAAAAzgAAAM8AAADeAAAAzwAAAN8AAADeAAAA0AAAANEAAADgAAAA0QAAAOEAAADgAAAA0QAAANIAAADhAAAA0gAAAOIAAADhAAAA0gAAANMAAADiAAAA0wAAAOMAAADiAAAA0wAAANQAAADjAAAA1AAAAOQAAADjAAAA1AAAANUAAADkAAAA1QAAAOUAAADkAAAA1QAAANYAAADlAAAA1gAAAOYAAADlAAAA1gAAANcAAADmAAAA1wAAAOcAAADmAAAA1wAAANgAAADnAAAA2AAAAOgAAADnAAAA2AAAANkAAADoAAAA2QAAAOkAAADoAAAA2QAAANoAAADpAAAA2gAAAOoAAADpAAAA2gAAANsAAADqAAAA2wAAAOsAAADqAAAA2wAAANwAAADrAAAA3AAAAOwAAADrAAAA3AAAAN0AAADsAAAA3QAAAO0AAADsAAAA3QAAAN4AAADtAAAA3gAAAO4AAADtAAAA3gAAAN8AAADuAAAA3wAAAO8AAADuAAAA4AAAAOEAAADwAAAA4QAAAPEAAADwAAAA4QAAAOIAAADxAAAA4gAAAPIAAADxAAAA4gAAAOMAAADyAAAA4wAAAPMAAADyAAAA4wAAAOQAAADzAAAA5AAAAPQAAADzAAAA5AAAAOUAAAD0AAAA5QAAAPUAAAD0AAAA5QAAAOYAAAD1AAAA5gAAAPYAAAD1AAAA5gAAAOcAAAD2AAAA5wAAAPcAAAD2AAAA5wAAAOgAAAD3AAAA6AAAAPgAAAD3AAAA6AAAAOkAAAD4AAAA6QAAAPkAAAD4AAAA6QAAAOoAAAD5AAAA6gAAAPoAAAD5AAAA6gAAAOsAAAD6AAAA6wAAAPsAAAD6AAAA6wAAAOwAAAD7AAAA7AAAAPwAAAD7AAAA7AAAAO0AAAD8AAAA7QAAAP0AAAD8AAAA7QAAAO4AAAD9AAAA7gAAAP4AAAD9AAAA7gAAAO8AAAD+AAAA7wAAAP8AAAD+AAAADwAAAAAAAAAfAAAAAAAAABAAAAAfAAAAHwAAABAAAAAvAAAAEAAAACAAAAAvAAAALwAAACAAAAA/AAAAIAAAADAAAAA/AAAAPwAAADAAAABPAAAAMAAAAEAAAABPAAAATwAAAEAAAABfAAAAQAAAAFAAAABfAAAAXwAAAFAAAABvAAAAUAAAAGAAAABvAAAAbwAAAGAAAAB/AAAAYAAAAHAAAAB/AAAAfwAAAHAAAACPAAAAcAAAAIAAAACPAAAAjwAAAIAAAACfAAAAgAAAAJAAAACfAAAAnwAAAJAAAACvAAAAkAAAAKAAAACvAAAArwAAAKAAAAC/AAAAoAAAALAAAAC/AAAAvwAAALAAAADPAAAAsAAAAMAAAADPAAAAzwAAAMAAAADfAAAAwAAAANAAAADfAAAA3wAAANAAAADvAAAA0AAAAOAAAADvAAAA7wAAAOAAAAD/AAAA4AAAAPAAAAD/AAAA",
+      "byteLength": 15072
+    }
+  ],
+  "extensionsUsed": [
+    "KHR_materials_unlit"
+  ],
+  "materials": [
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0,
+          1,
+          0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.0,
+          1.0,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3509803921568627,
+          0.23194764145389815,
+          0.9931586661366362,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3509803921568627,
+          0.23194764145389815,
+          0.9931586661366362,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.1941176470588235,
+          0.4622038835403132,
+          0.9712810319161138,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.1941176470588235,
+          0.4622038835403132,
+          0.9712810319161138,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.03725490196078429,
+          0.664540178707858,
+          0.9346797673211106,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.03725490196078429,
+          0.664540178707858,
+          0.9346797673211106,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11176470588235299,
+          0.8197404829072211,
+          0.8867736859200619,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.11176470588235299,
+          0.8197404829072211,
+          0.8867736859200619,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.2686274509803921,
+          0.9346797673211106,
+          0.8232529481575873,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.2686274509803921,
+          0.9346797673211106,
+          0.8232529481575873,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4254901960784314,
+          0.9931586661366362,
+          0.747252534878891,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4254901960784314,
+          0.9931586661366362,
+          0.747252534878891,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5745098039215686,
+          0.9931586661366362,
+          0.6645401787078581,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5745098039215686,
+          0.9931586661366362,
+          0.6645401787078581,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.7313725490196079,
+          0.9346797673211106,
+          0.5676747161445901,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.7313725490196079,
+          0.9346797673211106,
+          0.5676747161445901,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.888235294117647,
+          0.8197404829072211,
+          0.4622038835403132,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.888235294117647,
+          0.8197404829072211,
+          0.4622038835403132,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.6645401787078582,
+          0.35549083330031817,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.6645401787078582,
+          0.35549083330031817,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.4622038835403133,
+          0.23793519504261884,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.4622038835403133,
+          0.23793519504261884,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.23194764145389804,
+          0.11677270176585626,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          0.23194764145389804,
+          0.11677270176585626,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          1.2246467991473532e-16,
+          6.123233995736766e-17,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    },
+    {
+      "extensions": {
+        "KHR_materials_unlit": {}
+      },
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          1.0,
+          1.2246467991473532e-16,
+          6.123233995736766e-17,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 1.0
+      },
+      "emissiveFactor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "alphaMode": "OPAQUE",
+      "alphaCutoff": 0.5,
+      "doubleSided": true
+    }
+  ],
+  "meshes": [
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 5
+          },
+          "indices": 4,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 5
+          },
+          "indices": 4,
+          "mode": 4,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 3
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 4
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 5
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 6
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 7
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 8
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 9
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 10
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 11
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 12
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 13
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 14
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 15
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 16
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 17
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 18
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 19
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 20
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 21
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 22
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 23
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 24
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 25
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 26
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 2
+          },
+          "indices": 1,
+          "mode": 4,
+          "material": 27
+        }
+      ]
+    },
+    {
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 6,
+            "NORMAL": 8
+          },
+          "indices": 7,
+          "mode": 4,
+          "material": 28
+        }
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3319073628225459,
+        -0.0,
+        0.007734301195225522,
+        0.9432802781195017
+      ],
+      "translation": [
+        -0.07488217103368693,
+        0.10562182623169034,
+        0.1933421252134871
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3319073628225459,
+        -0.0,
+        0.007734301195225522,
+        0.9432802781195017
+      ],
+      "translation": [
+        -0.07561173241193615,
+        0.14459959454061078,
+        0.22465029216480326
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.2903125268553879,
+        0.0,
+        -0.3598807486122109,
+        0.8866817261730132
+      ],
+      "translation": [
+        0.23555047625469336,
+        0.17104883626468656,
+        0.08353961093313385
+      ],
+      "scale": [
+        0.002,
+        0.075,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.2903125268553879,
+        0.0,
+        -0.3598807486122109,
+        0.8866817261730132
+      ],
+      "translation": [
+        0.2674604445942845,
+        0.19966928461760197,
+        0.1092810921773123
+      ],
+      "scale": [
+        0.004,
+        0.024999999999999998,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.29388473550859223,
+        0.0,
+        -0.0012699479105584717,
+        0.9558400229470145
+      ],
+      "translation": [
+        -0.01499945997200227,
+        0.1598507612100512,
+        0.11995600942492327
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.29388473550859223,
+        0.0,
+        -0.0012699479105584717,
+        0.9558400229470145
+      ],
+      "translation": [
+        -0.014878073268005299,
+        0.20121377615678615,
+        0.14804668865815426
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3560098237829312,
+        0.0,
+        -0.3813318803988157,
+        0.8531371533121445
+      ],
+      "translation": [
+        0.17285912961829597,
+        -0.032993274822883785,
+        0.3320078905709996
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3560098237829312,
+        0.0,
+        -0.3813318803988157,
+        0.8531371533121445
+      ],
+      "translation": [
+        0.20539196910935725,
+        -0.010208974586728835,
+        0.36238041133233245
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.20216535613789752,
+        -0.0,
+        0.3576868404188004,
+        0.9116958335809442
+      ],
+      "translation": [
+        -0.26490612016024145,
+        0.22781369697266396,
+        -0.03377950153360033
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.20216535613789752,
+        -0.0,
+        0.3576868404188004,
+        0.9116958335809442
+      ],
+      "translation": [
+        -0.29751628037389666,
+        0.2609326262695492,
+        -0.015348170245067426
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.14439419518504684,
+        0.0,
+        0.41705401929610486,
+        0.8973384319117436
+      ],
+      "translation": [
+        -0.3110003949773243,
+        0.206773719603937,
+        -0.2220987845513381
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.14439419518504684,
+        0.0,
+        0.41705401929610486,
+        0.8973384319117436
+      ],
+      "translation": [
+        -0.34842425494708995,
+        0.2372953457425197,
+        -0.2350558306197889
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.3978700719917458,
+        0.0,
+        0.528766384979424,
+        0.749736964494265
+      ],
+      "translation": [
+        -0.3417931778300809,
+        -0.0627145863053194,
+        -0.34773684250286546
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.3978700719917458,
+        0.0,
+        0.528766384979424,
+        0.749736964494265
+      ],
+      "translation": [
+        -0.3814367482701888,
+        -0.056504034712411916,
+        -0.3775666325066861
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.04005930432943676,
+        0.0,
+        0.39737073611826457,
+        0.9167833714752194
+      ],
+      "translation": [
+        -0.301097216238807,
+        0.23005138126601024,
+        -0.17960142780615695
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.04005930432943676,
+        0.0,
+        0.39737073611826457,
+        0.9167833714752194
+      ],
+      "translation": [
+        -0.3375275045572162,
+        0.2641005562873573,
+        -0.18327399821436624
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.13800713342563442,
+        0.0,
+        -0.3654321566200524,
+        0.9205505798334259
+      ],
+      "translation": [
+        0.27895390877497767,
+        0.24054800275237426,
+        -0.08956330899779125
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.13800713342563442,
+        0.0,
+        -0.3654321566200524,
+        0.9205505798334259
+      ],
+      "translation": [
+        0.3125937871416145,
+        0.27528933975553993,
+        -0.07685905432817958
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3390416451637415,
+        0.0,
+        -0.37740955476661986,
+        0.8617498423646652
+      ],
+      "translation": [
+        0.197012946824529,
+        0.05541245931116441,
+        0.23740918132061833
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3390416451637415,
+        0.0,
+        -0.37740955476661986,
+        0.8617498423646652
+      ],
+      "translation": [
+        0.2295362092572343,
+        0.07967373839271696,
+        0.2666260897481094
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        4.592425496802575e-18,
+        -0.149404,
+        0.02051550000000002
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        1.0715659492539341e-17,
+        -0.19940400000000003,
+        0.02051550000000002
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.051728784189023894,
+        0.0,
+        -0.37339920969288865,
+        0.9262273819570719
+      ],
+      "translation": [
+        0.2909844429314013,
+        0.24129828723152888,
+        -0.13939755377365837
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.051728784189023894,
+        0.0,
+        -0.37339920969288865,
+        0.9262273819570719
+      ],
+      "translation": [
+        0.3255697001732697,
+        0.27708800354023405,
+        -0.13460629213853617
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.26316122757124194,
+        -0.0,
+        0.001135228687481539,
+        0.9647512008590734
+      ],
+      "translation": [
+        -8.214099296231133e-05,
+        0.18699486596692683,
+        0.07437138327391776
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.26316122757124194,
+        -0.0,
+        0.001135228687481539,
+        0.9647512008590734
+      ],
+      "translation": [
+        -0.00019166231691205977,
+        0.23006935392282926,
+        0.09975989430580812
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.053199121638218785,
+        -0.0,
+        0.3773187892188267,
+        0.9245541545844465
+      ],
+      "translation": [
+        -0.290112374063128,
+        0.23978102885695204,
+        -0.1350390898301856
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.053199121638218785,
+        -0.0,
+        0.3773187892188267,
+        0.9245541545844465
+      ],
+      "translation": [
+        -0.3249975394806319,
+        0.27526106733288813,
+        -0.13012054293709974
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.30470418693382634,
+        0.0,
+        0.47230604961395567,
+        0.8270927118304546
+      ],
+      "translation": [
+        -0.3280035668541852,
+        0.12267117654722916,
+        -0.2924578959207894
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.30470418693382634,
+        0.0,
+        0.47230604961395567,
+        0.8270927118304546
+      ],
+      "translation": [
+        -0.3670676559930988,
+        0.14107941194353468,
+        -0.31765975714850864
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.34310402549875507,
+        -0.0,
+        0.36475199554498405,
+        0.8655839701799598
+      ],
+      "translation": [
+        -0.19579876103261679,
+        0.055321170707437625,
+        0.23971640084319537
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.34310402549875507,
+        -0.0,
+        0.36475199554498405,
+        0.8655839701799598
+      ],
+      "translation": [
+        -0.22737110907610583,
+        0.08024473165068778,
+        0.26941493530078925
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3421066924482813,
+        0.0,
+        -5.357662790238084e-05,
+        0.9396611134401817
+      ],
+      "translation": [
+        0.014869275790537184,
+        0.06710772560837316,
+        0.23948982666559676
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3421066924482813,
+        0.0,
+        -5.357662790238084e-05,
+        0.9396611134401817
+      ],
+      "translation": [
+        0.014874310177920097,
+        0.10540402641953737,
+        0.2716362622197257
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.046423292521457146,
+        0.0,
+        -0.38754232756856677,
+        0.9206822591177724
+      ],
+      "translation": [
+        0.30160225092371906,
+        0.23183768666906535,
+        -0.18420658263757553
+      ],
+      "scale": [
+        0.002,
+        0.075,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.046423292521457146,
+        0.0,
+        -0.38754232756856677,
+        0.9206822591177724
+      ],
+      "translation": [
+        0.33728258548867784,
+        0.2666032688944858,
+        -0.18848069282100954
+      ],
+      "scale": [
+        0.004,
+        0.024999999999999998,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.23858126157351892,
+        0.0,
+        0.44510069873477753,
+        0.863113173119146
+      ],
+      "translation": [
+        -0.3204814207331892,
+        0.1699673262208851,
+        -0.26170269722926165
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.23858126157351892,
+        0.0,
+        0.44510069873477753,
+        0.863113173119146
+      ],
+      "translation": [
+        -0.3588986483774415,
+        0.19446376118206518,
+        -0.28229496020161055
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.2527997746300565,
+        0.0,
+        -0.3574706092092204,
+        0.8990589733152
+      ],
+      "translation": [
+        0.25146653691795007,
+        0.20588002781239362,
+        0.02020514293749094
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.2527997746300565,
+        0.0,
+        -0.3574706092092204,
+        0.8990589733152
+      ],
+      "translation": [
+        0.28360525280855015,
+        0.23671073156225178,
+        0.04293333352081219
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.40357599188509585,
+        0.0,
+        -0.5292769507082183,
+        0.7463191865569122
+      ],
+      "translation": [
+        0.341838715748691,
+        -0.06292357538327717,
+        -0.34853523794831875
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.40357599188509585,
+        0.0,
+        -0.5292769507082183,
+        0.7463191865569122
+      ],
+      "translation": [
+        0.381339670080279,
+        -0.05722434256098005,
+        -0.37865488854607715
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.15380169081683354,
+        0.0,
+        -0.40737163598328846,
+        0.9002185235253618
+      ],
+      "translation": [
+        0.31143826195032404,
+        0.20832400425736367,
+        -0.22665013482671256
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.15380169081683354,
+        0.0,
+        -0.40737163598328846,
+        0.9002185235253618
+      ],
+      "translation": [
+        0.34811061121742276,
+        0.2393633432671819,
+        -0.24049564792899597
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.25118576001312765,
+        0.0,
+        -0.43550340594063564,
+        0.8644318928526026
+      ],
+      "translation": [
+        0.32079622751557646,
+        0.171176687303555,
+        -0.26600047364893253
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.25118576001312765,
+        0.0,
+        -0.43550340594063564,
+        0.8644318928526026
+      ],
+      "translation": [
+        0.35844253086967837,
+        0.19590093704162836,
+        -0.2877137718475093
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.2860838746219834,
+        0.0,
+        -0.0029514032618487675,
+        0.9582000343874233
+      ],
+      "translation": [
+        0.013363602603024598,
+        0.16055954794250443,
+        0.11877241838753538
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.2860838746219834,
+        0.0,
+        -0.0029514032618487675,
+        0.9582000343874233
+      ],
+      "translation": [
+        0.013646406073724063,
+        0.2023742785325104,
+        0.1461849762375826
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.20227896195684503,
+        0.0,
+        -0.36081702489408685,
+        0.910436321823905
+      ],
+      "translation": [
+        0.26615406937470126,
+        0.2288905722072181,
+        -0.037930341442023924
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.20227896195684503,
+        0.0,
+        -0.36081702489408685,
+        0.910436321823905
+      ],
+      "translation": [
+        0.29900416187430295,
+        0.26178000181684224,
+        -0.01951413003138916
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.8025253597425303,
+        0.0,
+        -0.0,
+        0.5966180075811678
+      ],
+      "translation": [
+        0.065969,
+        -0.12270752147724083,
+        0.4092120810872212
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.8025253597425303,
+        0.0,
+        -0.0,
+        0.5966180075811678
+      ],
+      "translation": [
+        0.065969,
+        -0.13711221678022859,
+        0.457092189203516
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3609883486432096,
+        -0.0,
+        0.36798702812908973,
+        0.8568972863024885
+      ],
+      "translation": [
+        -0.1718985314348751,
+        -0.032750528054557325,
+        0.3332342452254387
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3609883486432096,
+        -0.0,
+        0.36798702812908973,
+        0.8568972863024885
+      ],
+      "translation": [
+        -0.20343124001470858,
+        -0.009323232127300421,
+        0.36416723885935703
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.25298710234989547,
+        -0.0,
+        0.3602462054639129,
+        0.8978976542420944
+      ],
+      "translation": [
+        -0.25062731671267474,
+        0.2045540148120092,
+        0.024052239431510688
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.25298710234989547,
+        -0.0,
+        0.3602462054639129,
+        0.8978976542420944
+      ],
+      "translation": [
+        -0.282973738996241,
+        0.23517603456135477,
+        0.04676789200685827
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.29075257026103307,
+        -0.0,
+        0.3611137182145567,
+        0.8860360181188238
+      ],
+      "translation": [
+        -0.23473648207311817,
+        0.16992448690528958,
+        0.08697529372089244
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.29075257026103307,
+        -0.0,
+        0.3611137182145567,
+        0.8860360181188238
+      ],
+      "translation": [
+        -0.26673245817060903,
+        0.19843046944567566,
+        0.11273701868208238
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.3096407103252996,
+        0.0,
+        -0.46401394556877046,
+        0.8299480036887528
+      ],
+      "translation": [
+        0.32767555858564074,
+        0.12981602666202094,
+        -0.2931719267046437
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.3096407103252996,
+        0.0,
+        -0.46401394556877046,
+        0.8299480036887528
+      ],
+      "translation": [
+        0.366186303366495,
+        0.14869739554471553,
+        -0.3188704956441687
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.34123025407901686,
+        -0.0,
+        0.0014201126395941724,
+        0.9399786683650115
+      ],
+      "translation": [
+        0.04156238433090795,
+        0.07418949227359453,
+        0.2310771869876287
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.34123025407901686,
+        -0.0,
+        0.0014201126395941724,
+        0.9399786683650115
+      ],
+      "translation": [
+        0.04142889677211854,
+        0.11254548197172057,
+        0.26315210297113356
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.3493188814134891,
+        0.0,
+        -0.4888271015306294,
+        0.7993900073788717
+      ],
+      "translation": [
+        0.3333722625224672,
+        0.07874732879228942,
+        -0.3153056517393031
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.3493188814134891,
+        0.0,
+        -0.4888271015306294,
+        0.7993900073788717
+      ],
+      "translation": [
+        0.37244861255242345,
+        0.09264976718200867,
+        -0.3432298540583739
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.19993540605200164,
+        0.0,
+        0.002689986850079535,
+        0.9798053875018078
+      ],
+      "translation": [
+        -0.0001976747706012711,
+        0.2379843948033176,
+        -0.19853283410015848
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.19993540605200164,
+        0.0,
+        0.002689986850079535,
+        0.9798053875018078
+      ],
+      "translation": [
+        -0.0004612411314029659,
+        0.28398625454107435,
+        -0.21812261290036977
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.2028071541575769,
+        -0.0,
+        0.0007912579642854343,
+        0.9792183781635937
+      ],
+      "translation": [
+        -5.8111075537245756e-05,
+        0.2230326474100004,
+        0.006659436943061734
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.2028071541575769,
+        -0.0,
+        0.0007912579642854343,
+        0.9792183781635937
+      ],
+      "translation": [
+        -0.00013559250958690674,
+        0.2689195106233343,
+        0.026518686200477377
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.14648685246707188,
+        -0.0,
+        0.0026693890881363943,
+        0.9892090155352338
+      ],
+      "translation": [
+        -0.00019804378139669246,
+        0.240048085731214,
+        -0.03899354136616445
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.14648685246707188,
+        -0.0,
+        0.0026693890881363943,
+        0.9892090155352338
+      ],
+      "translation": [
+        -0.0004621021565922824,
+        0.28790153337283264,
+        -0.024502929854383723
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3217251669291738,
+        -0.0,
+        0.3650801561782336,
+        0.8736185646661087
+      ],
+      "translation": [
+        -0.21506656015213801,
+        0.11532320473969539,
+        0.16473188089122218
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3217251669291738,
+        -0.0,
+        0.3650801561782336,
+        0.8736185646661087
+      ],
+      "translation": [
+        -0.24696064035498874,
+        0.14164414439262257,
+        0.19283838874618509
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.6346336535537395,
+        0.0,
+        0.0,
+        0.7728131247442891
+      ],
+      "translation": [
+        -0.065969,
+        -0.1046109905667226,
+        0.4100859912653063
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.6346336535537395,
+        0.0,
+        0.0,
+        0.7728131247442891
+      ],
+      "translation": [
+        -0.065969,
+        -0.09488697798901939,
+        0.4591313129523813
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.2866640035169344,
+        0.0,
+        0.0028121881288732825,
+        0.958027056343176
+      ],
+      "translation": [
+        -0.00020206142362407713,
+        0.22238618805141783,
+        -0.2278868903586659
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.2866640035169344,
+        0.0,
+        0.0028121881288732825,
+        0.958027056343176
+      ],
+      "translation": [
+        -0.0004714766551228466,
+        0.2641677721199749,
+        -0.25535007750355376
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.8321407427185622,
+        0.0,
+        0.0,
+        0.5545644996822278
+      ],
+      "translation": [
+        0.15692,
+        -0.12633836617691505,
+        -0.36688167859881876
+      ],
+      "scale": [
+        0.002,
+        0.075,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.8321407427185622,
+        0.0,
+        0.0,
+        0.5545644996822278
+      ],
+      "translation": [
+        0.15692,
+        -0.14558418774613507,
+        -0.41302925006391045
+      ],
+      "scale": [
+        0.004,
+        0.024999999999999998,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.13703583113577142,
+        -0.0,
+        0.36035034029274937,
+        0.9226964903129458
+      ],
+      "translation": [
+        -0.27756404957033964,
+        0.23955966099268708,
+        -0.08533831396729297
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.13703583113577142,
+        -0.0,
+        0.36035034029274937,
+        0.9226964903129458
+      ],
+      "translation": [
+        -0.3108134489974592,
+        0.2746965423162699,
+        -0.07269406592368359
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.0829190991439674,
+        -0.0,
+        0.0019058736312727819,
+        0.9965544594465746
+      ],
+      "translation": [
+        -0.0001424480149789897,
+        0.24966805929821406,
+        -0.079175995148109
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.0829190991439674,
+        -0.0,
+        0.0019058736312727819,
+        0.9965544594465746
+      ],
+      "translation": [
+        -0.0003323787016176426,
+        0.29898013836249954,
+        -0.07091265534558766
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.3814486900866838,
+        0.0,
+        -0.509965350427419,
+        0.770994317874388
+      ],
+      "translation": [
+        0.3381430290619271,
+        0.01590441786459445,
+        -0.33420460794630963
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.3814486900866838,
+        0.0,
+        -0.509965350427419,
+        0.770994317874388
+      ],
+      "translation": [
+        0.3774610678111632,
+        0.02534764168405372,
+        -0.3636140852080558
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.295276236377968,
+        -0.0,
+        0.001479448070217165,
+        0.9554107783900441
+      ],
+      "translation": [
+        -0.04171051104742654,
+        0.15380523165979026,
+        0.12882625741284678
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.295276236377968,
+        -0.0,
+        0.001479448070217165,
+        0.9554107783900441
+      ],
+      "translation": [
+        -0.04185185911066192,
+        0.19508620720617725,
+        0.1570372672966425
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.5561483356507451,
+        0.0,
+        -0.07557749408668017,
+        0.8276394572158121
+      ],
+      "translation": [
+        0.004691318713772342,
+        0.0716930303355363,
+        0.12372977299870949
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.5561483356507451,
+        0.0,
+        -0.07557749408668017,
+        0.8276394572158121
+      ],
+      "translation": [
+        0.010946410332135465,
+        0.09019173744958471,
+        0.16975880366365548
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3196661967044634,
+        0.0,
+        -0.004451419877339952,
+        0.9475197663086395
+      ],
+      "translation": [
+        0.0742518356241439,
+        0.12316602806591842,
+        0.17017425299986388
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3196661967044634,
+        0.0,
+        -0.004451419877339952,
+        0.9475197663086395
+      ],
+      "translation": [
+        0.07467361645633579,
+        0.16294539882047632,
+        0.20046325699968237
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.16768098897317038,
+        0.0,
+        -0.06355047849111375,
+        0.983790842923703
+      ],
+      "translation": [
+        0.004689028410223315,
+        0.049552831696539755,
+        0.1715847733886853
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.16768098897317038,
+        0.0,
+        -0.06355047849111375,
+        0.983790842923703
+      ],
+      "translation": [
+        0.010941066290521067,
+        0.09633727395859276,
+        0.15508847124026576
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "translation": [
+        -0.00019538678448542693,
+        0.25312965027517886,
+        -0.11829501880101534
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "translation": [
+        -0.0004559024971326628,
+        0.303125850642084,
+        -0.1177363772023691
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.35977944820536945,
+        0.0,
+        -0.001006030857468545,
+        0.933036835580972
+      ],
+      "translation": [
+        7.039978858119473e-05,
+        0.03341833024132153,
+        0.27688906083954545
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.35977944820536945,
+        0.0,
+        -0.001006030857468545,
+        0.933036835580972
+      ],
+      "translation": [
+        0.00016426617335612103,
+        0.0704741038964169,
+        0.31045780862560607
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.09554181210036664,
+        0.0,
+        0.002194385878424617,
+        0.9954229989362285
+      ],
+      "translation": [
+        -0.0001638256628943562,
+        0.24920852101083962,
+        -0.16040733878435617
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.09554181210036664,
+        0.0,
+        0.002194385878424617,
+        0.9954229989362285
+      ],
+      "translation": [
+        -0.0003822598800868311,
+        0.2982952156919591,
+        -0.16991779049683106
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.30813410232107913,
+        0.0,
+        -0.002090861191107073,
+        0.9513406347288348
+      ],
+      "translation": [
+        0.06228368409095083,
+        0.14091367524646967,
+        0.14642203693628014
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.30813410232107913,
+        0.0,
+        -0.002090861191107073,
+        0.9513406347288348
+      ],
+      "translation": [
+        0.0624825962122186,
+        0.1814185755750959,
+        0.17573608618465367
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.026722429730793872,
+        0.0,
+        -0.06268285272826947,
+        0.9976756846406195
+      ],
+      "translation": [
+        0.004690286850817773,
+        0.04807225787923467,
+        0.15677002387826977
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.026722429730793872,
+        0.0,
+        -0.06268285272826947,
+        0.9976756846406195
+      ],
+      "translation": [
+        0.010944002651908136,
+        0.09760793505154756,
+        0.15943605571596287
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.35312954137001595,
+        0.0,
+        -0.00012128042647134757,
+        0.9355744290556793
+      ],
+      "translation": [
+        -0.014188989985068633,
+        0.06640946342271453,
+        0.240412422678746
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.35312954137001595,
+        0.0,
+        -0.00012128042647134757,
+        0.9355744290556793
+      ],
+      "translation": [
+        -0.014177643298493477,
+        0.10393941465300059,
+        0.27345031958374066
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.30420151288698105,
+        -0.0,
+        0.002325679543331804,
+        0.9526048660236487
+      ],
+      "translation": [
+        0.03958634097626578,
+        0.15361370230789503,
+        0.12871228810709204
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.30420151288698105,
+        -0.0,
+        0.002325679543331804,
+        0.9526048660236487
+      ],
+      "translation": [
+        0.03936479561128683,
+        0.19435930538508842,
+        0.15769067224988143
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.21989777162137567,
+        0.0,
+        -0.06422576472045857,
+        0.9734064008326767
+      ],
+      "translation": [
+        0.004688832785795092,
+        0.05113700158865193,
+        0.14218224238188165
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.21989777162137567,
+        0.0,
+        -0.06422576472045857,
+        0.9734064008326767
+      ],
+      "translation": [
+        0.01094060983352188,
+        0.09588900370685449,
+        0.1635872322243906
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3386138653219567,
+        0.0,
+        -0.000652770915092933,
+        0.9409251958056263
+      ],
+      "translation": [
+        0.062442065645082506,
+        0.08774351680763923,
+        0.21478777381479217
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3386138653219567,
+        0.0,
+        -0.000652770915092933,
+        0.9409251958056263
+      ],
+      "translation": [
+        0.06250348650519251,
+        0.12627753921782486,
+        0.24664880556784838
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.5808386273714339,
+        0.0,
+        0.0029762808901217805,
+        0.8140132865656012
+      ],
+      "translation": [
+        -0.0001817049141832818,
+        0.06807682230289987,
+        -0.33179127700231553
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.5808386273714339,
+        0.0,
+        0.0029762808901217805,
+        0.8140132865656012
+      ],
+      "translation": [
+        -0.0004239781330943241,
+        0.08433858537343303,
+        -0.3790723130054029
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.6294271649912142,
+        0.0,
+        0.0032495165418205906,
+        0.7770526910148161
+      ],
+      "translation": [
+        -0.0001893784179989137,
+        -0.0053601836539974605,
+        -0.35328885542656874
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.6294271649912142,
+        0.0,
+        0.0032495165418205906,
+        0.7770526910148161
+      ],
+      "translation": [
+        -0.00044188297533079865,
+        0.005020904807339256,
+        -0.4021986626619937
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.34267288952955083,
+        -0.0,
+        0.005877694376322962,
+        0.9394363967242736
+      ],
+      "translation": [
+        -0.06374712900194546,
+        0.08867405576177151,
+        0.21414995384460522
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.34267288952955083,
+        -0.0,
+        0.005877694376322962,
+        0.9394363967242736
+      ],
+      "translation": [
+        -0.06429930100453939,
+        0.12692813011080017,
+        0.24634189230407888
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.9370247174497146,
+        0.0,
+        0.0,
+        0.34926305113521894
+      ],
+      "translation": [
+        -0.15692,
+        -0.1402551490833788,
+        -0.35681610838542027
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.9370247174497146,
+        0.0,
+        0.0,
+        0.34926305113521894
+      ],
+      "translation": [
+        -0.15692,
+        -0.17805668119455054,
+        -0.38954291956598064
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.36456238437998745,
+        0.0,
+        0.0029188304087050905,
+        0.9311743920041098
+      ],
+      "translation": [
+        -0.00020384550983918026,
+        0.20198743112431677,
+        -0.2537518367466952
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.36456238437998745,
+        0.0,
+        0.0029188304087050905,
+        0.9311743920041098
+      ],
+      "translation": [
+        -0.0004756395229580872,
+        0.23869600595673912,
+        -0.2876989524089556
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3848767444448621,
+        0.0,
+        -0.06792077279551381,
+        0.9204654584547888
+      ],
+      "translation": [
+        0.004688904395236963,
+        0.05890374951562884,
+        0.131318931176802
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3848767444448621,
+        0.0,
+        -0.06792077279551381,
+        0.9204654584547888
+      ],
+      "translation": [
+        0.01094077692221958,
+        0.09362941553646728,
+        0.16674550607920466
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3308828267080723,
+        0.0,
+        -0.004264746305835109,
+        0.9436622101836136
+      ],
+      "translation": [
+        0.07430283599436276,
+        0.10478287751964671,
+        0.19377312146723558
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000002,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3308828267080723,
+        0.0,
+        -0.004264746305835109,
+        0.9436622101836136
+      ],
+      "translation": [
+        0.07470528398684644,
+        0.14383271421250898,
+        0.2249972834235497
+      ],
+      "scale": [
+        0.004,
+        0.02500000000000001,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.35083835147005,
+        -0.0,
+        0.0031544201823244453,
+        0.9364307239572456
+      ],
+      "translation": [
+        -0.04181904219812496,
+        0.07403168755783184,
+        0.23157418585942993
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.35083835147005,
+        -0.0,
+        0.0031544201823244453,
+        0.9364307239572456
+      ],
+      "translation": [
+        -0.0421144317956249,
+        0.11172193763494094,
+        0.2644277670053365
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.33765749259605987,
+        0.0,
+        -0.06653156927236213,
+        0.9389147820669875
+      ],
+      "translation": [
+        0.004685060539795093,
+        0.0562985725987924,
+        0.1833311291694414
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.33765749259605987,
+        0.0,
+        -0.06653156927236213,
+        0.9389147820669875
+      ],
+      "translation": [
+        0.01093180792618855,
+        0.09445466939718226,
+        0.15162796806202988
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.37400602824874746,
+        0.0,
+        0.5110257854775501,
+        0.7739329023957117
+      ],
+      "translation": [
+        -0.33790997520152666,
+        0.015772910305798762,
+        -0.3322806678217034
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.37400602824874746,
+        0.0,
+        0.5110257854775501,
+        0.7739329023957117
+      ],
+      "translation": [
+        -0.37745994213689554,
+        0.025670124046863783,
+        -0.361226224917308
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3036831344828123,
+        -0.0,
+        0.006448971836318852,
+        0.9527512606094775
+      ],
+      "translation": [
+        -0.06248681995350158,
+        0.14145662234447115,
+        0.14621658669032528
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3036831344828123,
+        -0.0,
+        0.006448971836318852,
+        0.9527512606094775
+      ],
+      "translation": [
+        -0.06310124655817036,
+        0.182230118803766,
+        0.17515003561075895
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.6565723147653031,
+        0.0,
+        0.003029061945872749,
+        0.7542569988190099
+      ],
+      "translation": [
+        -0.00017135183793981373,
+        -0.0705127284799405,
+        -0.3643728197731896
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.6565723147653031,
+        0.0,
+        0.003029061945872749,
+        0.7542569988190099
+      ],
+      "translation": [
+        -0.00039982095519289874,
+        -0.06362236645319451,
+        -0.41389524613744233
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.7132590553258348,
+        0.0,
+        -0.08998501185371278,
+        0.6951001493579071
+      ],
+      "translation": [
+        0.0046911446384616615,
+        0.08696281632280385,
+        0.12069848569159006
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.7132590553258348,
+        0.0,
+        -0.08998501185371278,
+        0.6951001493579071
+      ],
+      "translation": [
+        0.010946004156410543,
+        0.08527923808654234,
+        0.1702771332803768
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.43962956894693356,
+        0.0,
+        0.002959348444023952,
+        0.8981743062258685
+      ],
+      "translation": [
+        -0.00019935080516938626,
+        0.17369828132732404,
+        -0.27930079873139674
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.43962956894693356,
+        0.0,
+        0.002959348444023952,
+        0.8981743062258685
+      ],
+      "translation": [
+        -0.00046515187872856796,
+        0.20436998976375606,
+        -0.3187871970399257
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.31880348344102605,
+        0.0,
+        -0.375794036752361,
+        0.8701397479067559
+      ],
+      "translation": [
+        0.2163674996303421,
+        0.11569573856654244,
+        0.16173426870348775
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.31880348344102605,
+        0.0,
+        -0.375794036752361,
+        0.8701397479067559
+      ],
+      "translation": [
+        0.24906683247079828,
+        0.14141005665526568,
+        0.18947462697480477
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.23064353632507226,
+        0.0,
+        -0.8946347585814901,
+        0.3826646154131631
+      ],
+      "translation": [
+        0.24856487993708756,
+        -0.1384215844083022,
+        0.027134934009402447
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.23064353632507226,
+        0.0,
+        -0.8946347585814901,
+        0.3826646154131631
+      ],
+      "translation": [
+        0.28279938651987097,
+        -0.17377836361937182,
+        0.03596084602193902
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.3804124987319278,
+        0.0,
+        -0.0009876484039732377,
+        0.9248163900792207
+      ],
+      "translation": [
+        6.850450737225252e-05,
+        -0.04190959834806291,
+        0.3559118785363708
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.3804124987319278,
+        0.0,
+        -0.0009876484039732377,
+        0.9248163900792207
+      ],
+      "translation": [
+        0.0001598438505352559,
+        -0.006381062812146787,
+        0.39109304991819854
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.5081068442888008,
+        0.0,
+        0.0031706066509581414,
+        0.8612882107868081
+      ],
+      "translation": [
+        -0.00020481045971343687,
+        0.1357228036530256,
+        -0.3039674826104524
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.5081068442888008,
+        0.0,
+        0.0031706066509581414,
+        0.8612882107868081
+      ],
+      "translation": [
+        -0.00047789107266468605,
+        0.1599045418570597,
+        -0.3477301260910557
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        -0.3467256084207409,
+        0.0,
+        0.49249920912321626,
+        0.7982642929996766
+      ],
+      "translation": [
+        -0.3336233399730233,
+        0.0720114411108705,
+        -0.31539690045031493
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        -0.3467256084207409,
+        0.0,
+        0.49249920912321626,
+        0.7982642929996766
+      ],
+      "translation": [
+        -0.37293779327038773,
+        0.08573402925869786,
+        -0.3430747677174015
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.31808469513897186,
+        -0.0,
+        0.010074686848328395,
+        0.9480087696868924
+      ],
+      "translation": [
+        -0.07463031686130485,
+        0.12363454705524415,
+        0.1701900310371195
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.31808469513897186,
+        -0.0,
+        0.010074686848328395,
+        0.9480087696868924
+      ],
+      "translation": [
+        -0.0755854060097113,
+        0.16350660979556972,
+        0.2003447390866122
+      ],
+      "scale": [
+        0.004,
+        0.025000000000000005,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.23064231404745297,
+        -0.0,
+        0.8946300175336365,
+        0.3826764360378116
+      ],
+      "translation": [
+        -0.24856553700116626,
+        -0.13842090589760492,
+        0.027135103405439495
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.23064231404745297,
+        -0.0,
+        0.8946300175336365,
+        0.3826764360378116
+      ],
+      "translation": [
+        -0.282800919669388,
+        -0.17377678042774478,
+        0.0359612412793588
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 2,
+      "rotation": [
+        0.8307962617070346,
+        0.0,
+        -0.11472665316656071,
+        0.544624059867737
+      ],
+      "translation": [
+        0.004686217171695754,
+        0.10161365249401123,
+        0.12410187247303682
+      ],
+      "scale": [
+        0.002,
+        0.07500000000000001,
+        0.002
+      ]
+    },
+    {
+      "mesh": 3,
+      "rotation": [
+        0.8307962617070346,
+        0.0,
+        -0.11472665316656071,
+        0.544624059867737
+      ],
+      "translation": [
+        0.010934506733956758,
+        0.08127518915269286,
+        0.1693490357704192
+      ],
+      "scale": [
+        0.004,
+        0.025,
+        0.004
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.9052818290244283,
+        0.0,
+        0.0,
+        0.42481149941849
+      ],
+      "translation": [
+        0.0,
+        0.027681499999999998,
+        0.2071085
+      ],
+      "scale": [
+        0.002,
+        0.027475847029709576,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.8162523861877737,
+        0.0,
+        -0.0,
+        0.5776954578692527
+      ],
+      "translation": [
+        0.0,
+        0.014464499999999998,
+        0.18395699999999998
+      ],
+      "scale": [
+        0.002,
+        0.02668884645315342,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.6878434932296084,
+        0.0,
+        0.0,
+        0.7258590282015439
+      ],
+      "translation": [
+        0.0,
+        0.0109205,
+        0.15477049999999998
+      ],
+      "scale": [
+        0.002,
+        0.03325105378781251,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.5331575821142375,
+        0.0,
+        0.0,
+        0.8460159529430282
+      ],
+      "translation": [
+        0.0,
+        0.017573,
+        0.12612849999999998
+      ],
+      "scale": [
+        0.002,
+        0.02669379862439963,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.378063472581161,
+        0.0,
+        0.0,
+        0.9257796771910008
+      ],
+      "translation": [
+        0.0,
+        0.0328595,
+        0.104749
+      ],
+      "scale": [
+        0.002,
+        0.02668259187185533,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        -0.18990781054492425,
+        0.0,
+        0.0,
+        0.9818019268131598
+      ],
+      "translation": [
+        0.0,
+        0.057818999999999995,
+        0.089208
+      ],
+      "scale": [
+        0.002,
+        0.033263278731959056,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "translation": [
+        0.0,
+        0.0882255,
+        0.08351449999999999
+      ],
+      "scale": [
+        0.002,
+        0.029966262529718322,
+        0.002
+      ]
+    },
+    {
+      "mesh": 4,
+      "rotation": [
+        0.20965076028275126,
+        0.0,
+        0.0,
+        0.9777763336841736
+      ],
+      "translation": [
+        0.0,
+        0.11686750000000001,
+        0.09016650000000001
+      ],
+      "scale": [
+        0.002,
+        0.029969527757373837,
+        0.002
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        0.0,
+        0.036461,
+        0.217675
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.018902,
+        0.196542
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.010027,
+        0.171372
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.011814,
+        0.138169
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.023332,
+        0.114088
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.042387,
+        0.09541
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.073251,
+        0.083006
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.1032,
+        0.084023
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 6,
+      "translation": [
+        -0.0,
+        0.130535,
+        0.09631
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.07681244125860477,
+        0.0,
+        -0.019791173419197693,
+        0.99684911512354
+      ],
+      "translation": [
+        -0.31206049999999996,
+        -0.0673725,
+        -0.3253645
+      ],
+      "scale": [
+        0.002,
+        0.09019802336526006,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.12332571659117558,
+        0.0,
+        -0.031799003954625524,
+        0.9918566383176385
+      ],
+      "translation": [
+        -0.3082475,
+        0.00835,
+        -0.3105715
+      ],
+      "scale": [
+        0.002,
+        0.06447357553292668,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.17263629263081723,
+        0.0,
+        -0.0445509552784303,
+        0.9839776028195287
+      ],
+      "translation": [
+        -0.3041375,
+        0.0617195,
+        -0.2946385
+      ],
+      "scale": [
+        0.002,
+        0.04736850754457014,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.2369928942837344,
+        0.0,
+        -0.061004921696066375,
+        0.9695941251822205
+      ],
+      "translation": [
+        -0.2987055,
+        0.108865,
+        -0.2735565
+      ],
+      "scale": [
+        0.002,
+        0.05672864283587262,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.32852204898069337,
+        0.0,
+        -0.08479957394022256,
+        0.9406818248446621
+      ],
+      "translation": [
+        -0.2916685,
+        0.151595,
+        -0.2462585
+      ],
+      "scale": [
+        0.002,
+        0.04615177212198899,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.44231788792128846,
+        0.0,
+        -0.11397888169758588,
+        0.8895862524521263
+      ],
+      "translation": [
+        -0.28293250000000003,
+        0.1838825,
+        -0.212381
+      ],
+      "scale": [
+        0.002,
+        0.049850067021018137,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.5527806911409032,
+        0.0,
+        -0.14249234035408642,
+        0.8210538596475876
+      ],
+      "translation": [
+        -0.27377450000000003,
+        0.2045145,
+        -0.17684699999999998
+      ],
+      "scale": [
+        0.002,
+        0.03507448243381505,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.64578442843718,
+        0.0,
+        -0.1664640266545837,
+        0.7451524674977644
+      ],
+      "translation": [
+        -0.26394850000000003,
+        0.213171,
+        -0.138728
+      ],
+      "scale": [
+        0.002,
+        0.04613390975193841,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.7218281865242565,
+        0.0,
+        -0.1861892067514024,
+        0.6665565605621078
+      ],
+      "translation": [
+        -0.252627,
+        0.21320699999999998,
+        -0.0948215
+      ],
+      "scale": [
+        0.002,
+        0.04511479190908455,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.7750086667036828,
+        0.0,
+        -0.19987337419947018,
+        0.5995099672401607
+      ],
+      "translation": [
+        -0.2404485,
+        0.2029745,
+        -0.047603
+      ],
+      "scale": [
+        0.002,
+        0.05490874773658565,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.8142050939656561,
+        0.0,
+        -0.209841771163945,
+        0.5413284548544955
+      ],
+      "translation": [
+        -0.2263675,
+        0.1815875,
+        0.007015500000000001
+      ],
+      "scale": [
+        0.002,
+        0.06603821320266016,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.84178632211068,
+        0.0,
+        -0.21694711869315136,
+        0.49429721382799036
+      ],
+      "translation": [
+        -0.2107395,
+        0.148545,
+        0.06765399999999999
+      ],
+      "scale": [
+        0.002,
+        0.07578120218761379,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.8634787838380319,
+        0.0,
+        -0.22267600445892824,
+        0.45257020107360235
+      ],
+      "translation": [
+        -0.19114599999999998,
+        0.0955825,
+        0.143652
+      ],
+      "scale": [
+        0.002,
+        0.11378642100444149,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.8774408338779948,
+        0.0,
+        -0.22619359183279172,
+        0.4230059598365839
+      ],
+      "translation": [
+        -0.1721195,
+        0.0366285,
+        0.21744249999999998
+      ],
+      "scale": [
+        0.002,
+        0.07900713038074474,
+        0.002
+      ]
+    },
+    {
+      "mesh": 7,
+      "rotation": [
+        0.8890515239252575,
+        0.0,
+        -0.22920645523760028,
+        0.3962976011580076
+      ],
+      "translation": [
+        -0.14824900000000002,
+        -0.050321,
+        0.3100345
+      ],
+      "scale": [
+        0.002,
+        0.17956938677012854,
+        0.002
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.310281,
+        -0.022841,
+        -0.318458
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.306214,
+        0.039541,
+        -0.302685
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.302061,
+        0.083898,
+        -0.286592
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.29535,
+        0.133832,
+        -0.260521
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.287987,
+        0.169358,
+        -0.231996
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.277878,
+        0.198407,
+        -0.192766
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.269671,
+        0.210622,
+        -0.160928
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.258226,
+        0.21572,
+        -0.116528
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.247028,
+        0.210694,
+        -0.073115
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.233869,
+        0.195255,
+        -0.022091
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.218866,
+        0.16792,
+        0.036122
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.202613,
+        0.12917,
+        0.099186
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.179679,
+        0.061995,
+        0.188118
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.16456,
+        0.011262,
+        0.246767
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 8,
+      "translation": [
+        -0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.4960990633054722,
+        0.0,
+        0.0,
+        0.8682659266534839
+      ],
+      "translation": [
+        0.0,
+        0.15468900000000002,
+        0.055330000000000004
+      ],
+      "scale": [
+        0.002,
+        0.09513729270901079,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.5490057094242896,
+        0.0,
+        0.0,
+        0.8358185993500817
+      ],
+      "translation": [
+        0.0,
+        0.1886175,
+        -0.008235000000000001
+      ],
+      "scale": [
+        0.002,
+        0.049218820597409695,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.5958958500201527,
+        0.0,
+        0.0,
+        0.8030617261012752
+      ],
+      "translation": [
+        0.0,
+        0.204158,
+        -0.0498615
+      ],
+      "scale": [
+        0.002,
+        0.039790726469869836,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.6460387030127676,
+        0.0,
+        0.0,
+        0.7633046536014182
+      ],
+      "translation": [
+        0.0,
+        0.21268399999999998,
+        -0.0853735
+      ],
+      "scale": [
+        0.002,
+        0.03340029761843447,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.7031454388558102,
+        0.0,
+        0.0,
+        0.7110460546380032
+      ],
+      "translation": [
+        0.0,
+        0.2156325,
+        -0.11871400000000001
+      ],
+      "scale": [
+        0.002,
+        0.03374210617314812,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.771430764678045,
+        0.0,
+        0.0,
+        0.6363132682164083
+      ],
+      "translation": [
+        0.0,
+        0.2123935,
+        -0.1532745
+      ],
+      "scale": [
+        0.002,
+        0.03603895373065095,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.8342065150513023,
+        0.0,
+        -0.0,
+        0.5514521649662475
+      ],
+      "translation": [
+        0.0,
+        0.20348300000000002,
+        -0.18384050000000002
+      ],
+      "scale": [
+        0.002,
+        0.02798869695073352,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.8801340002197321,
+        0.0,
+        -0.0,
+        0.4747253328580776
+      ],
+      "translation": [
+        0.0,
+        0.19105,
+        -0.20728950000000002
+      ],
+      "scale": [
+        0.002,
+        0.025306236563345404,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9162293229401871,
+        0.0,
+        0.0,
+        0.4006542496774075
+      ],
+      "translation": [
+        0.0,
+        0.174456,
+        -0.22829149999999998
+      ],
+      "scale": [
+        0.002,
+        0.028408473964646543,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9459754556267674,
+        0.0,
+        -0.0,
+        0.32423824165531395
+      ],
+      "translation": [
+        0.0,
+        0.1506945,
+        -0.249686
+      ],
+      "scale": [
+        0.002,
+        0.03575231249863425,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9683144953872866,
+        0.0,
+        -0.0,
+        0.24973393446398975
+      ],
+      "translation": [
+        0.0,
+        0.11758650000000001,
+        -0.2711455
+      ],
+      "scale": [
+        0.002,
+        0.04339366923872651,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9863143061790959,
+        0.0,
+        -0.0,
+        0.16487598195749634
+      ],
+      "translation": [
+        0.0,
+        0.0558805,
+        -0.2963305
+      ],
+      "scale": [
+        0.002,
+        0.09034277198536696,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9945372337476722,
+        0.0,
+        0.0,
+        0.10438242519470413
+      ],
+      "translation": [
+        0.0,
+        -0.013146000000000001,
+        -0.3166065
+      ],
+      "scale": [
+        0.002,
+        0.05379425104042253,
+        0.002
+      ]
+    },
+    {
+      "mesh": 9,
+      "rotation": [
+        -0.9976118652463657,
+        0.0,
+        -0.0,
+        0.06906928637004325
+      ],
+      "translation": [
+        0.0,
+        -0.07568050000000001,
+        -0.327231
+      ],
+      "scale": [
+        0.002,
+        0.07314488505015236,
+        0.002
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.130535,
+        0.09631
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.178843,
+        0.01435
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.198392,
+        -0.03082
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.209924,
+        -0.068903
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        0.0,
+        0.215444,
+        -0.101844
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        0.0,
+        0.215821,
+        -0.135584
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.208966,
+        -0.170965
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        0.0,
+        0.198,
+        -0.196716
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        0.0,
+        0.1841,
+        -0.217863
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.164812,
+        -0.23872
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.136577,
+        -0.260652
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        0.098596,
+        -0.281639
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        0.0,
+        0.013165,
+        -0.311022
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        -0.039457,
+        -0.322191
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 10,
+      "translation": [
+        -0.0,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 11,
+      "rotation": [
+        0.6847180238510253,
+        0.0,
+        -0.17652543106744334,
+        0.7071067811865476
+      ],
+      "translation": [
+        -0.222889,
+        -0.111904,
+        0.02051550000000002
+      ],
+      "scale": [
+        0.002,
+        0.7286436686975328,
+        0.002
+      ]
+    },
+    {
+      "mesh": 12,
+      "translation": [
+        -0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 12,
+      "translation": [
+        -0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 13,
+      "rotation": [
+        -0.3849515542973947,
+        0.0,
+        0.0,
+        0.9229367805240075
+      ],
+      "translation": [
+        0.0,
+        -0.068556,
+        0.329526
+      ],
+      "scale": [
+        0.002,
+        0.12321342913822342,
+        0.002
+      ]
+    },
+    {
+      "mesh": 13,
+      "rotation": [
+        -0.40535408052243904,
+        0.0,
+        0.0,
+        0.914159761422372
+      ],
+      "translation": [
+        0.0,
+        0.0056264999999999996,
+        0.2517125
+      ],
+      "scale": [
+        0.002,
+        0.09185461984026715,
+        0.002
+      ]
+    },
+    {
+      "mesh": 14,
+      "translation": [
+        0.0,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 14,
+      "translation": [
+        0.0,
+        -0.025208,
+        0.28575
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 14,
+      "translation": [
+        0.0,
+        0.036461,
+        0.217675
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 15,
+      "rotation": [
+        -0.7071067811865475,
+        0.0,
+        0.0,
+        0.7071067811865476
+      ],
+      "translation": [
+        0.0,
+        -0.111904,
+        0.02051550000000002
+      ],
+      "scale": [
+        0.002,
+        0.705573,
+        0.002
+      ]
+    },
+    {
+      "mesh": 16,
+      "translation": [
+        0.0,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 16,
+      "translation": [
+        -0.0,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.38569398549517553,
+        0.0,
+        -0.099452085204625,
+        0.9172510192424423
+      ],
+      "translation": [
+        0.1484595,
+        -0.0500815,
+        0.3092285
+      ],
+      "scale": [
+        0.002,
+        0.18111206332820573,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.41114250251704954,
+        0.0,
+        -0.10590296704078096,
+        0.9053984781277121
+      ],
+      "translation": [
+        0.1726205,
+        0.0372165,
+        0.2154965
+      ],
+      "scale": [
+        0.002,
+        0.07967407816222288,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.4394706114947917,
+        0.0,
+        -0.11334895216870049,
+        0.8910766502802391
+      ],
+      "translation": [
+        0.19184299999999999,
+        0.09641,
+        0.140929
+      ],
+      "scale": [
+        0.002,
+        0.11468021091714124,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.4793756925912677,
+        0.0,
+        -0.12354445043360131,
+        0.8688703666944234
+      ],
+      "translation": [
+        0.211618,
+        0.14958349999999998,
+        0.0642335
+      ],
+      "scale": [
+        0.002,
+        0.0763153176367628,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.524573483334476,
+        0.0,
+        -0.13527182576084512,
+        0.8405499353028717
+      ],
+      "translation": [
+        0.22736250000000002,
+        0.182757,
+        0.0031589999999999986
+      ],
+      "scale": [
+        0.002,
+        0.06642321052915164,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.580557117839756,
+        0.0,
+        -0.1496299925203173,
+        0.8003526087069158
+      ],
+      "translation": [
+        0.24151650000000002,
+        0.2042235,
+        -0.0517425
+      ],
+      "scale": [
+        0.002,
+        0.055124239196563965,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.6453762532322137,
+        0.0,
+        -0.16645484463756477,
+        0.7455080659930071
+      ],
+      "translation": [
+        0.253724,
+        0.21449200000000002,
+        -0.0990915
+      ],
+      "scale": [
+        0.002,
+        0.045175639287120234,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.7217018640831669,
+        0.0,
+        -0.18610751688176008,
+        0.6667161401518544
+      ],
+      "translation": [
+        0.2650455,
+        0.214456,
+        -0.142991
+      ],
+      "scale": [
+        0.002,
+        0.04606269519904365,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.795957713127892,
+        0.0,
+        -0.20499201232329473,
+        0.5695872135115592
+      ],
+      "translation": [
+        0.274842,
+        0.2057635,
+        -0.181001
+      ],
+      "scale": [
+        0.002,
+        0.03495179018305071,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.8628284343590489,
+        0.0,
+        -0.2226496361590816,
+        0.4538218068578688
+      ],
+      "translation": [
+        0.283934,
+        0.1850445,
+        -0.216266
+      ],
+      "scale": [
+        0.002,
+        0.049592619944907136,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.9125217137747592,
+        0.0,
+        -0.2352114876780168,
+        0.3346336473725712
+      ],
+      "translation": [
+        0.29256150000000003,
+        0.1526335,
+        -0.24971549999999998
+      ],
+      "scale": [
+        0.002,
+        0.045947335711660126,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.9381919805615496,
+        0.0,
+        -0.2416177042137666,
+        0.24782391454511743
+      ],
+      "translation": [
+        0.2987925,
+        0.11565500000000001,
+        -0.273898
+      ],
+      "scale": [
+        0.002,
+        0.043663312483136256,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.9525969667428369,
+        0.0,
+        -0.24552753819175635,
+        0.17965312950750986
+      ],
+      "translation": [
+        0.30406500000000003,
+        0.06832049999999999,
+        -0.29436249999999997
+      ],
+      "scale": [
+        0.002,
+        0.06025873083628627,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.9611207478787033,
+        0.0,
+        -0.24843154560424036,
+        0.1205349540414333
+      ],
+      "translation": [
+        0.3086545,
+        0.008821999999999997,
+        -0.3121475
+      ],
+      "scale": [
+        0.002,
+        0.06450226490597055,
+        0.002
+      ]
+    },
+    {
+      "mesh": 17,
+      "rotation": [
+        -0.965929950251614,
+        0.0,
+        -0.2484496133205908,
+        0.0724715174931738
+      ],
+      "translation": [
+        0.31221299999999996,
+        -0.06719800000000001,
+        -0.3259455
+      ],
+      "scale": [
+        0.002,
+        0.09036117562869576,
+        0.002
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.164981,
+        0.011741,
+        0.245155
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.18026,
+        0.062692,
+        0.185838
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.203426,
+        0.130128,
+        0.09602
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.21981,
+        0.169039,
+        0.032447
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.234915,
+        0.196475,
+        -0.026129
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.248118,
+        0.211972,
+        -0.077356
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.25933,
+        0.217012,
+        -0.120827
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.270761,
+        0.2119,
+        -0.165155
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.278923,
+        0.199627,
+        -0.196847
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.288945,
+        0.170462,
+        -0.235685
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.296178,
+        0.134805,
+        -0.263746
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.301407,
+        0.096505,
+        -0.28405
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.306723,
+        0.040136,
+        -0.304675
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.310586,
+        -0.022492,
+        -0.31962
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 18,
+      "translation": [
+        0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 19,
+      "rotation": [
+        -0.6847180238510253,
+        0.0,
+        -0.17652543106744334,
+        0.7071067811865476
+      ],
+      "translation": [
+        0.222889,
+        -0.111904,
+        0.02051550000000002
+      ],
+      "scale": [
+        0.002,
+        0.7286436686975328,
+        0.002
+      ]
+    },
+    {
+      "mesh": 20,
+      "translation": [
+        0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 20,
+      "translation": [
+        0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 21,
+      "rotation": [
+        0.0,
+        -0.0,
+        0.7071067811865475,
+        0.7071067811865476
+      ],
+      "translation": [
+        -0.065969,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.002,
+        0.131938,
+        0.002
+      ]
+    },
+    {
+      "mesh": 22,
+      "translation": [
+        0.0,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 22,
+      "translation": [
+        -0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.10080977988861464,
+        0.0,
+        -0.6529794261151187,
+        0.7506365680868333
+      ],
+      "translation": [
+        0.0148655,
+        0.0383855,
+        0.21538000000000002
+      ],
+      "scale": [
+        0.002,
+        0.030328456307566993,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.25693135907626385,
+        0.0,
+        -0.5055370235518539,
+        0.8236616990861941
+      ],
+      "translation": [
+        0.041662500000000005,
+        0.0454225,
+        0.207021
+      ],
+      "scale": [
+        0.002,
+        0.028654524564194046,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.3657777489276851,
+        0.0,
+        -0.31987836523213925,
+        0.8740048454361162
+      ],
+      "translation": [
+        0.062396,
+        0.058843,
+        0.190892
+      ],
+      "scale": [
+        0.002,
+        0.03148347458588395,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.426590474085391,
+        0.0,
+        -0.11418383296995337,
+        0.8972082365359176
+      ],
+      "translation": [
+        0.074001,
+        0.0754955,
+        0.17035499999999998
+      ],
+      "scale": [
+        0.002,
+        0.027360575523917612,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.43734689447245034,
+        0.0,
+        0.10096411144776653,
+        0.8936072639000124
+      ],
+      "translation": [
+        0.0739355,
+        0.0933315,
+        0.14745750000000002
+      ],
+      "scale": [
+        0.002,
+        0.031793704707064246,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.3874933174190838,
+        0.0,
+        0.3266749146190331,
+        0.8620512914636812
+      ],
+      "translation": [
+        0.0621345,
+        0.110535,
+        0.1244365
+      ],
+      "scale": [
+        0.002,
+        0.031719339242802666,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.2682324038743885,
+        0.0,
+        0.5256964249047122,
+        0.8072760657632375
+      ],
+      "translation": [
+        0.039752499999999996,
+        0.12305450000000001,
+        0.1069785
+      ],
+      "scale": [
+        0.002,
+        0.03169195561968368,
+        0.002
+      ]
+    },
+    {
+      "mesh": 23,
+      "rotation": [
+        -0.09606230582335978,
+        0.0,
+        0.6638798817845084,
+        0.7416438066630682
+      ],
+      "translation": [
+        0.0131515,
+        0.1291985,
+        0.098213
+      ],
+      "scale": [
+        0.002,
+        0.02671101596719975,
+        0.002
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.0,
+        0.036461,
+        0.217675
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.029731,
+        0.04031,
+        0.213085
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.053594,
+        0.050535,
+        0.200957
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.071198,
+        0.067151,
+        0.180827
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.076804,
+        0.08384,
+        0.159883
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.071067,
+        0.102823,
+        0.135032
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.053202,
+        0.118247,
+        0.113841
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        0.026303,
+        0.127862,
+        0.100116
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 24,
+      "translation": [
+        -0.0,
+        0.130535,
+        0.09631
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.12549668528244684,
+        -0.0,
+        0.7346034636364493,
+        0.6667895719013985
+      ],
+      "translation": [
+        -0.0150905,
+        0.1288285,
+        0.098888
+      ],
+      "scale": [
+        0.002,
+        0.030807883179472098,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.38653357668342747,
+        -0.0,
+        0.7119584510227562,
+        0.5862652625847744
+      ],
+      "translation": [
+        -0.0416045,
+        0.12284450000000001,
+        0.107668
+      ],
+      "scale": [
+        0.002,
+        0.027368460862825298,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.6576909142055553,
+        -0.0,
+        0.5558543038577547,
+        0.5083981257383546
+      ],
+      "translation": [
+        -0.062026,
+        0.1108765,
+        0.1245165
+      ],
+      "scale": [
+        0.002,
+        0.031840587714425134,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.8700012438892465,
+        -0.0,
+        0.20258670492626876,
+        0.4495069105345107
+      ],
+      "translation": [
+        -0.07391400000000001,
+        0.0937305,
+        0.14757399999999998
+      ],
+      "scale": [
+        0.002,
+        0.03173587882822845,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.8710853464472297,
+        0.0,
+        -0.2177713366118071,
+        0.4402112721810027
+      ],
+      "translation": [
+        -0.074335,
+        0.0763885,
+        0.16986099999999998
+      ],
+      "scale": [
+        0.002,
+        0.025754861230455135,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.6744348695884806,
+        0.0,
+        -0.5604199768427797,
+        0.4806943480411511
+      ],
+      "translation": [
+        -0.063333,
+        0.059983499999999995,
+        0.190006
+      ],
+      "scale": [
+        0.002,
+        0.0316751822252059,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.3713200355766929,
+        0.0,
+        -0.736199544931865,
+        0.5658017861596394
+      ],
+      "translation": [
+        -0.0415975,
+        0.045764,
+        0.206934
+      ],
+      "scale": [
+        0.002,
+        0.03169540586583487,
+        0.002
+      ]
+    },
+    {
+      "mesh": 25,
+      "rotation": [
+        0.10670143108017871,
+        0.0,
+        -0.7422310474085432,
+        0.6615949492463338
+      ],
+      "translation": [
+        -0.0141975,
+        0.038262000000000004,
+        0.215634
+      ],
+      "scale": [
+        0.002,
+        0.028912162717444713,
+        0.002
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.0,
+        0.130535,
+        0.09631
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.030181,
+        0.127122,
+        0.101466
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.053028,
+        0.118567,
+        0.11387
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.071024,
+        0.103186,
+        0.135163
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.076804,
+        0.084275,
+        0.159985
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.071866,
+        0.068502,
+        0.179737
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.0548,
+        0.051465,
+        0.200275
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        -0.028395,
+        0.040063,
+        0.213593
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 26,
+      "translation": [
+        0.0,
+        0.036461,
+        0.217675
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 27,
+      "rotation": [
+        0.0,
+        -0.0,
+        0.7071067811865475,
+        0.7071067811865476
+      ],
+      "translation": [
+        0.15692,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.002,
+        0.31384,
+        0.002
+      ]
+    },
+    {
+      "mesh": 28,
+      "translation": [
+        0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 28,
+      "translation": [
+        -0.0,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 29,
+      "rotation": [
+        0.0,
+        -0.0,
+        0.7071067811865475,
+        0.7071067811865476
+      ],
+      "translation": [
+        0.065969,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.002,
+        0.131938,
+        0.002
+      ]
+    },
+    {
+      "mesh": 30,
+      "translation": [
+        0.131938,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 30,
+      "translation": [
+        0.0,
+        -0.111904,
+        0.373302
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 31,
+      "rotation": [
+        0.0,
+        -0.0,
+        0.7071067811865475,
+        0.7071067811865476
+      ],
+      "translation": [
+        -0.15692,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.002,
+        0.31384,
+        0.002
+      ]
+    },
+    {
+      "mesh": 32,
+      "translation": [
+        -0.0,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    },
+    {
+      "mesh": 32,
+      "translation": [
+        -0.31384,
+        -0.111904,
+        -0.332271
+      ],
+      "scale": [
+        0.01,
+        0.01,
+        0.01
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+        194,
+        195,
+        196,
+        197,
+        198,
+        199,
+        200,
+        201,
+        202,
+        203,
+        204,
+        205,
+        206,
+        207,
+        208,
+        209,
+        210,
+        211,
+        212,
+        213,
+        214,
+        215,
+        216,
+        217,
+        218,
+        219,
+        220,
+        221,
+        222,
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233,
+        234,
+        235,
+        236,
+        237,
+        238,
+        239,
+        240,
+        241,
+        242,
+        243,
+        244,
+        245,
+        246,
+        247,
+        248,
+        249,
+        250,
+        251,
+        252,
+        253,
+        254,
+        255,
+        256,
+        257,
+        258,
+        259,
+        260,
+        261,
+        262,
+        263,
+        264,
+        265,
+        266,
+        267,
+        268,
+        269,
+        270,
+        271,
+        272,
+        273,
+        274,
+        275,
+        276,
+        277,
+        278,
+        279,
+        280,
+        281,
+        282,
+        283,
+        284,
+        285,
+        286,
+        287,
+        288,
+        289,
+        290,
+        291,
+        292,
+        293,
+        294,
+        295,
+        296,
+        297,
+        298,
+        299,
+        300,
+        301,
+        302,
+        303,
+        304,
+        305,
+        306,
+        307,
+        308,
+        309,
+        310,
+        311,
+        312,
+        313,
+        314,
+        315,
+        316,
+        317,
+        318,
+        319,
+        320,
+        321
+      ]
+    }
+  ]
+}

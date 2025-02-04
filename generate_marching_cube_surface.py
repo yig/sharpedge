@@ -303,56 +303,32 @@ normal_file = args.normal_file
 surface_file = args.surface_file
 
 
-
-if args.normal_file is None:
-    normal_file = 'mt_tests/single_tetrahedron.obj'
-    normal_file = 'mt_tests/onshape_simple_shape.obj'
-
-
 V, E, N = load_normal_data(normal_file)
-
-print('np.mean(V)', np.mean(V))
 
 plot_normal_data(V, E, N)
 
 points, normals = resample_for_points_normal(V, E, N, 0.01)
 
-print(len(points))
-print(len(normals))
+print('len(points)',len(points))
+print('len(normals)', len(normals))
 
 
 plot_points_normal(points, normals)
 
 
-
-# Create point areas 'a' as a P by 1 array
 P = len(points)  # Number of points
-a = np.ones((P, 1)) * 0.01  # Creates a P by 1 array of 0.01s
+a = np.ones((points.shape[0], )) / points.shape[0]
+
+# print(points.shape)
+# print(normals.shape)
+# print( a.shape )
 
 
-print(points.shape)
-print(normals.shape)
-print(a.shape )
-
-
-# wns = u_vectorized_half(points, normals, points)
-# print('wns', wns)
-
-wns = igl.fast_winding_number_for_points(points, normals, a, points)
-sorted_wns = np.sort(wns)[::-1]
-mean_wns = np.mean(wns)
-# print('wns on original points', wns )
-print('sorted_wns on original points', sorted_wns)
-print('max wn on original points', np.max(wns))
-print('mean_wns on original points', mean_wns)
-
-# plot_points_wns(points, wns)
 
 bbox_vertices = generate_bounding_box_points(V, scale_factor=1.5)
-
-
 box_division = 30
-# Then create a matching cube mesh
+
+# Create a matching cube mesh
 matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
                                                      
 
@@ -365,105 +341,22 @@ print('max wn', np.max(wns))
 print('mean_wns', mean_wns)
 
 
-distances = pdist(matched_vertices)
-min_dist = np.min(distances)
-print(f"Minimum distance between vertices: {min_dist}")
+
+SV,SF = gpytoolbox.marching_cubes(wns,matched_vertices,box_division,box_division,box_division,0.5)
+
+print('len(sv)', len(SV))
+print('len(sf)', len(SF))
+ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
 
 
-# plot_points_wns(matched_vertices, wns)
-slider_value = 0.5
-last_value = 0.5
+if surface_file:
+    export_obj(SV, SF, surface_file)
 
-area_slider = 0.01  # default value for 'a'
-last_area = 0.01
-
-a = np.ones((points.shape[0], )) / points.shape[0]
-SV, SF = None, None
-
-
-def callback():
-    global slider_value, last_value, area_slider, last_area, SV, SF
-    
-    # Add slider for 'a' (point areas)
-    changed_area_slider, area_slider = psim.SliderFloat("Point area (a)", area_slider, v_min=0.0001, v_max=1.0)
-    changed_area_input, area_input = psim.InputFloat("Area input", area_slider, step=0.001)
-    
-    # Synchronize area slider and input value
-    if changed_area_input and area_input != area_slider:
-        area_slider = area_input
-    elif changed_area_slider and area_slider != area_input:
-        area_input = area_slider
-
-    # Create point areas 'a' as a P by 1 array
-    P = len(points)  # Number of points
-    # a = np.ones((P, 1)) * area_slider  # Now using the slider value
-    # print('a',a)
-
-    # print(points.shape)
-    # print(normals.shape)
-    # print(a.shape)
-
-    # Recalculate winding numbers if area changed
-    if last_area != area_slider:
-        # a = a * slider_value
-        wns = igl.fast_winding_number_for_points(points, normals, a, matched_vertices)
-        sorted_wns = np.sort(wns)[::-1]
-        mean_wns = np.mean(wns)
-        print('sorted_wns on original points', sorted_wns)
-        print('new mean_wns on original points:', mean_wns)
-
-        wns = igl.fast_winding_number_for_points(points, normals, a, matched_vertices)
-        # sorted_wns = np.sort(wns)[::-1]
-        # mean_wns = np.mean(wns)
-        # print('sorted_wns', sorted_wns)
-        # print('new mean_wns:', mean_wns)
-        last_area = area_slider
-
-        SV,SF = gpytoolbox.marching_cubes(wns,matched_vertices,box_division,box_division,box_division,slider_value)
-
-        print('len(sv)', len(SV))
-        print('len(sf)', len(SF))
-        ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-
-
-    # Original iso-value slider
-    changed_slider, slider_value = psim.SliderFloat("Iso value", slider_value, v_min=-10.0, v_max=10.0)
-    changed_input, input_value = psim.InputFloat("Input", slider_value, step=0.1)
-
-    # Synchronize slider and input value
-    if changed_input and input_value != slider_value:
-        slider_value = input_value
-    elif changed_slider and slider_value != input_value:
-        input_value = slider_value
-
-    if not psim.IsAnyItemActive() and (last_value != slider_value or last_area != area_slider):
-        # Recalculate winding numbers with current area value
-        wns = igl.fast_winding_number_for_points(points, normals, a, matched_vertices)
-        SV,SF = gpytoolbox.marching_cubes(wns,matched_vertices,box_division,box_division,box_division,slider_value)
-
-        print('len(sv)', len(SV))
-        print('len(sf)', len(SF))
-        print('slider value', slider_value)
-        print('area value', area_slider)
-    
-        ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-        
-        
-        print()
-        last_value = slider_value
-        
-    if(psim.Button("Export button")):
-        if surface_file:
-            export_obj(SV, SF, surface_file)
-
-
-
-    
-
-
-ps.set_user_callback(callback)
 ps.set_ground_plane_mode("none")
 ps.show()
+
+
+
 
 
 

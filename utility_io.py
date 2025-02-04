@@ -298,4 +298,48 @@ def export_obj(vertices, faces, filename):
     print(f"Wrote to {filename}:")
     print(f"- {len(vertices)} vertices")
     print(f"- {len(faces)} faces")
+
+def load_obj(filename):
+    """
+    Load vertices and faces from an OBJ file.
     
+    Args:
+        filename (str): Path to the OBJ file
+        
+    Returns:
+        tuple: (vertices, faces) where:
+            vertices is a list of [x, y, z] coordinates
+            faces is a list of [v1, v2, v3] vertex indices (0-indexed)
+    """
+    vertices = []
+    faces = []
+    
+    with open(filename, 'r') as f:
+        for line in f:
+            if line.startswith('#'):  # Skip comments
+                continue
+                
+            values = line.split()
+            if not values:  # Skip empty lines
+                continue
+                
+            if values[0] == 'v':  # Vertex
+                v = [float(x) for x in values[1:4]]  # Only take x, y, z coordinates
+                vertices.append(v)
+                
+            elif values[0] == 'f':  # Face
+                # Convert face indices to 0-based indexing
+                # Handle both formats: 'f 1 2 3' and 'f 1/1/1 2/2/2 3/3/3'
+                face = []
+                for v in values[1:4]:  # Only take first three vertices for triangular faces
+                    # Split on '/' and take the first index (vertex index)
+                    vertex_idx = int(v.split('/')[0]) - 1  # Convert to 0-based indexing
+                    face.append(vertex_idx)
+                faces.append(face)
+    
+    # Print summary of read data
+    print(f"Read from {filename}:")
+    print(f"- {len(vertices)} vertices")
+    print(f"- {len(faces)} faces")
+    
+    return vertices, faces
