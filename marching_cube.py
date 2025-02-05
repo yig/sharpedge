@@ -30,47 +30,46 @@ def n_for_segment(segment, target_length):
     n = segment_length / target_length
     return int(np.ceil(n - 0.5))
 
-# def resample_for_points_normal(V, E, N, sample_length=0.01):
-#     '''
-#     Sample the edge normal on the points using the sample length.
-#     Removes duplicate points while maintaining corresponding normals.
-#     Parameters:
-#         V: vertices array
-#         E: edges array (pairs of vertex indices)
-#         N: normals array
-#         sample_length: desired length between samples
-#     Returns:
-#         points: array of unique sampled points
-#         normals: array of corresponding normal vectors
-#     '''
-#     points_dict = {}  # Dictionary to store point-normal pairs
-#     for index, edge in enumerate(E):
-#         e0, e1 = edge
-#         p0 = V[e0]
-#         p1 = V[e1]
-#         n = n_for_segment((p0, p1), sample_length)
-#         normal = N[index]
-#         if n == 1:
-#             point = (p0 + p1) / 2
-#             # Convert point to tuple for dictionary key
-#             point_key = tuple(point)
-#             points_dict[point_key] = normal
-#         else:
-#             # Generate sample points along the edge
-#             t = np.linspace(0, 1, n)[1:-1]
-#             # t = np.linspace(0, 1, n)
-#             for ti in t:
-#                 point = p0 + ti * (p1 - p0)
-#                 point_key = tuple(point)
-#                 points_dict[point_key] = normal
+def resample_for_points_normal_v1(V, E, N, sample_length=0.01):
+    '''
+    Sample the edge normal on the points using the sample length.
+    Removes duplicate points while maintaining corresponding normals.
+    Parameters:
+        V: vertices array
+        E: edges array (pairs of vertex indices)
+        N: normals array
+        sample_length: desired length between samples
+    Returns:
+        points: array of unique sampled points
+        normals: array of corresponding normal vectors
+    '''
+    points = []
+    normals = []
 
-#     # also add the endpoints 
+    for index, edge in enumerate(E):
+        e0, e1 = edge
+        p0 = V[e0]
+        p1 = V[e1]
+        n = n_for_segment((p0, p1), sample_length)
+        normal = N[index]
+        if n == 1:
+            point = (p0 + p1) / 2
+            # Convert point to tuple for dictionary key
+            points.append( point )
+            normals.append( normal )
+        else:
+            # Generate sample points along the edge
+            t = np.linspace(0, 1, n)
+            # t = np.linspace(0, 1, n)
+            for ti in t:
+                point = p0 + ti * (p1 - p0)
+                points.append ( point )
+                normals.append( normal )
+    
+    points = np.asarray( points )
+    normals = np.asarray( normals )
 
-
-#     # Convert dictionary back to separate arrays
-#     points = np.array([list(p) for p in points_dict.keys()])
-#     normals = np.array([n for n in points_dict.values()])
-#     return points, normals
+    return points, normals
 
 def generate_bounding_box_points(V, scale_factor=1.5):
     """Generate axis-aligned bounding box vertices around 3D points.
