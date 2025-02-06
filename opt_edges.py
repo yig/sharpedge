@@ -884,12 +884,12 @@ if __name__ == "__main__":
     # # print(opt_normals)
 
     N = [normal for _,normal in opt_normals]
-
+    N_normalized = N / np.linalg.norm(N, axis=1)[:, np.newaxis]
     # write_normal_data(V, E, N, 'sketch_normal/' + curve_name + '.obj')
-    write_normal_data(V, E, N , normal_file)
+    write_normal_data(V, E, N_normalized , normal_file)
     
     if gltf_file:
-      export_sketch_normal_gltf(V, E, polylines, N, gltf_file)
+      export_sketch_normal_gltf(V, E, polylines, N_normalized, gltf_file)
 
 
 

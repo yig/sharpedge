@@ -256,37 +256,6 @@ def plot_points_wns(tet_vertices, wns, ):
     plt.axis('equal')
     plt.show()
 
-def plot_cdt_sketch(vertices, lines):
-    """
-    Create a 3D visualization of the vertices and lines using Polyscope,
-    without colors.
-    
-    Args:
-        vertices: nx3 array of vertex coordinates
-        lines: mx2 array of line vertex indices
-    """
-    # Initialize polyscope
-    ps.init()
-
-    ps.remove_all_structures()
-    
-    # Register the point cloud
-    points = ps.register_point_cloud("vertices", vertices)
-    points.set_color((0, 0, 0))  # Set points to black
-    points.set_radius(0.0055)    # Adjust point size
-    
-    # Register the curve network for all lines at once
-    network = ps.register_curve_network("lines", vertices, lines)
-    network.set_color((0, 0, 0)) # Set lines to black
-    network.set_radius(0.005)    # Adjust line thickness
-    
-    # Set visualization parameters
-    ps.set_ground_plane_mode("none")
-    ps.set_navigation_style("turntable")
-    
-    # Show the visualization
-    ps.show()
-
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
@@ -326,6 +295,7 @@ print(len(normals))
 
 bbox_vertices = generate_bounding_box_points(V, scale_factor=1.5)
 
+print('scaled bounding box diagnoal', np.linalg.norm(bbox_vertices[0] - bbox_vertices[-1]))
 # box_division = 30
 # box_division = 100
 # Then create a matching cube mesh
@@ -340,15 +310,14 @@ last_value = 0.5
 area_slider = 1.0  # default value for 'a'
 last_area = 1.0
 
-base_points_area = np.ones((points.shape[0], )) / points.shape[0]
-
+base_points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
+print('base_points_area', base_points_area)
 
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
 sorted_wns = np.sort(wns)[::-1]
-mean_wns = np.mean(wns)
 # print('sorted_wns on original points', sorted_wns)
-print('new mean_wns on original points:', mean_wns)  
-print('max wns on original points:', np.max(wns))
+print('mean_wns on original points:', np.mean(wns))  
+print('wns on original points:', np.max(wns))
 
 
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
@@ -357,8 +326,8 @@ SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_divi
 sorted_wns = np.sort(wns)[::-1]
 mean_wns = np.mean(wns)
 # print('sorted_wns on matched_vertices', sorted_wns)
-print('new mean_wns on matched_vertices:', mean_wns)  
-print('max wns on matched_vertices:', np.max(wns))
+print('mean_wns on matched_vertices:', mean_wns)  
+print('wns on matched_vertices:', np.max(wns))
 
 
 if surface_file:
@@ -389,13 +358,23 @@ def callback():
 
     # Recalculate winding numbers if area changed
     if last_area != area_slider:
+
+
         # Scale the base area values by the current area_slider value
         current_points_area = base_points_area * area_slider
+        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, points)
+        # sorted_wns = np.sort(wns)[::-1]
+        # print('sorted_wns on original points', sorted_wns)
+        print('new mean_wns on original points:', np.mean(wns))  
+        print('new wns on original points:', np.max(wns))
+
+
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
-        sorted_wns = np.sort(wns)[::-1]
-        mean_wns = np.mean(wns)
-        print('sorted_wns on original points', sorted_wns)
-        print('new mean_wns on original points:', mean_wns)  
+        # sorted_wns = np.sort(wns)[::-1]
+        # mean_wns = np.mean(wns)
+        print('new mean_wns on matched_vertices:', np.mean(wns))  
+        print('new wns on matched_vertices:', np.max(wns))
+        
 
         SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
 
@@ -419,11 +398,13 @@ def callback():
         current_points_area = base_points_area * area_slider
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
-
+        
+        print('new mean_wns on matched_vertices:', mean_wns)  
+        print('new wns on matched_vertices:', np.max(wns))
+        
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
-        print('slider value', slider_value)
-        print('area value', area_slider)
+
     
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
         last_value = slider_value
