@@ -56,7 +56,7 @@ def group_by_prefix(model_names):
 
 def generate_3d_viewer_html(base_path):
     """Generate HTML with 3D model viewers for each model type"""
-    folders = ['sketches', 'normals', 'surfaces', 'pi_surface_gltf', 'wn_1_surface']
+    folders = ['sketches', 'normals', 'surfaces', 'pi_surface_gltf', 'wn_1ish_surface']
     model_names = get_common_model_names(folders, base_path)
     grouped_models = group_by_prefix(model_names)
     

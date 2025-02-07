@@ -232,7 +232,7 @@ def sphere_equator_poles(equator_samples=100, radius=1.0):
     
     return points, normals
 
-def calculate_sphere_areas_latitude(equator_samples=100, polar_angle=np.pi/6):
+def calculate_sphere_areas_latitude(equator_samples=100, polar_angle=np.pi/3):
     """
     Calculate area weights using latitude bands.
     
@@ -478,7 +478,7 @@ print('base_points_area', base_points_area)
 print('np.sum(base_points_area)', np.sum(base_points_area))
 
 
-# base_points_area = calculate_sphere_areas_latitude()
+base_points_area = calculate_sphere_areas_latitude()
 # print('base_points_area new ', base_points_area)
 # print('np.sum(base_points_area)', np.sum(base_points_area))
 
@@ -508,6 +508,8 @@ area_slider = scale  # default value for 'a'
 last_area = scale
 
 
+# area_slider = 1.0  # default value for 'a'
+# last_area = 1.0
 
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
 SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)

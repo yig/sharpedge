@@ -562,11 +562,13 @@ last_value = 0.5
 
 
 
-scale, mean_wn, _ = find_optimal_scale(points, normals)
+scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
 
 print('scale', scale)
 print('mean_wn after scale', mean_wn)
 
+#
+# scale = 1.0
 area_slider = scale  # default value for 'a'
 last_area = scale
 
