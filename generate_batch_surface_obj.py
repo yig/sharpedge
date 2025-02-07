@@ -32,21 +32,21 @@ def export_sketch_surface_gltf(polylines, SV, SF, filename):
 
 
 
-def generate_all_surface_from_normal_files( normal_files ):
+def generate_all_surface_from_normal_files( normal_files, folder = 'surface' ):
     ## generate all the surface obj 
     # get all the normal files
     for normal_file in normal_files:
         base_name = Path(normal_file).stem 
-        surface_file = 'surface/' + base_name + '.obj'
+        surface_file =  folder + '/' + base_name + '.obj'
         subprocess.run(['python', 'marching_cube.py', str(normal_file), str(surface_file)])
 
-def generate_sketch_and_surface_gltf(normal_files):        
+def generate_sketch_and_surface_gltf(normal_files, surface_folder = 'surface', gltf_folder = 'gltfs/surfaces/'):        
     ## export all the sketch_
     for normal_file in normal_files:
         base_name = Path(normal_file).stem 
-        surface_file = 'surface/' + base_name + '.obj'
+        surface_file = surface_folder + '/' + base_name + '.obj'
         sketch_file_name = base_name + '.obj'
-        gltf_surface_file = 'gltfs/surfaces/' + base_name + '.gltf'
+        gltf_surface_file = gltf_folder + '/' + base_name + '.gltf'
         # find sketch_file_path in folder and subfolder of sketches
         sketch_file_path = next(Path('sketches').rglob(sketch_file_name), None)
         if sketch_file_path is None:
@@ -69,9 +69,9 @@ def copy_all_normal_gltfs(normal_gltf_files):
 
 
 
-# normal_files = glob.glob('normal/*.normal')  
-# generate_all_surface_from_normal_files( normal_files )
-# generate_sketch_and_surface_gltf(normal_files)
+normal_files = glob.glob('normal/*.normal')  
+generate_all_surface_from_normal_files( normal_files , folder= 'wn_1_surface')
+generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1_surface', gltf_folder = 'wn_1_gltf' )
 
-normal_gltf_files = glob.glob('normal/*.gltf')
-copy_all_normal_gltfs(normal_gltf_files)
+# normal_gltf_files = glob.glob('normal/*.gltf')
+# copy_all_normal_gltfs(normal_gltf_files)

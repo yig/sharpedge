@@ -56,7 +56,7 @@ def group_by_prefix(model_names):
 
 def generate_3d_viewer_html(base_path):
     """Generate HTML with 3D model viewers for each model type"""
-    folders = ['sketches', 'normals', 'surfaces']
+    folders = ['sketches', 'normals', 'surfaces', 'pi_surface_gltf', 'wn_1_surface']
     model_names = get_common_model_names(folders, base_path)
     grouped_models = group_by_prefix(model_names)
     
@@ -87,7 +87,7 @@ def generate_3d_viewer_html(base_path):
         }}
         .models-grid {{
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 20px;
             margin-bottom: 40px;
         }}

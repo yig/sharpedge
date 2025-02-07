@@ -11,6 +11,11 @@ from scipy.spatial.distance import pdist
 import gpytoolbox
 import sys 
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import cKDTree
+
+
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
 
@@ -29,6 +34,55 @@ def n_for_segment(segment, target_length):
         
     n = segment_length / target_length
     return int(np.ceil(n - 0.5))
+
+
+def resample_for_points_normal_v2(V, E, N, sample_length=0.01):
+    '''
+    Sample the edge normal on the points using the sample length.
+    Keeps only the first normal encountered for duplicate points.
+    
+    Parameters:
+        V: vertices array
+        E: edges array (pairs of vertex indices)
+        N: normals array
+        sample_length: desired length between samples
+        
+    Returns:
+        points: array of unique sampled points
+        normals: array of corresponding normal vectors
+    '''
+    # Dictionary to store point-normal mappings
+    # Using tuple of coordinates as key for hashability
+    point_normal_dict = {}
+    
+    for index, edge in enumerate(E):
+        e0, e1 = edge
+        p0 = V[e0]
+        p1 = V[e1]
+        n = n_for_segment((p0, p1), sample_length)
+        normal = N[index]
+        
+        if n == 1:
+            point = (p0 + p1) / 2
+            # Convert point to tuple for dictionary key
+            point_tuple = tuple(point)
+            if point_tuple not in point_normal_dict:
+                point_normal_dict[point_tuple] = normal
+        else:
+            # Generate sample points along the edge
+            t = np.linspace(0, 1, n)
+            for ti in t:
+                point = p0 + ti * (p1 - p0)
+                point_tuple = tuple(point)
+                if point_tuple not in point_normal_dict:
+                    point_normal_dict[point_tuple] = normal
+    
+    # Convert dictionary back to arrays
+    points = np.array([np.array(p) for p in point_normal_dict.keys()])
+    normals = np.array(list(point_normal_dict.values()))
+    
+    return points, normals
+
 
 def resample_for_points_normal_v1(V, E, N, sample_length=0.01):
     '''
@@ -70,6 +124,84 @@ def resample_for_points_normal_v1(V, E, N, sample_length=0.01):
     normals = np.asarray( normals )
 
     return points, normals
+
+
+def resample_for_points_normal_v3(V, E, N, sample_length=0.01, proximity_threshold=5e-3):
+    '''
+    Sample the edge normal on the points using the sample length.
+    Filters out points that are too close to existing points while maintaining corresponding normals.
+    
+    Parameters:
+        V: vertices array
+        E: edges array (pairs of vertex indices)
+        N: normals array
+        sample_length: desired length between samples
+        proximity_threshold: minimum allowed distance between points
+    Returns:
+        points: array of filtered sampled points
+        normals: array of corresponding normal vectors
+    '''
+    points_dict = {}  # Dictionary to store point-normal pairs
+    
+    def add_point_with_check(point, normal):
+        """Helper function to add point only if it's not too close to existing points"""
+        if not points_dict:  # First point, add directly
+            points_dict[tuple(point)] = [normal]
+            return True
+            
+        # Create KD-tree from existing points
+        existing_points = np.array(list(points_dict.keys()))
+        tree = cKDTree(existing_points)
+        
+        # Check if point is too close to any existing point
+        distances, indices = tree.query(point, k=1)
+        if distances > proximity_threshold:
+            points_dict[tuple(point)] = [normal]
+            return True
+        else:
+            # If point is close, add its normal to the existing point
+            closest_point = tuple(existing_points[indices])
+            points_dict[closest_point].append(normal)
+            return False
+    
+    for index, edge in enumerate(E):
+        e0, e1 = edge
+        p0 = V[e0]
+        p1 = V[e1]
+        edge_vec = p1 - p0
+        edge_length = np.linalg.norm(edge_vec)
+        n = max(2, int(np.ceil(edge_length / sample_length)))
+        normal = N[index]
+        
+        # Add endpoints if they pass proximity check
+        add_point_with_check(p0, normal)
+        add_point_with_check(p1, normal)
+        
+        if n == 2:
+            # Add midpoint if needed
+            mid_point = (p0 + p1) / 2
+            add_point_with_check(mid_point, normal)
+        else:
+            # Generate sample points along the edge
+            t = np.linspace(0, 1, n)[1:-1]  # Exclude endpoints
+            for ti in t:
+                point = p0 + ti * edge_vec
+                add_point_with_check(point, normal)
+    
+    # Convert dictionary back to separate arrays and average normals
+    points = []
+    normals = []
+    for point_key, normal_list in points_dict.items():
+        points.append(list(point_key))
+        # Average the normals and normalize
+        avg_normal = np.mean(normal_list, axis=0)
+        norm = np.linalg.norm(avg_normal)
+        if norm > 0:
+            avg_normal = avg_normal / norm
+        normals.append(avg_normal)
+    
+    return np.array(points), np.array(normals)
+
 
 def generate_bounding_box_points(V, scale_factor=1.5):
     """Generate axis-aligned bounding box vertices around 3D points.
@@ -183,6 +315,7 @@ def resample_for_points_normal(V, E, N, sample_length=0.01):
     return np.array(points), np.array(normals)
 
 
+
 def plot_points_normal(points, normals):
     """
     Plot points and their normal vectors using Polyscope
@@ -216,10 +349,7 @@ def plot_points_normal(points, normals):
     ps.show()
 
 
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
-def plot_points_wns(tet_vertices, wns, ):
+def plot_points_wns(tet_vertices, wns):
     """
     Plot points with their wn values as text labels using Matplotlib
     
@@ -256,6 +386,106 @@ def plot_points_wns(tet_vertices, wns, ):
     plt.axis('equal')
     plt.show()
 
+def plot_points_large_wns(tet_vertices, wns):
+    """
+    Plot points with different colored text labels for extreme positive and negative winding numbers
+    
+    Args:
+        tet_vertices: (n,3) array of tet_vertices coordinates
+        wns: (n,1) array of wn values
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Create 3D plot
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+    
+    # Plot all vertices in light gray
+    ax.scatter(tet_vertices[:, 0], tet_vertices[:, 1], tet_vertices[:, 2], 
+              c='lightgray', s=5)
+    
+    # Calculate average absolute winding number
+    avg_wn = np.mean(np.abs(wns))
+    threshold = 20 * avg_wn
+    
+    # Add text labels for extreme winding numbers with different colors
+    for i, (point, wn) in enumerate(zip(tet_vertices, wns)):
+        if abs(wn) > threshold:
+            # Offset the text slightly from the point
+            offset = 0.01  # Adjust this value based on your scale
+            
+            # Use red for positive extreme values, blue for negative
+            color = 'red' if wn > 0 else 'blue'
+            
+            # Plot the point in the same color as its label
+            ax.scatter(point[0], point[1], point[2], 
+                      c=color, s=20)
+            
+            # Add the text label
+            ax.text(point[0] + offset, point[1] + offset, point[2] + offset,
+                   f'{wn:.2f}', size=18, color=color)
+     
+    # Set labels and title
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_title('Points with Extreme WN Values\n(Red: Positive, Blue: Negative)')
+    
+    # Show the plot
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+
+def find_optimal_scale(points, normals, target_mean=1.0, tolerance=0.01, max_iterations=50):
+    """
+    Find the optimal scale for base_points_area to achieve a target mean winding number.
+    
+    Args:
+        points (ndarray): Point coordinates
+        normals (ndarray): Normal vectors
+        target_mean (float): Target mean winding number (default: 1.0)
+        tolerance (float): Acceptable difference from target mean (default: 0.01)
+        max_iterations (int): Maximum number of iterations (default: 50)
+        
+    Returns:
+        tuple: (optimal_scale, mean_wn, base_points_area)
+            - optimal_scale: The scale that achieves the target mean
+            - mean_wn: The achieved mean winding number
+            - base_points_area: The scaled base points area
+    """
+    # Binary search parameters
+    scale_min = 0.01
+    scale_max = 10.0
+    
+    for i in range(max_iterations):
+        # Try current scale
+        scale = (scale_min + scale_max) / 2
+        base_points_area = np.ones((points.shape[0],)) / points.shape[0] * np.pi * scale
+        
+        # Calculate winding numbers
+        wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
+        current_mean = np.mean(wns)
+        
+        # Check if we're close enough
+        if abs(current_mean - target_mean) < tolerance:
+            return scale, current_mean, base_points_area
+        
+        # Adjust search range
+        if current_mean < target_mean:
+            scale_min = scale
+        else:
+            scale_max = scale
+            
+        # Debug info
+        print(f"Iteration {i+1}: scale = {scale:.4f}, mean = {current_mean:.4f}")
+    
+    # If we reach max iterations, return best attempt
+    return scale, current_mean, base_points_area
+
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
@@ -281,14 +511,19 @@ print('np.mean(V)', np.mean(V))
 # move it to later so that I can run the script to get all obj
 # plot_normal_data(V, E, N)
 
-points, normals = resample_for_points_normal(V, E, N, 0.01)
+points, normals = resample_for_points_normal_v3(V, E, N, 0.01)
 
 print(len(points))
 print(len(normals))
 
+# print(points)
+# print(normals)
+
+sorted_distances = np.sort(pdist(points))
+print('min distance weithin points',sorted_distances )
 
 
-
+print('np.linalg.norm(normals, axis =1)', np.linalg.norm(normals, axis = 1))
 
 
 # plot_points_wns(points, wns)
@@ -303,31 +538,53 @@ matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices
                                                      
 
 
-# plot_points_wns(matched_vertices, wns)
-slider_value = 0.5
-last_value = 0.5
-
-area_slider = 1.0  # default value for 'a'
-last_area = 1.0
-
 base_points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
-print('base_points_area', base_points_area)
-
+# print('base_points_area', base_points_area)
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
 sorted_wns = np.sort(wns)[::-1]
-# print('sorted_wns on original points', sorted_wns)
+print('sorted_wns on original points', sorted_wns)
 print('mean_wns on original points:', np.mean(wns))  
 print('wns on original points:', np.max(wns))
 
+# # # print('base_points_area', base_points_area)
+# # print('np.sum(base_points_area)', np.sum(base_points_area) )
+# print('current np.sum(base_points_area)/np.pi', np.sum(base_points_area) / np.pi)
 
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
+# base_points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
+
+
+
+# plot_points_wns(points, wns)
+# plot_points_large_wns(points,wns)
+slider_value = 0.5
+last_value = 0.5
+
+
+
+
+scale, mean_wn, _ = find_optimal_scale(points, normals)
+
+print('scale', scale)
+print('mean_wn after scale', mean_wn)
+
+area_slider = scale  # default value for 'a'
+last_area = scale
+
+
+wns = igl.fast_winding_number_for_points(points, normals, base_points_area * scale, points)
+sorted_wns = np.sort(wns)[::-1]
+print('sorted_wns on original points after scale', sorted_wns)
+print('mean_wns on original points afer scale:', np.mean(wns))  
+print('wns on original points after scale:', np.max(wns))
+
+wns = igl.fast_winding_number_for_points(points, normals, base_points_area * scale, matched_vertices)
 SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
 
 sorted_wns = np.sort(wns)[::-1]
 mean_wns = np.mean(wns)
 # print('sorted_wns on matched_vertices', sorted_wns)
-print('mean_wns on matched_vertices:', mean_wns)  
-print('wns on matched_vertices:', np.max(wns))
+# print('mean_wns on matched_vertices:', mean_wns)  
+# print('wns on matched_vertices:', np.max(wns))
 
 
 if surface_file:
@@ -338,6 +595,9 @@ if surface_file:
 
 plot_normal_data(V, E, N)
 plot_points_normal(points, normals)
+
+
+
 # Display initial mesh
 ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
 
@@ -363,8 +623,8 @@ def callback():
         # Scale the base area values by the current area_slider value
         current_points_area = base_points_area * area_slider
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, points)
-        # sorted_wns = np.sort(wns)[::-1]
-        # print('sorted_wns on original points', sorted_wns)
+        sorted_wns = np.sort(wns)[::-1]
+        print('sorted_wns on original points', sorted_wns)
         print('new mean_wns on original points:', np.mean(wns))  
         print('new wns on original points:', np.max(wns))
 
