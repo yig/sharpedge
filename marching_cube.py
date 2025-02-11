@@ -14,6 +14,7 @@ import sys
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import cKDTree
+import scipy
 
 
 def n_for_segment(segment, target_length):
@@ -487,6 +488,13 @@ def find_optimal_scale(points, normals, target_mean=1.0, tolerance=0.01, max_ite
     return scale, current_mean, base_points_area
 
 
+def area_for_isovalue( points, normals, points_area, matched_vertices, box_division, isovalue ):
+    wns = igl.fast_winding_number_for_points(points, normals, points_area, matched_vertices)
+    SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, isovalue)
+    area = igl.doublearea( SV, SF ) / 2.0 
+    return sum( area )
+
+
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
 # Add arguments
@@ -573,17 +581,33 @@ area_slider = scale  # default value for 'a'
 last_area = scale
 
 
+
+# area_term = scipy.optimize.minimize_scalar(
+#     lambda x: area_for_isovalue(points, normals, base_points_area, matched_vertices, box_division, x),
+#     bounds=[0, 3]
+# )
+
+# print('area_term', area_term )
+
+
+# print( 'area_term.isovalue', area_term.x)
+
+
+# slider_value = area_term.x
+# last_area = area_term.x
+
+
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area * scale, points)
 sorted_wns = np.sort(wns)[::-1]
 print('sorted_wns on original points after scale', sorted_wns)
 print('mean_wns on original points afer scale:', np.mean(wns))  
-print('wns on original points after scale:', np.max(wns))
+# print('wns on original points after scale:', np.max(wns))
 
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area * scale, matched_vertices)
+wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
 SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
 
-sorted_wns = np.sort(wns)[::-1]
-mean_wns = np.mean(wns)
+# sorted_wns = np.sort(wns)[::-1]
+# mean_wns = np.mean(wns)
 # print('sorted_wns on matched_vertices', sorted_wns)
 # print('mean_wns on matched_vertices:', mean_wns)  
 # print('wns on matched_vertices:', np.max(wns))
@@ -661,11 +685,15 @@ def callback():
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
         
-        print('new mean_wns on matched_vertices:', mean_wns)  
-        print('new wns on matched_vertices:', np.max(wns))
+        area = igl.doublearea( SV, SF ) / 2.0
+        area_sum = sum( area )
+        # print('new mean_wns on matched_vertices:', np.mean(wns))  
+        # print('new wns on matched_vertices:', np.max(wns))
         
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
+        print('area_sum', area_sum)
+
 
     
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)

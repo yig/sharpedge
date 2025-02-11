@@ -763,7 +763,7 @@ if __name__ == "__main__":
 
 
 
-    # export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(edge_constraints, len(E)),'files_starter/gltfs/edge_normals/' + curve_name + '.gltf' )
+    export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(edge_constraints, len(E)),'debug_normals/edge_normals/' + curve_name + '.gltf' )
 
     '''
     estimate initial constraints
@@ -771,7 +771,7 @@ if __name__ == "__main__":
 
     estimate_normals = estimate_initial_normals(V, E, P, edge_constraints)
     plot_edge_constraints(V, E, P, estimate_normals)
-    # export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(estimate_normals, len(E)), 'files_starter/gltfs/initial_estimate/' + curve_name + '.gltf')
+    export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(estimate_normals, len(E)), 'debug_normals/initial_estimate/' + curve_name + '.gltf')
     
 
 

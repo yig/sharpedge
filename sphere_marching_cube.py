@@ -451,7 +451,7 @@ points, normals = fibonacci_sphere_with_normals(samples=1000,radius=0.5)
 
 # points, normals = fibonacci_sphere_nonuniform(samples=3000)
 # points, normals = fibonacci_sphere_sparse_quadrant()
-points, normals = sphere_equator_poles(equator_samples=100,radius=1)
+# points, normals = sphere_equator_poles(equator_samples=100,radius=1)
 # points, normals = sphere_equator_poles(equator_samples=100,radius=0.5)
 
 # points, normals = sphere_equator_poles(equator_samples=100,radius=1)
@@ -478,7 +478,7 @@ print('base_points_area', base_points_area)
 print('np.sum(base_points_area)', np.sum(base_points_area))
 
 
-base_points_area = calculate_sphere_areas_latitude()
+# base_points_area = calculate_sphere_areas_latitude()
 # print('base_points_area new ', base_points_area)
 # print('np.sum(base_points_area)', np.sum(base_points_area))
 
@@ -492,20 +492,20 @@ print('mean_wns on original points:', mean_wns)
 print('wns on original points:', np.max(wns))
 
 
-scale, mean_wn, _ = find_optimal_scale(points, normals)
+# # scale, mean_wn, _ = find_optimal_scale(points, normals)
 
-print('scale', scale)
-print('mean_wn', mean_wn)
-# print('base_points_area', base_points_area)
-print('np.sum(base_points_area)', np.sum(base_points_area) / 4 * np.pi)
+# print('scale', scale)
+# print('mean_wn', mean_wn)
+# # print('base_points_area', base_points_area)
+# print('np.sum(base_points_area)', np.sum(base_points_area) / 4 * np.pi)
 
 
 # plot_points_wns(matched_vertices, wns)
 slider_value = 0.5
 last_value = 0.5
 
-area_slider = scale  # default value for 'a'
-last_area = scale
+area_slider = 1.0  # default value for 'a'
+last_area = 1.0
 
 
 # area_slider = 1.0  # default value for 'a'
@@ -599,7 +599,7 @@ def callback():
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
         
-        print('new mean_wns on matched_vertices:', mean_wns)  
+        # print('new mean_wns on matched_vertices:', mean_wns)  
         print('new wns on matched_vertices:', np.max(wns))
 
 
