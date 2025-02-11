@@ -387,7 +387,7 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
     print('edge_normals', edge_normals)
 
 
-    # export_sketch_normal_gltf(V, E, polylines, edge_normal_dict_to_ndarray(edge_normals, len(E)), 'files_starter/gltfs/initial_parallel_transport/' + curve_name + '.gltf' )
+    export_sketch_normal_gltf(V, E, polylines, edge_normal_dict_to_ndarray(edge_normals, len(E)), 'debug_normals/initial_parallel_transport/' + curve_name + '.gltf' )
     
 
   
@@ -424,10 +424,12 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
         for other_edge_idx, dist in enumerate(start_distances):
             if other_edge_idx in edge_normals:
                 normal = edge_normals[other_edge_idx]
-                perpendicularity = np.abs(np.dot(start_edge_direction, normal))
-                start_constraints.append(
-                    (other_edge_idx, normal, dist, perpendicularity)
-                )
+                perpendicularity = np.clip(1.0 - np.abs(np.dot(start_edge_direction, normal)), 0, 1)
+                print('perpendicularity', perpendicularity)
+                if perpendicularity > 1e-12:
+                    start_constraints.append(
+                        (other_edge_idx, normal, dist, perpendicularity)
+                    )
         
         # Process end edge
         end_distances = edge_distances[end_edge_idx]
@@ -437,14 +439,18 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
         for other_edge_idx, dist in enumerate(end_distances):
             if other_edge_idx in edge_normals:
                 normal = edge_normals[other_edge_idx]
-                perpendicularity = np.abs(np.dot(end_edge_direction, normal))
-                end_constraints.append(
-                    (other_edge_idx, normal, dist, perpendicularity)
-                )
+                perpendicularity = np.clip(1.0 - np.abs(np.dot(start_edge_direction, normal)), 0, 1)
+                if perpendicularity > 1e-12:
+                    end_constraints.append(
+                        (other_edge_idx, normal, dist, perpendicularity)
+                    )
         
         # Sort constraints by distance and perpendicularity
         start_constraints.sort(key=lambda x: (x[2], x[3]))  # Sort by distance, then perpendicularity
         end_constraints.sort(key=lambda x: (x[2], x[3]))
+
+        print('start_constraints', start_constraints)
+        print('end_constraints', end_constraints)
         
         if start_constraints or end_constraints:
             # Choose the better constraint between start and end
