@@ -36,98 +36,7 @@ def n_for_segment(segment, target_length):
     n = segment_length / target_length
     return int(np.ceil(n - 0.5))
 
-
-def resample_for_points_normal_v2(V, E, N, sample_length=0.01):
-    '''
-    Sample the edge normal on the points using the sample length.
-    Keeps only the first normal encountered for duplicate points.
-    
-    Parameters:
-        V: vertices array
-        E: edges array (pairs of vertex indices)
-        N: normals array
-        sample_length: desired length between samples
-        
-    Returns:
-        points: array of unique sampled points
-        normals: array of corresponding normal vectors
-    '''
-    # Dictionary to store point-normal mappings
-    # Using tuple of coordinates as key for hashability
-    point_normal_dict = {}
-    
-    for index, edge in enumerate(E):
-        e0, e1 = edge
-        p0 = V[e0]
-        p1 = V[e1]
-        n = n_for_segment((p0, p1), sample_length)
-        normal = N[index]
-        
-        if n == 1:
-            point = (p0 + p1) / 2
-            # Convert point to tuple for dictionary key
-            point_tuple = tuple(point)
-            if point_tuple not in point_normal_dict:
-                point_normal_dict[point_tuple] = normal
-        else:
-            # Generate sample points along the edge
-            t = np.linspace(0, 1, n)
-            for ti in t:
-                point = p0 + ti * (p1 - p0)
-                point_tuple = tuple(point)
-                if point_tuple not in point_normal_dict:
-                    point_normal_dict[point_tuple] = normal
-    
-    # Convert dictionary back to arrays
-    points = np.array([np.array(p) for p in point_normal_dict.keys()])
-    normals = np.array(list(point_normal_dict.values()))
-    
-    return points, normals
-
-
-def resample_for_points_normal_v1(V, E, N, sample_length=0.01):
-    '''
-    Sample the edge normal on the points using the sample length.
-    Removes duplicate points while maintaining corresponding normals.
-    Parameters:
-        V: vertices array
-        E: edges array (pairs of vertex indices)
-        N: normals array
-        sample_length: desired length between samples
-    Returns:
-        points: array of unique sampled points
-        normals: array of corresponding normal vectors
-    '''
-    points = []
-    normals = []
-
-    for index, edge in enumerate(E):
-        e0, e1 = edge
-        p0 = V[e0]
-        p1 = V[e1]
-        n = n_for_segment((p0, p1), sample_length)
-        normal = N[index]
-        if n == 1:
-            point = (p0 + p1) / 2
-            # Convert point to tuple for dictionary key
-            points.append( point )
-            normals.append( normal )
-        else:
-            # Generate sample points along the edge
-            t = np.linspace(0, 1, n)
-            # t = np.linspace(0, 1, n)
-            for ti in t:
-                point = p0 + ti * (p1 - p0)
-                points.append ( point )
-                normals.append( normal )
-    
-    points = np.asarray( points )
-    normals = np.asarray( normals )
-
-    return points, normals
-
-
-def resample_for_points_normal_v3(V, E, N, sample_length=0.01, proximity_threshold=5e-3):
+def resample_for_points_normal(V, E, N, sample_length=0.01, proximity_threshold=5e-3):
     '''
     Sample the edge normal on the points using the sample length.
     Filters out points that are too close to existing points while maintaining corresponding normals.
@@ -204,7 +113,7 @@ def resample_for_points_normal_v3(V, E, N, sample_length=0.01, proximity_thresho
     return np.array(points), np.array(normals)
 
 
-def generate_bounding_box_points(V, scale_factor=1.5):
+def generate_bounding_box_points(V, scale_factor=2):
     """Generate axis-aligned bounding box vertices around 3D points.
     Args:
         V: Nx3 array of 3D vertex coordinates
@@ -227,7 +136,6 @@ def generate_bounding_box_points(V, scale_factor=1.5):
         [center[0] + dimensions[0], center[1] + dimensions[1], center[2] + dimensions[2]]
     ])
     return bbox_vertices
-
 
 def generate_matched_cube_mesh(num_divisions, bbox_vertices):
     """
@@ -261,60 +169,6 @@ def generate_matched_cube_mesh(num_divisions, bbox_vertices):
     GV = GV + bbox_center
     
     return GV, F
-
-
-def resample_for_points_normal(V, E, N, sample_length=0.01):
-    '''
-    Sample the edge normal on the points using the sample length.
-    Removes duplicate points while maintaining corresponding normals.
-    Parameters:
-        V: vertices array
-        E: edges array (pairs of vertex indices)
-        N: normals array
-        sample_length: desired length between samples
-    Returns:
-        points: array of unique sampled points
-        normals: array of corresponding normal vectors
-    '''
-    points_dict = defaultdict(list)  # Dictionary to store point-normal pairs
-    
-    for index, edge in enumerate(E):
-        e0, e1 = edge
-        p0 = V[e0]
-        p1 = V[e1]
-        n = n_for_segment((p0, p1), sample_length)
-        normal = N[index]
-        
-        # Add normals for the endpoints
-        points_dict[tuple(p0)].append(normal)
-        points_dict[tuple(p1)].append(normal)
-        
-        if n == 1:
-            point = (p0 + p1) / 2
-            point_key = tuple(point)
-            points_dict[point_key].append(normal)
-        else:
-            # Generate sample points along the edge
-            t = np.linspace(0, 1, n)[1:-1]  # Exclude endpoints as they're handled above
-            for ti in t:
-                point = p0 + ti * (p1 - p0)
-                point_key = tuple(point)
-                points_dict[point_key].append(normal)
-    
-    # Convert dictionary back to separate arrays and average normals
-    points = []
-    normals = []
-    for point_key, normal_list in points_dict.items():
-        points.append(list(point_key))
-        # Average the normals and normalize
-        avg_normal = np.mean(normal_list, axis=0)
-        norm = np.linalg.norm(avg_normal)
-        if norm > 0:
-            avg_normal = avg_normal / norm
-        normals.append(avg_normal)
-    
-    return np.array(points), np.array(normals)
-
 
 def plot_points_normal(points, normals):
     """
@@ -440,7 +294,7 @@ def plot_points_large_wns(tet_vertices, wns):
     plt.show()
 
 
-def find_optimal_scale(points, normals, target_mean=1.0, tolerance=0.01, max_iterations=50):
+def find_optimal_scale(points, normals, target_mean=1.0, points_area = np.pi, tolerance=0.01, max_iterations=50):
     """
     Find the optimal scale for base_points_area to achieve a target mean winding number.
     
@@ -464,7 +318,7 @@ def find_optimal_scale(points, normals, target_mean=1.0, tolerance=0.01, max_ite
     for i in range(max_iterations):
         # Try current scale
         scale = (scale_min + scale_max) / 2
-        base_points_area = np.ones((points.shape[0],)) / points.shape[0] * np.pi * scale
+        base_points_area = np.ones((points.shape[0],)) / points.shape[0] * points_area * scale
         
         # Calculate winding numbers
         wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
@@ -487,9 +341,9 @@ def find_optimal_scale(points, normals, target_mean=1.0, tolerance=0.01, max_ite
     return scale, current_mean, base_points_area
 
 
-def area_for_isovalue( points, normals, points_area, matched_vertices, box_division, isovalue ):
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, matched_vertices)
-    SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, isovalue)
+def area_for_isovalue( points, normals, points_area, grid_vertices, box_division, isovalue ):
+    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
+    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, isovalue)
     area = igl.doublearea( SV, SF ) / 2.0 
     return sum( area )
 
@@ -526,7 +380,7 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
     '''
     '''
 
-    points_area = np.ones((points.shape[0], )) / points.shape[0] * 4 * np.pi
+    points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
     wns = igl.fast_winding_number_for_points(points, normals, points_area , cube_vertices)
 
     areas = []
@@ -554,51 +408,6 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
 
     return areas, genera, isovalues
 
-
-# def plot_area_genus_relationship(areas, genera, figsize=(10, 6)):
-#     """
-#     Plot the relationship between area and genus.
-    
-#     Parameters:
-#     -----------
-#     areas : array-like
-#         List of area values
-#     genera : array-like
-#         List of genus values
-#     figsize : tuple, default=(10, 6)
-#         Figure size in inches (width, height)
-        
-#     Returns:
-#     --------
-#     fig : matplotlib.figure.Figure
-#         The created figure object
-#     """
-#     import matplotlib.pyplot as plt
-#     import numpy as np
-    
-#     # Create figure
-#     fig = plt.figure(figsize=figsize)
-    
-#     # Plot main data
-#     plt.plot(areas, genera, 'b-', label='Genus')
-#     plt.scatter(areas, genera, color='blue', s=30)
-    
-
-    
-#     # Add labels and title
-#     plt.xlabel('Area')
-#     plt.ylabel('Genus')
-#     plt.title('Relationship between Area and Genus')
-    
-#     # Add grid and legend
-#     plt.grid(True, linestyle='--', alpha=0.7)
-#     plt.legend()
-    
-#     # Adjust layout
-#     plt.tight_layout()
- 
-   
-#     return fig
 
 
 def plot_area_genus_relationship(areas, genera, isovalues, figsize=(10, 6)):
@@ -646,7 +455,112 @@ def plot_area_genus_relationship(areas, genera, isovalues, figsize=(10, 6)):
     # Adjust layout
     plt.tight_layout()
     
-    return fig
+    plt.show()
+
+
+def find_minimal_surface_genus_zero(areas, genera, isovalues):
+    """
+    Find the minimal surface area and corresponding isovalue among all cases where genus = 0
+    
+    Parameters:
+    areas (list): List of surface areas
+    genera (list): List of genus values
+    isovalues (list): List of isovalue parameters
+    
+    Returns:
+    tuple: (minimal_area, corresponding_isovalue)
+            Returns (None, None) if no genus 0 cases are found
+    """
+    # Convert to numpy arrays for easier handling
+    areas = np.array(areas)
+    genera = np.array(genera)
+    isovalues = np.array(isovalues)
+    
+    # Find indices where genus is 0
+    genus_zero_mask = (genera == 0)
+    
+    # If no genus 0 cases found, return None
+    if not np.any(genus_zero_mask):
+        print("No cases with genus 0 found")
+        return None, None
+    
+    # Get areas and isovalues for genus 0 cases
+    genus_zero_areas = areas[genus_zero_mask]
+    genus_zero_isovalues = isovalues[genus_zero_mask]
+    
+    # Find the minimum area and its index
+    min_area_idx = np.argmin(genus_zero_areas)
+    min_area = genus_zero_areas[min_area_idx]
+    corresponding_isovalue = genus_zero_isovalues[min_area_idx]
+    
+    return min_area, corresponding_isovalue
+
+
+def find_mesh_holes(vertices, faces):
+    """
+    Find holes in a mesh by detecting boundary edges and grouping them into loops.
+    
+    Args:
+        vertices: np.array of shape (N, 3) containing vertex coordinates
+        faces: np.array of shape (M, 3) containing vertex indices for triangles
+    
+    Returns:
+        list of lists, where each inner list contains vertex indices forming a hole boundary
+    """
+    # Create edge to face mapping
+    edge_to_face = {}
+    for face_idx, face in enumerate(faces):
+        # For each edge in the triangle
+        for i in range(3):
+            # Create edge (always store with smaller index first)
+            edge = tuple(sorted([face[i], face[(i + 1) % 3]]))
+            if edge not in edge_to_face:
+                edge_to_face[edge] = []
+            edge_to_face[edge].append(face_idx)
+    
+    # Find boundary edges (edges with only one adjacent face)
+    boundary_edges = [edge for edge, faces in edge_to_face.items() if len(faces) == 1]
+    
+    if not boundary_edges:
+        return []  # No holes found
+    
+    # Group boundary edges into loops (holes)
+    holes = []
+    used_edges = set()
+    
+    while boundary_edges:
+        current_hole = []
+        start_edge = boundary_edges[0]
+        current_vertex = start_edge[0]
+        
+        while True:
+            # Find next edge in the boundary
+            next_edge = None
+            for edge in boundary_edges:
+                if edge in used_edges:
+                    continue
+                if edge[0] == current_vertex:
+                    next_edge = edge
+                    current_vertex = edge[1]
+                    break
+                elif edge[1] == current_vertex:
+                    next_edge = edge
+                    current_vertex = edge[0]
+                    break
+            
+            if next_edge is None or (current_hole and current_vertex == current_hole[0]):
+                break
+                
+            current_hole.append(current_vertex)
+            used_edges.add(next_edge)
+            boundary_edges.remove(next_edge)
+        
+        if len(current_hole) >= 3:  # Only add holes with at least 3 vertices
+            holes.append(current_hole)
+    
+    return holes
+
+# Example usage:
 
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
@@ -656,128 +570,109 @@ parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
-parser.add_argument('--box_division', type=int, default=200,
+parser.add_argument('--box_division', type=int, default=100,
                     help='Box division parameter (default: 100)')
+parser.add_argument('--use_points_area', type=str, default='true')
 
 args = parser.parse_args()
 
 normal_file = args.normal_file
 surface_file = args.surface_file
 box_division = args.box_division
-
+use_points_area = args.use_points_area
+use_points_area = args.use_points_area.lower() == 'true'
 
 V, E, N = load_normal_data(normal_file)
 
-print('np.mean(V)', np.mean(V))
-
-V = V * 2
+# print('np.mean(V)', np.mean(V))
 
 # move it to later so that I can run the script to get all obj
 # plot_normal_data(V, E, N)
 
-points, normals = resample_for_points_normal_v3(V, E, N, 0.01)
+points, normals = resample_for_points_normal(V, E, N, 0.01)
 
 print(len(points))
 print(len(normals))
 
-# print(points)
-# print(normals)
 
-sorted_distances = np.sort(pdist(points))
-print('min distance weithin points',sorted_distances )
-
-
-print('np.linalg.norm(normals, axis =1)', np.linalg.norm(normals, axis = 1))
-
-
+# sorted_distances = np.sort(pdist(points))
+# print('min distance weithin points',sorted_distances )
+# print('np.linalg.norm(normals, axis =1)', np.linalg.norm(normals, axis = 1))
 # plot_points_wns(points, wns)
 
-bbox_vertices = generate_bounding_box_points(V, scale_factor=4.0)
+# scale larger
+bbox_vertices = generate_bounding_box_points(V, scale_factor = 2.0)
+# print('scaled bounding box diagnoal', np.linalg.norm(bbox_vertices[0] - bbox_vertices[-1]))
 
-print('scaled bounding box diagnoal', np.linalg.norm(bbox_vertices[0] - bbox_vertices[-1]))
-# box_division = 30
-# box_division = 100
-# Then create a matching cube mesh
-matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
-                                                     
+grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
 
+# now I use 4 pi                                                     
+points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
 
-base_points_area = np.ones((points.shape[0], )) / points.shape[0] * 4 * np.pi
-# print('base_points_area', base_points_area)
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
+wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
 sorted_wns = np.sort(wns)[::-1]
-print('sorted_wns on original points', sorted_wns)
+# print('sorted_wns on original points', sorted_wns)
 print('mean_wns on original points:', np.mean(wns))  
 print('wns on original points:', np.max(wns))
 
-# # # print('base_points_area', base_points_area)
-# # print('np.sum(base_points_area)', np.sum(base_points_area) )
-# print('current np.sum(base_points_area)/np.pi', np.sum(base_points_area) / np.pi)
-
-# base_points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
 
 
 
-# plot_points_wns(points, wns)
-# plot_points_large_wns(points,wns)
-slider_value = 0.5
-last_value = 0.5
+# scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
+# print('scale', scale)
+# print('mean_wn after scale', mean_wn)
 
-
-
-
-scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
-
-print('scale', scale)
-print('mean_wn after scale', mean_wn)
-
-#
+# scale for points_area
 scale = 1.0
 area_slider = scale  # default value for 'a'
 last_area = scale
 
 
+slider_value = 0.5
+last_value = 0.5
 
+
+# This is kind of problematic
 # area_term = scipy.optimize.minimize_scalar(
-#     lambda x: area_for_isovalue(points, normals, base_points_area, matched_vertices, box_division, x),
+#     lambda x: area_for_isovalue(points, normals, base_points_area, grid_vertices, box_division, x),
 #     bounds=[0, 3]
 # )
 
-# print('area_term', area_term )
 
 
-# print( 'area_term.isovalue', area_term.x)
+if use_points_area is True:
+    scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
+    wns = igl.fast_winding_number_for_points(points, normals, points_area * scale, grid_vertices)
+    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
+    print('genus',calculate_genus(SV, SF))
+    area_slider = scale 
+    last_area  = scale
 
 
-# slider_value = area_term.x
-# last_area = area_term.x
+else:
+    areas, genera, isovalues = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.1, isovalue_end= 15.0, isovalue_step=0.1)
+    print(genera)
+
+    # plot_area_genus_relationship(areas, genera, isovalues)
 
 
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area * scale, points)
-sorted_wns = np.sort(wns)[::-1]
-print('sorted_wns on original points after scale', sorted_wns)
-print('mean_wns on original points afer scale:', np.mean(wns))  
-# print('wns on original points after scale:', np.max(wns))
+    min_area, corresponding_isovalue = find_minimal_surface_genus_zero(areas, genera, isovalues)
 
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area  * scale, matched_vertices)
-SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
+    print(min_area,corresponding_isovalue )
+    if corresponding_isovalue is not None:
+        wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, corresponding_isovalue)
+        slider_value = corresponding_isovalue
+        last_value = corresponding_isovalue
+        print('genus', calculate_genus(SV, SF))
+    else:
+        wns = igl.fast_winding_number_for_points(points, normals, points_area , grid_vertices)
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
+        print('genus',calculate_genus(SV, SF))
 
-# sorted_wns = np.sort(wns)[::-1]
-# mean_wns = np.mean(wns)
-# print('sorted_wns on matched_vertices', sorted_wns)
-# print('mean_wns on matched_vertices:', mean_wns)  
-# print('wns on matched_vertices:', np.max(wns))
 
 
-genus = calculate_genus(SV, SF )
-print('genus', genus)
 
-areas, genera, isovalues = calculate_area_and_genus(points, normals, matched_vertices, box_division, isovalue_start=0.1, isovalue_end= 10.0, isovalue_step=0.1)
-
-print('areas, genera, isovalues', areas, genera, isovalues)
-
-fig = plot_area_genus_relationship(areas, genera, isovalues)
-plt.show()
 
 
 if surface_file:
@@ -785,16 +680,17 @@ if surface_file:
     sys.exit()
 
 
+# 
+# 
 
 plot_normal_data(V, E, N)
 plot_points_normal(points, normals)
-
-
-
+ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+ps.show()
 
 
 # Display initial mesh
-ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+# ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
 
 
 
@@ -814,9 +710,9 @@ def callback():
     # Recalculate winding numbers if area changed
     if last_area != area_slider:
 
+        current_points_area = points_area * area_slider
 
         # Scale the base area values by the current area_slider value
-        current_points_area = base_points_area * area_slider
         wns = igl.fast_winding_number_for_points(points, normals, current_points_area, points)
         sorted_wns = np.sort(wns)[::-1]
         print('sorted_wns on original points', sorted_wns)
@@ -824,14 +720,14 @@ def callback():
         print('new wns on original points:', np.max(wns))
 
 
-        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
+        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, grid_vertices)
         # sorted_wns = np.sort(wns)[::-1]
         # mean_wns = np.mean(wns)
-        print('new mean_wns on matched_vertices:', np.mean(wns))  
-        print('new wns on matched_vertices:', np.max(wns))
+        print('new mean_wns on grid_vertices:', np.mean(wns))  
+        print('new wns on grid_vertices:', np.max(wns))
         
 
-        SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, slider_value)
 
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
@@ -850,14 +746,15 @@ def callback():
 
     if not psim.IsAnyItemActive() and (last_value != slider_value or last_area != area_slider):
         # Use the current area-scaled points
-        current_points_area = base_points_area * area_slider
-        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, matched_vertices)
-        SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
+        current_points_area = points_area * area_slider
+
+        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, grid_vertices)
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, slider_value)
         
         area = igl.doublearea( SV, SF ) / 2.0
         area_sum = sum( area )
-        # print('new mean_wns on matched_vertices:', np.mean(wns))  
-        # print('new wns on matched_vertices:', np.max(wns))
+        # print('new mean_wns on grid_vertices:', np.mean(wns))  
+        # print('new wns on grid_vertices:', np.max(wns))
         
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
@@ -876,7 +773,7 @@ def callback():
             export_obj(SV, SF, 'output.obj')
 
 
-
+ps.init()
 ps.set_user_callback(callback)
 ps.set_ground_plane_mode("none")
 ps.show()

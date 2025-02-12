@@ -347,6 +347,37 @@ def plot_points_normal(points, normals):
     ps.show()
 
 
+
+def calculate_genus(vertices, faces):
+    # Count vertices (V)
+    V = len(vertices)
+    
+    # Count faces (F)
+    F = len(faces)
+    
+    # Count edges (E)
+    # For a triangle mesh, we need to account for shared edges
+    # Create a set of edges (sorted vertex pairs)
+    edges = set()
+    for face in faces:
+        # Add all three edges of the triangle
+        edges.add(tuple(sorted([face[0], face[1]])))
+        edges.add(tuple(sorted([face[1], face[2]])))
+        edges.add(tuple(sorted([face[2], face[0]])))
+    
+    E = len(edges)
+    
+    # Calculate Euler characteristic
+    euler_char = V - E + F
+    
+    # Calculate genus
+    genus = (2 - euler_char) // 2
+    
+    return genus
+
+
+
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
@@ -612,6 +643,8 @@ def callback():
         area = igl.doublearea( SV, SF ) / 2.0
         area_sum = sum( area )
         print('area_sum', area_sum)
+        print('genus', calculate_genus(SV, SF))
+
 
     
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)

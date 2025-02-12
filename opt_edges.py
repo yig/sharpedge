@@ -287,7 +287,8 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
        
     2. For polylines without normal constraints:
        - Locate the nearest polyline that has normal constraints
-       - Parallel transport those normals to initialize angles
+       - As long as the normal constraint are not parallel to the polyline
+       - Try to locate a good one and parallel transport those normals to initialize angles
        
     3. Convert all parallel transported normals to angles (thetas)
     
@@ -710,12 +711,14 @@ if __name__ == "__main__":
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('normal_file', nargs='?', help='The curve sketch with optimized normal information.')
     parser.add_argument('gltf_file', nargs='?', help='The gltf normal file to save. If not provided, no gltf will be generated.')
-  
+    # parser.add_argument('--plot', type = str, default= 'true', help='Plot the figure or not.')
+
     args = parser.parse_args()
 
     curve_file = args.curve_file
     normal_file = args.normal_file
     gltf_file = args.gltf_file
+    # plot = args.plot
     
     
     if curve_file is None:

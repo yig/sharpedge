@@ -48,6 +48,7 @@ def generate_sketch_and_surface_gltf(normal_files, surface_folder = 'surface', g
         gltf_surface_file = gltf_folder + '/' + base_name + '.gltf'
         # find sketch_file_path in folder and subfolder of sketches
         sketch_file_path = next(Path('sketches').rglob(sketch_file_name), None)
+        print(sketch_file_path)
         if sketch_file_path is None:
             print(f"Could not find {sketch_file_name} in sketches directory")
         else:
@@ -81,13 +82,13 @@ def optimize_edge_normals( sketch_folder ):
 
     
 
-# optimize_edge_normals('sketches/t2f')
+# optimize_edge_normals('sketches/flowrep')
 
-normal_files = glob.glob('normal/t2f*.normal')  
-# print(normal_files)
+normal_files = glob.glob('normal/scaffolds3d*.normal')  
+print(normal_files)
 
-generate_all_surface_from_normal_files( normal_files , folder= 'wn_1_surface')
-generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1_surface', gltf_folder = 'gltfs/wn_1ish_surface' )
+generate_all_surface_from_normal_files( normal_files , folder= 'wn_1ish_surface')
+generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1ish_surface', gltf_folder = 'gltfs/wn_1ish_surface' )
 
 # normal_gltf_files = glob.glob('normal/*.gltf')
 # copy_all_normal_gltfs(normal_gltf_files)
