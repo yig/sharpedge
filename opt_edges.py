@@ -425,7 +425,7 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
             if other_edge_idx in edge_normals:
                 normal = edge_normals[other_edge_idx]
                 perpendicularity = np.clip(1.0 - np.abs(np.dot(start_edge_direction, normal)), 0, 1)
-                print('perpendicularity', perpendicularity)
+                # print('perpendicularity', perpendicularity)
                 if perpendicularity > 1e-12:
                     start_constraints.append(
                         (other_edge_idx, normal, dist, perpendicularity)
@@ -776,7 +776,7 @@ if __name__ == "__main__":
     '''
 
     estimate_normals = estimate_initial_normals(V, E, P, edge_constraints)
-    plot_edge_constraints(V, E, P, estimate_normals)
+    # plot_edge_constraints(V, E, P, estimate_normals)
     export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(estimate_normals, len(E)), 'debug_normals/initial_estimate/' + curve_name + '.gltf')
     
 
@@ -894,6 +894,8 @@ if __name__ == "__main__":
     # write_normal_data(V, E, N, 'sketch_normal/' + curve_name + '.obj')
     write_normal_data(V, E, N_normalized , normal_file)
     
+    export_sketch_normal_gltf(V, E, polylines, N_normalized, 'debug_normals/final_optimize/' + curve_name + '.gltf')
+
     if gltf_file:
       export_sketch_normal_gltf(V, E, polylines, N_normalized, gltf_file)
 

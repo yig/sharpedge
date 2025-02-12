@@ -445,13 +445,13 @@ surface_file = args.surface_file
 
 
 points, normals = fibonacci_sphere_with_normals(samples=10000,radius=1)
-points, normals = fibonacci_sphere_with_normals(samples=1000,radius=1)
-points, normals = fibonacci_sphere_with_normals(samples=1000,radius=0.5)
+# points, normals = fibonacci_sphere_with_normals(samples=1000,radius=1)
+# points, normals = fibonacci_sphere_with_normals(samples=1000,radius=0.5)
 # points, normals = fibonacci_sphere_with_normals(samples=1000,radius=0.25)
 
 # points, normals = fibonacci_sphere_nonuniform(samples=3000)
 # points, normals = fibonacci_sphere_sparse_quadrant()
-# points, normals = sphere_equator_poles(equator_samples=100,radius=1)
+points, normals = sphere_equator_poles(equator_samples=100,radius=1)
 # points, normals = sphere_equator_poles(equator_samples=100,radius=0.5)
 
 # points, normals = sphere_equator_poles(equator_samples=100,radius=1)
@@ -600,7 +600,7 @@ def callback():
         SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
         
         # print('new mean_wns on matched_vertices:', mean_wns)  
-        print('new wns on matched_vertices:', np.max(wns))
+        # print('new wns on matched_vertices:', np.max(wns))
 
 
         
@@ -608,6 +608,10 @@ def callback():
         
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
+
+        area = igl.doublearea( SV, SF ) / 2.0
+        area_sum = sum( area )
+        print('area_sum', area_sum)
 
     
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)

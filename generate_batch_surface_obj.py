@@ -6,6 +6,8 @@ from pathlib import Path
 from plot2gltf import GLTFGeometryExporter
 from utility_io import load_sketch_polyline_data, load_obj
 
+
+
 def export_sketch_surface_gltf(polylines, SV, SF, filename):
     '''
     Export the sketch and the surface to file, as gltf.
@@ -26,9 +28,6 @@ def export_sketch_surface_gltf(polylines, SV, SF, filename):
 
     exporter.save(filename)
     print(f"GLTF file saved as: {filename}")
-
-
-
 
 
 
@@ -67,11 +66,28 @@ def copy_all_normal_gltfs(normal_gltf_files):
 
 
 
+def optimize_edge_normals( sketch_folder ):
+    '''
+    '''
+    sketches = glob.glob(sketch_folder + '/*.obj')
+
+    for sketch_file in sketches:
+        curve_name = Path(sketch_file).stem 
+        normal_file = 'normal/' + curve_name + '.normal'
+        subprocess.run(['python', 'opt_edges.py', str(sketch_file), str(normal_file)])
+    
 
 
-normal_files = glob.glob('normal/*.normal')  
+
+    
+
+# optimize_edge_normals('sketches/t2f')
+
+normal_files = glob.glob('normal/t2f*.normal')  
+# print(normal_files)
+
 generate_all_surface_from_normal_files( normal_files , folder= 'wn_1_surface')
-generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1_surface', gltf_folder = 'wn_1_gltf' )
+generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1_surface', gltf_folder = 'gltfs/wn_1ish_surface' )
 
 # normal_gltf_files = glob.glob('normal/*.gltf')
 # copy_all_normal_gltfs(normal_gltf_files)

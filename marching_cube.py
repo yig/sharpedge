@@ -316,7 +316,6 @@ def resample_for_points_normal(V, E, N, sample_length=0.01):
     return np.array(points), np.array(normals)
 
 
-
 def plot_points_normal(points, normals):
     """
     Plot points and their normal vectors using Polyscope
@@ -495,6 +494,161 @@ def area_for_isovalue( points, normals, points_area, matched_vertices, box_divis
     return sum( area )
 
 
+def calculate_genus(vertices, faces):
+    # Count vertices (V)
+    V = len(vertices)
+    
+    # Count faces (F)
+    F = len(faces)
+    
+    # Count edges (E)
+    # For a triangle mesh, we need to account for shared edges
+    # Create a set of edges (sorted vertex pairs)
+    edges = set()
+    for face in faces:
+        # Add all three edges of the triangle
+        edges.add(tuple(sorted([face[0], face[1]])))
+        edges.add(tuple(sorted([face[1], face[2]])))
+        edges.add(tuple(sorted([face[2], face[0]])))
+    
+    E = len(edges)
+    
+    # Calculate Euler characteristic
+    euler_char = V - E + F
+    
+    # Calculate genus
+    genus = (2 - euler_char) // 2
+    
+    return genus
+
+
+def calculate_area_and_genus(points, normals, cube_vertices, box_division, isovalue_start, isovalue_end, isovalue_step = 0.1):
+    '''
+    '''
+
+    points_area = np.ones((points.shape[0], )) / points.shape[0] * 4 * np.pi
+    wns = igl.fast_winding_number_for_points(points, normals, points_area , cube_vertices)
+
+    areas = []
+    genera = []
+    isovalues = []
+
+    for isovalue in np.arange(isovalue_start, isovalue_end, isovalue_step):
+
+        SV, SF = gpytoolbox.marching_cubes(wns, cube_vertices, box_division, box_division, box_division, isovalue)
+        # print(SV, SF)
+
+        if len(SV) > 0 and len(SF) > 0:
+            area = sum ( igl.doublearea(SV, SF) / 2.0 )
+
+        else:
+            # Handle the empty case
+            area = 0  # or whatever default value makes sense
+            print("Warning: Empty mesh detected")
+            return areas, genera, isovalues
+    
+        areas.append( area )
+        genus = calculate_genus(SV, SF)
+        genera.append( genus)
+        isovalues.append( isovalue )
+
+    return areas, genera, isovalues
+
+
+# def plot_area_genus_relationship(areas, genera, figsize=(10, 6)):
+#     """
+#     Plot the relationship between area and genus.
+    
+#     Parameters:
+#     -----------
+#     areas : array-like
+#         List of area values
+#     genera : array-like
+#         List of genus values
+#     figsize : tuple, default=(10, 6)
+#         Figure size in inches (width, height)
+        
+#     Returns:
+#     --------
+#     fig : matplotlib.figure.Figure
+#         The created figure object
+#     """
+#     import matplotlib.pyplot as plt
+#     import numpy as np
+    
+#     # Create figure
+#     fig = plt.figure(figsize=figsize)
+    
+#     # Plot main data
+#     plt.plot(areas, genera, 'b-', label='Genus')
+#     plt.scatter(areas, genera, color='blue', s=30)
+    
+
+    
+#     # Add labels and title
+#     plt.xlabel('Area')
+#     plt.ylabel('Genus')
+#     plt.title('Relationship between Area and Genus')
+    
+#     # Add grid and legend
+#     plt.grid(True, linestyle='--', alpha=0.7)
+#     plt.legend()
+    
+#     # Adjust layout
+#     plt.tight_layout()
+ 
+   
+#     return fig
+
+
+def plot_area_genus_relationship(areas, genera, isovalues, figsize=(10, 6)):
+    """
+    Plot the relationship between area and genus with isovalue annotations.
+    
+    Parameters:
+    -----------
+    areas : array-like
+        List of area values
+    genera : array-like
+        List of genus values
+    isovalues : array-like
+        List of isovalue values that generated each (area, genus) pair
+    figsize : tuple, default=(10, 6)
+        Figure size in inches (width, height)
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # Create figure
+    fig = plt.figure(figsize=figsize)
+    
+    # Plot main data
+    plt.plot(areas, genera, 'b-', label='Genus')
+    plt.scatter(areas, genera, color='blue', s=30)
+    
+    # Add isovalue annotations to each point
+    for i, (area, genus, iso) in enumerate(zip(areas, genera, isovalues)):
+        plt.annotate(f'{iso:.1f}', 
+                    (area, genus),
+                    xytext=(5, 5),  # 5 points offset
+                    textcoords='offset points',
+                    fontsize=8)
+    
+    # Add labels and title
+    plt.xlabel('Area')
+    plt.ylabel('Genus')
+    plt.title('Relationship between Area and Genus\n(numbers indicate isovalues)')
+    
+    # Add grid and legend
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.legend()
+    
+    # Adjust layout
+    plt.tight_layout()
+    
+    return fig
+
+
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
 # Add arguments
@@ -502,7 +656,7 @@ parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
-parser.add_argument('--box_division', type=int, default=100,
+parser.add_argument('--box_division', type=int, default=200,
                     help='Box division parameter (default: 100)')
 
 args = parser.parse_args()
@@ -515,6 +669,8 @@ box_division = args.box_division
 V, E, N = load_normal_data(normal_file)
 
 print('np.mean(V)', np.mean(V))
+
+V = V * 2
 
 # move it to later so that I can run the script to get all obj
 # plot_normal_data(V, E, N)
@@ -536,7 +692,7 @@ print('np.linalg.norm(normals, axis =1)', np.linalg.norm(normals, axis = 1))
 
 # plot_points_wns(points, wns)
 
-bbox_vertices = generate_bounding_box_points(V, scale_factor=1.5)
+bbox_vertices = generate_bounding_box_points(V, scale_factor=4.0)
 
 print('scaled bounding box diagnoal', np.linalg.norm(bbox_vertices[0] - bbox_vertices[-1]))
 # box_division = 30
@@ -546,7 +702,7 @@ matched_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices
                                                      
 
 
-base_points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
+base_points_area = np.ones((points.shape[0], )) / points.shape[0] * 4 * np.pi
 # print('base_points_area', base_points_area)
 wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
 sorted_wns = np.sort(wns)[::-1]
@@ -576,7 +732,7 @@ print('scale', scale)
 print('mean_wn after scale', mean_wn)
 
 #
-# scale = 1.0
+scale = 1.0
 area_slider = scale  # default value for 'a'
 last_area = scale
 
@@ -603,7 +759,7 @@ print('sorted_wns on original points after scale', sorted_wns)
 print('mean_wns on original points afer scale:', np.mean(wns))  
 # print('wns on original points after scale:', np.max(wns))
 
-wns = igl.fast_winding_number_for_points(points, normals, base_points_area, matched_vertices)
+wns = igl.fast_winding_number_for_points(points, normals, base_points_area  * scale, matched_vertices)
 SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_division, box_division, slider_value)
 
 # sorted_wns = np.sort(wns)[::-1]
@@ -611,6 +767,17 @@ SV, SF = gpytoolbox.marching_cubes(wns, matched_vertices, box_division, box_divi
 # print('sorted_wns on matched_vertices', sorted_wns)
 # print('mean_wns on matched_vertices:', mean_wns)  
 # print('wns on matched_vertices:', np.max(wns))
+
+
+genus = calculate_genus(SV, SF )
+print('genus', genus)
+
+areas, genera, isovalues = calculate_area_and_genus(points, normals, matched_vertices, box_division, isovalue_start=0.1, isovalue_end= 10.0, isovalue_step=0.1)
+
+print('areas, genera, isovalues', areas, genera, isovalues)
+
+fig = plot_area_genus_relationship(areas, genera, isovalues)
+plt.show()
 
 
 if surface_file:
@@ -624,6 +791,8 @@ plot_points_normal(points, normals)
 
 
 
+
+
 # Display initial mesh
 ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
 
@@ -633,8 +802,8 @@ def callback():
     global slider_value, last_value, area_slider, last_area, SV, SF
     
     # Add slider for 'a' (point areas)
-    changed_area_slider, area_slider = psim.SliderFloat("Point area (a)", area_slider, v_min=0.0001, v_max=100.0)
-    changed_area_input, area_input = psim.InputFloat("Area input", area_slider, step=1)
+    changed_area_slider, area_slider = psim.SliderFloat("Point area (a)", area_slider, v_min=0.0001, v_max=10)
+    changed_area_input, area_input = psim.InputFloat("Area input", area_slider, step=0.1)
     
     # Synchronize area slider and input value
     if changed_area_input and area_input != area_slider:
@@ -693,6 +862,7 @@ def callback():
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
         print('area_sum', area_sum)
+        print('genus', calculate_genus(SV, SF))
 
 
     
