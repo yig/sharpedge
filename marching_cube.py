@@ -16,6 +16,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import cKDTree
 import scipy
 
+from pathlib import Path
 
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
@@ -349,31 +350,25 @@ def area_for_isovalue( points, normals, points_area, grid_vertices, box_division
 
 
 def calculate_genus(vertices, faces):
-    # Count vertices (V)
-    V = len(vertices)
+    V = len(vertices)  # Number of vertices
+    F = len(faces)  # Number of faces
     
-    # Count faces (F)
-    F = len(faces)
-    
-    # Count edges (E)
-    # For a triangle mesh, we need to account for shared edges
-    # Create a set of edges (sorted vertex pairs)
+    # Use a set to count unique edges
     edges = set()
     for face in faces:
-        # Add all three edges of the triangle
         edges.add(tuple(sorted([face[0], face[1]])))
         edges.add(tuple(sorted([face[1], face[2]])))
         edges.add(tuple(sorted([face[2], face[0]])))
+
+    E = len(edges)  # Number of edges
     
-    E = len(edges)
-    
-    # Calculate Euler characteristic
+    # Euler characteristic
     euler_char = V - E + F
     
-    # Calculate genus
-    genus = (2 - euler_char) // 2
-    
-    return genus
+    # Genus formula for closed orientable surfaces
+    genus = (2 - euler_char) / 2  # Use float division to prevent errors
+
+    return int(genus)  # Ensure integer output
 
 
 def calculate_area_and_genus(points, normals, cube_vertices, box_division, isovalue_start, isovalue_end, isovalue_step = 0.1):
@@ -386,6 +381,8 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
     areas = []
     genera = []
     isovalues = []
+    n_components = []
+
 
     for isovalue in np.arange(isovalue_start, isovalue_end, isovalue_step):
 
@@ -394,173 +391,275 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
 
         if len(SV) > 0 and len(SF) > 0:
             area = sum ( igl.doublearea(SV, SF) / 2.0 )
+            n_component = count_mesh_components(SV, SF)
+            n_components.append( n_component )
+
 
         else:
             # Handle the empty case
             area = 0  # or whatever default value makes sense
+            n_components.append( 0 )
             print("Warning: Empty mesh detected")
-            return areas, genera, isovalues
     
         areas.append( area )
         genus = calculate_genus(SV, SF)
         genera.append( genus)
         isovalues.append( isovalue )
 
-    return areas, genera, isovalues
+    return isovalues, genera, areas, n_components
 
 
-
-def plot_area_genus_relationship(areas, genera, isovalues, figsize=(10, 6)):
-    """
-    Plot the relationship between area and genus with isovalue annotations.
+def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, figname='isovalue_plot.png'):
+    '''
+    Creates a multi y-axis plot showing the relationship between isovalues vs areas, genera, and number of components
     
     Parameters:
     -----------
-    areas : array-like
-        List of area values
-    genera : array-like
-        List of genus values
-    isovalues : array-like
-        List of isovalue values that generated each (area, genus) pair
-    figsize : tuple, default=(10, 6)
-        Figure size in inches (width, height)
-    """
-    import matplotlib.pyplot as plt
-    import numpy as np
+    isovalues : list
+        List of isovalues (any range)
+    genera : list
+        List of corresponding genera counts
+    areas : list
+        List of corresponding areas
+    n_components : list
+        List of number of components
+    figname : str, optional
+        Output filename for saving the plot (default: 'isovalue_plot.png')
     
-    # Create figure
-    fig = plt.figure(figsize=figsize)
-    
-    # Plot main data
-    plt.plot(areas, genera, 'b-', label='Genus')
-    plt.scatter(areas, genera, color='blue', s=30)
-    
-    # Add isovalue annotations to each point
-    for i, (area, genus, iso) in enumerate(zip(areas, genera, isovalues)):
-        plt.annotate(f'{iso:.1f}', 
-                    (area, genus),
-                    xytext=(5, 5),  # 5 points offset
-                    textcoords='offset points',
-                    fontsize=8)
-    
-    # Add labels and title
-    plt.xlabel('Area')
-    plt.ylabel('Genus')
-    plt.title('Relationship between Area and Genus\n(numbers indicate isovalues)')
-    
-    # Add grid and legend
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.legend()
-    
-    # Adjust layout
+    Returns:
+    --------
+    None : Displays the plot
+    '''
+    # Create figure and primary axis
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    # Plot genera on primary y-axis
+    color1 = 'tab:orange'
+    ax1.set_xlabel('Isovalue')
+    ax1.set_ylabel('Number of Genera', color=color1)
+    line1 = ax1.plot(isovalues, genera, color=color1, label='Genera')
+    ax1.tick_params(axis='y', labelcolor=color1)
+
+    # Create secondary y-axis for areas
+    ax2 = ax1.twinx()
+    color2 = 'tab:blue'
+    ax2.set_ylabel('Area', color=color2)
+    line2 = ax2.plot(isovalues, areas, color=color2, label='Area')
+    ax2.tick_params(axis='y', labelcolor=color2)
+
+    # Create third y-axis for components
+    ax3 = ax1.twinx()
+    # Offset the third axis spine
+    ax3.spines['right'].set_position(('outward', 60))
+    color3 = 'tab:green'
+    ax3.set_ylabel('Number of Components', color=color3)
+    line3 = ax3.plot(isovalues, n_components, color=color3, label='Components')
+    ax3.tick_params(axis='y', labelcolor=color3)
+
+    # Add legend
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    lines3, labels3 = ax3.get_legend_handles_labels()
+    ax3.legend(lines1 + lines2 + lines3, 
+              labels1 + labels2 + labels3, 
+              loc='upper right')
+
+    # Set x-axis limits
+    ax1.set_xlim(0, int(max(isovalues)) + 1)
+    ax1.axhline(y=0, color='black', linewidth=1, zorder=1)
+
+    # Create fine grid with different styles for major and minor lines
+    ax1.grid(True, which='major', linestyle='--', alpha=0.5)  # Major grid lines
+    ax1.grid(True, which='minor', linestyle=':', alpha=0.2)   # Minor grid lines
+
+    # Set x-axis minor ticks at 0.1 intervals
+    from matplotlib.ticker import MultipleLocator
+    ax1.xaxis.set_minor_locator(MultipleLocator(0.1))
+
+    # Save figure if filename is provided
+    if figname is not None:
+        plt.savefig(figname, dpi=300, bbox_inches='tight')
+
+    # Adjust layout to prevent label cutoff
     plt.tight_layout()
-    
     plt.show()
 
 
-def find_minimal_surface_genus_zero(areas, genera, isovalues):
-    """
-    Find the minimal surface area and corresponding isovalue among all cases where genus = 0
+def find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components):
+    '''
+    Find the isovalue and area where:
+    - genus = 0
+    - number of components = 1
+    - area > 0
+    and has minimal surface area within that segment.
     
     Parameters:
-    areas (list): List of surface areas
-    genera (list): List of genus values
-    isovalues (list): List of isovalue parameters
-    
-    Returns:
-    tuple: (minimal_area, corresponding_isovalue)
-            Returns (None, None) if no genus 0 cases are found
-    """
-    # Convert to numpy arrays for easier handling
-    areas = np.array(areas)
-    genera = np.array(genera)
-    isovalues = np.array(isovalues)
-    
-    # Find indices where genus is 0
-    genus_zero_mask = (genera == 0)
-    
-    # If no genus 0 cases found, return None
-    if not np.any(genus_zero_mask):
-        print("No cases with genus 0 found")
-        return None, None
-    
-    # Get areas and isovalues for genus 0 cases
-    genus_zero_areas = areas[genus_zero_mask]
-    genus_zero_isovalues = isovalues[genus_zero_mask]
-    
-    # Find the minimum area and its index
-    min_area_idx = np.argmin(genus_zero_areas)
-    min_area = genus_zero_areas[min_area_idx]
-    corresponding_isovalue = genus_zero_isovalues[min_area_idx]
-    
-    return min_area, corresponding_isovalue
-
-
-def find_mesh_holes(vertices, faces):
-    """
-    Find holes in a mesh by detecting boundary edges and grouping them into loops.
-    
-    Args:
-        vertices: np.array of shape (N, 3) containing vertex coordinates
-        faces: np.array of shape (M, 3) containing vertex indices for triangles
-    
-    Returns:
-        list of lists, where each inner list contains vertex indices forming a hole boundary
-    """
-    # Create edge to face mapping
-    edge_to_face = {}
-    for face_idx, face in enumerate(faces):
-        # For each edge in the triangle
-        for i in range(3):
-            # Create edge (always store with smaller index first)
-            edge = tuple(sorted([face[i], face[(i + 1) % 3]]))
-            if edge not in edge_to_face:
-                edge_to_face[edge] = []
-            edge_to_face[edge].append(face_idx)
-    
-    # Find boundary edges (edges with only one adjacent face)
-    boundary_edges = [edge for edge, faces in edge_to_face.items() if len(faces) == 1]
-    
-    if not boundary_edges:
-        return []  # No holes found
-    
-    # Group boundary edges into loops (holes)
-    holes = []
-    used_edges = set()
-    
-    while boundary_edges:
-        current_hole = []
-        start_edge = boundary_edges[0]
-        current_vertex = start_edge[0]
+    -----------
+    isovalues : list
+        List of isovalues
+    genera : list
+        List of corresponding genera counts
+    areas : list
+        List of corresponding areas
+    n_components : list
+        List of number of components
         
-        while True:
-            # Find next edge in the boundary
-            next_edge = None
-            for edge in boundary_edges:
-                if edge in used_edges:
-                    continue
-                if edge[0] == current_vertex:
-                    next_edge = edge
-                    current_vertex = edge[1]
-                    break
-                elif edge[1] == current_vertex:
-                    next_edge = edge
-                    current_vertex = edge[0]
-                    break
+    Returns:
+    --------
+    tuple : (optimal_isovalue, minimal_area)
+        The isovalue and area where conditions are met and area is minimal in that segment
+    '''
+    # Initialize variables
+    found_valid = False
+    min_area = float('inf')
+    optimal_isovalue = None
+    
+    # Iterate through all values
+    for i in range(len(genera)):
+        # If we find invalid conditions after finding valid ones, break
+        if found_valid and (genera[i] != 0 or areas[i] <= 0):
+            break
             
-            if next_edge is None or (current_hole and current_vertex == current_hole[0]):
-                break
-                
-            current_hole.append(current_vertex)
-            used_edges.add(next_edge)
-            boundary_edges.remove(next_edge)
-        
-        if len(current_hole) >= 3:  # Only add holes with at least 3 vertices
-            holes.append(current_hole)
+        # Check all conditions:
+        # - genus = 0
+        # - exactly 1 component
+        # - area > 0
+        if genera[i] == 0 and areas[i] > 0:
+            found_valid = True
+            
+            # If this area is smaller than our current minimum
+            if areas[i] < min_area:
+                min_area = areas[i]
+                optimal_isovalue = isovalues[i]
     
-    return holes
+    # If we never found valid conditions, return None
+    if not found_valid:
+        return None, None
+        
+    return optimal_isovalue, min_area
 
-# Example usage:
+def count_mesh_components(V, F):
+    """
+    Count number of connected components in a mesh using iterative graph traversal
+    
+    Parameters:
+    -----------
+    V : array-like
+        Vertex coordinates, shape (n_vertices, dimension)
+    F : array-like
+        Face indices, shape (n_faces, vertices_per_face)
+        
+    Returns:
+    --------
+    int : Number of connected components
+    """
+
+    # Build adjacency list representation
+    adj = defaultdict(set)
+    for face in F:
+        n = len(face)
+        for i in range(n):
+            v1, v2 = face[i], face[(i + 1) % n]
+            adj[v1].add(v2)
+            adj[v2].add(v1)
+    
+    # Iterative DFS using stack
+    def iterative_dfs(start, visited):
+        stack = [start]
+        while stack:
+            vertex = stack.pop()
+            if not visited[vertex]:
+                visited[vertex] = True
+                stack.extend(neighbor for neighbor in adj[vertex] 
+                           if not visited[neighbor])
+    
+    # Initialize visited array
+    visited = defaultdict(bool)
+    components = 0
+    
+    # Count components using iterative DFS
+    for vertex in range(len(V)):
+        if not visited[vertex]:
+            iterative_dfs(vertex, visited)
+            components += 1
+            
+    return components
+
+def get_mesh_components(V, F):
+    """
+    Separate mesh into connected components and return vertices and faces for each
+    
+    Parameters:
+    -----------
+    V : array-like
+        Vertex coordinates, shape (n_vertices, dimension)
+    F : array-like
+        Face indices, shape (n_faces, vertices_per_face)
+        
+    Returns:
+    --------
+    list of tuples : [(V1,F1), (V2,F2), ...] where each tuple contains:
+        - Vi: vertices for component i
+        - Fi: faces for component i with reindexed vertex indices
+    """
+    
+    # Build adjacency list representation
+    adj = defaultdict(set)
+    for face in F:
+        n = len(face)
+        for i in range(n):
+            v1, v2 = face[i], face[(i + 1) % n]
+            adj[v1].add(v2)
+            adj[v2].add(v1)
+    
+    # Iterative DFS using stack to get vertex sets
+    def get_component_vertices(start, visited):
+        component_verts = set()
+        stack = [start]
+        while stack:
+            vertex = stack.pop()
+            if not visited[vertex]:
+                visited[vertex] = True
+                component_verts.add(vertex)
+                stack.extend(neighbor for neighbor in adj[vertex] 
+                           if not visited[neighbor])
+        return component_verts
+    
+    # Initialize visited array and components list
+    visited = defaultdict(bool)
+    components = []
+    
+    # Find all components
+    for vertex in range(len(V)):
+        if not visited[vertex]:
+            # Get vertices in this component
+            component_verts = get_component_vertices(vertex, visited)
+            
+            # Create vertex index mapping for this component
+            old_to_new = {old_idx: new_idx for new_idx, old_idx in 
+                         enumerate(sorted(component_verts))}
+            
+            # Get vertices for this component
+            component_V = V[sorted(component_verts)]
+            
+            # Get faces that belong to this component and reindex them
+            component_faces = []
+            for face in F:
+                # Check if face belongs to this component
+                if all(v in component_verts for v in face):
+                    # Reindex face vertices
+                    new_face = [old_to_new[v] for v in face]
+                    component_faces.append(new_face)
+            
+            # Convert faces to array
+            component_F = np.array(component_faces)
+            
+            # Add to components list if valid
+            if len(component_faces) > 0:
+                components.append((component_V, component_F))
+    
+    return components
+
 
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
@@ -572,7 +671,7 @@ parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
 parser.add_argument('--box_division', type=int, default=100,
                     help='Box division parameter (default: 100)')
-parser.add_argument('--use_points_area', type=str, default='true')
+parser.add_argument('--use_points_area', type=str, default='false')
 
 args = parser.parse_args()
 
@@ -609,11 +708,6 @@ grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
 # now I use 4 pi                                                     
 points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
 
-wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-sorted_wns = np.sort(wns)[::-1]
-# print('sorted_wns on original points', sorted_wns)
-print('mean_wns on original points:', np.mean(wns))  
-print('wns on original points:', np.max(wns))
 
 
 
@@ -641,43 +735,74 @@ last_value = 0.5
 
 
 if use_points_area is True:
+
+    wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+    sorted_wns = np.sort(wns)[::-1]
+    # print('sorted_wns on original points', sorted_wns)
+    print('mean_wns on original points:', np.mean(wns))  
+    print('wns on original points:', np.max(wns))
+
+
     scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
     wns = igl.fast_winding_number_for_points(points, normals, points_area * scale, grid_vertices)
     SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
     print('genus',calculate_genus(SV, SF))
+    area = igl.doublearea( SV, SF ) / 2.0
+    area_sum = sum( area )
+    print('area', area_sum)
+
+
+
     area_slider = scale 
     last_area  = scale
 
 
 else:
-    areas, genera, isovalues = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.1, isovalue_end= 15.0, isovalue_step=0.1)
-    print(genera)
+    isovalues, genera, areas, n_components = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.5, isovalue_end=6.0, isovalue_step=0.1)
+    print('isovalues, genera, areas, n_components', isovalues, genera, areas, n_components)
+    
+    curve_name = Path(normal_file).stem 
 
-    # plot_area_genus_relationship(areas, genera, isovalues)
+    plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, figname='iso_figs/' + curve_name + '.png')
 
 
-    min_area, corresponding_isovalue = find_minimal_surface_genus_zero(areas, genera, isovalues)
+    optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components)
 
-    print(min_area,corresponding_isovalue )
-    if corresponding_isovalue is not None:
+    print('min_area,corresponding_isovalue', min_area, optimal_isovalue )
+    if optimal_isovalue is not None:
+
+        wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+        print('mean_wns on original points:', np.mean(wns))  
+        print('wns on original points:', np.max(wns))
+    
         wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, corresponding_isovalue)
-        slider_value = corresponding_isovalue
-        last_value = corresponding_isovalue
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, optimal_isovalue)
+        slider_value = optimal_isovalue
+        last_value = optimal_isovalue
         print('genus', calculate_genus(SV, SF))
     else:
+
+        wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+        print('mean_wns on original points:', np.mean(wns))  
+        print('wns on original points:', np.max(wns))
+    
         wns = igl.fast_winding_number_for_points(points, normals, points_area , grid_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
         print('genus',calculate_genus(SV, SF))
 
 
+print('count_mesh_components', count_mesh_components(SV, SF))
 
+ps.init()
+ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+ps.set_ground_plane_mode("none")
+ps.show()
 
 
 
 if surface_file:
     export_obj(SV, SF, surface_file)
-    sys.exit()
+    # sys.exit()
 
 
 # 
@@ -685,8 +810,7 @@ if surface_file:
 
 plot_normal_data(V, E, N)
 plot_points_normal(points, normals)
-ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-ps.show()
+
 
 
 # Display initial mesh
@@ -731,6 +855,8 @@ def callback():
 
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
+        print('genus', calculate_genus(SV, SF))
+
         ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
         last_area = area_slider
 
@@ -760,6 +886,14 @@ def callback():
         print('len(sf)', len(SF))
         print('area_sum', area_sum)
         print('genus', calculate_genus(SV, SF))
+        print('count_mesh_components', count_mesh_components(SV, SF))
+
+        components = get_mesh_components(SV, SF)
+        # print('components', components)
+
+        for i in range(len(components)):
+            sv_i, sf_j = components[i]
+            ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
 
 
     

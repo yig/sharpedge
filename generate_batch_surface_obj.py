@@ -7,6 +7,12 @@ from plot2gltf import GLTFGeometryExporter
 from utility_io import load_sketch_polyline_data, load_obj
 
 
+import re
+
+def natural_sort(l): 
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key=alphanum_key)
 
 def export_sketch_surface_gltf(polylines, SV, SF, filename):
     '''
@@ -84,11 +90,11 @@ def optimize_edge_normals( sketch_folder ):
 
 # optimize_edge_normals('sketches/flowrep')
 
-normal_files = glob.glob('normal/scaffolds3d*.normal')  
+normal_files = natural_sort( glob.glob('normal/onshape*.normal')  )
 print(normal_files)
 
-generate_all_surface_from_normal_files( normal_files , folder= 'wn_1ish_surface')
-generate_sketch_and_surface_gltf(normal_files, surface_folder='wn_1ish_surface', gltf_folder = 'gltfs/wn_1ish_surface' )
+generate_all_surface_from_normal_files( normal_files , folder= 'genus_0_min_surface')
+generate_sketch_and_surface_gltf(normal_files, surface_folder='genus_0_min_surface', gltf_folder = 'gltfs/genus_0_min_surface' )
 
 # normal_gltf_files = glob.glob('normal/*.gltf')
 # copy_all_normal_gltfs(normal_gltf_files)

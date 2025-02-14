@@ -349,31 +349,25 @@ def plot_points_normal(points, normals):
 
 
 def calculate_genus(vertices, faces):
-    # Count vertices (V)
-    V = len(vertices)
+    V = len(vertices)  # Number of vertices
+    F = len(faces)  # Number of faces
     
-    # Count faces (F)
-    F = len(faces)
-    
-    # Count edges (E)
-    # For a triangle mesh, we need to account for shared edges
-    # Create a set of edges (sorted vertex pairs)
+    # Use a set to count unique edges
     edges = set()
     for face in faces:
-        # Add all three edges of the triangle
         edges.add(tuple(sorted([face[0], face[1]])))
         edges.add(tuple(sorted([face[1], face[2]])))
         edges.add(tuple(sorted([face[2], face[0]])))
+
+    E = len(edges)  # Number of edges
     
-    E = len(edges)
-    
-    # Calculate Euler characteristic
+    # Euler characteristic
     euler_char = V - E + F
     
-    # Calculate genus
-    genus = (2 - euler_char) // 2
-    
-    return genus
+    # Genus formula for closed orientable surfaces
+    genus = (2 - euler_char) / 2  # Use float division to prevent errors
+
+    return euler_char  # Ensure integer output
 
 
 
