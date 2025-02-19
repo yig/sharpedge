@@ -9,12 +9,11 @@ from collections import defaultdict
 import polyscope.imgui as psim
 from scipy.spatial.distance import pdist
 import gpytoolbox
-import sys 
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import cKDTree
-import scipy
+import trimesh
 
 from pathlib import Path
 
@@ -368,7 +367,7 @@ def calculate_genus(vertices, faces):
     # Genus formula for closed orientable surfaces
     genus = (2 - euler_char) / 2  # Use float division to prevent errors
 
-    return int(genus)  # Ensure integer output
+    return genus  # Ensure integer output
 
 
 def calculate_area_and_genus(points, normals, cube_vertices, box_division, isovalue_start, isovalue_end, isovalue_step = 0.1):
@@ -409,9 +408,9 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
     return isovalues, genera, areas, n_components
 
 
-def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, figname='isovalue_plot.png'):
+def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=None, figname='isovalue_plot.png'):
     '''
-    Creates a multi y-axis plot showing the relationship between isovalues vs areas, genera, and number of components
+    Creates a multi y-axis plot showing the relationship between isovalues vs areas, genera, and optionally number of components
     
     Parameters:
     -----------
@@ -421,8 +420,8 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, 
         List of corresponding genera counts
     areas : list
         List of corresponding areas
-    n_components : list
-        List of number of components
+    n_components : list, optional
+        List of number of components (default: None)
     figname : str, optional
         Output filename for saving the plot (default: 'isovalue_plot.png')
     
@@ -432,54 +431,58 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, 
     '''
     # Create figure and primary axis
     fig, ax1 = plt.subplots(figsize=(10, 6))
-
+    
     # Plot genera on primary y-axis
     color1 = 'tab:orange'
     ax1.set_xlabel('Isovalue')
     ax1.set_ylabel('Number of Genera', color=color1)
     line1 = ax1.plot(isovalues, genera, color=color1, label='Genera')
     ax1.tick_params(axis='y', labelcolor=color1)
-
+    
     # Create secondary y-axis for areas
     ax2 = ax1.twinx()
     color2 = 'tab:blue'
     ax2.set_ylabel('Area', color=color2)
     line2 = ax2.plot(isovalues, areas, color=color2, label='Area')
     ax2.tick_params(axis='y', labelcolor=color2)
-
-    # Create third y-axis for components
-    ax3 = ax1.twinx()
-    # Offset the third axis spine
-    ax3.spines['right'].set_position(('outward', 60))
-    color3 = 'tab:green'
-    ax3.set_ylabel('Number of Components', color=color3)
-    line3 = ax3.plot(isovalues, n_components, color=color3, label='Components')
-    ax3.tick_params(axis='y', labelcolor=color3)
-
+    
+    # Initialize lists for legend
+    lines = line1 + line2
+    labels = ['Genera', 'Area']
+    
+    # Create third y-axis for components only if n_components is provided
+    if n_components is not None:
+        ax3 = ax1.twinx()
+        # Offset the third axis spine
+        ax3.spines['right'].set_position(('outward', 60))
+        color3 = 'tab:green'
+        ax3.set_ylabel('Number of Components', color=color3)
+        line3 = ax3.plot(isovalues, n_components, color=color3, label='Components')
+        ax3.tick_params(axis='y', labelcolor=color3)
+        
+        # Add components to legend lists
+        lines += line3
+        labels.append('Components')
+    
     # Add legend
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    lines3, labels3 = ax3.get_legend_handles_labels()
-    ax3.legend(lines1 + lines2 + lines3, 
-              labels1 + labels2 + labels3, 
-              loc='upper right')
-
+    ax1.legend(lines, labels, loc='upper right')
+    
     # Set x-axis limits
     ax1.set_xlim(0, int(max(isovalues)) + 1)
-    ax1.axhline(y=0, color='black', linewidth=1, zorder=1)
-
+    ax1.axhline(y=0, color='black', linewidth=1, zorder=0, alpha=0.4)
+    
     # Create fine grid with different styles for major and minor lines
     ax1.grid(True, which='major', linestyle='--', alpha=0.5)  # Major grid lines
     ax1.grid(True, which='minor', linestyle=':', alpha=0.2)   # Minor grid lines
-
+    
     # Set x-axis minor ticks at 0.1 intervals
     from matplotlib.ticker import MultipleLocator
     ax1.xaxis.set_minor_locator(MultipleLocator(0.1))
-
+    
     # Save figure if filename is provided
     if figname is not None:
         plt.savefig(figname, dpi=300, bbox_inches='tight')
-
+    
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
     plt.show()
@@ -700,7 +703,7 @@ print(len(normals))
 # plot_points_wns(points, wns)
 
 # scale larger
-bbox_vertices = generate_bounding_box_points(V, scale_factor = 2.0)
+bbox_vertices = generate_bounding_box_points(V, scale_factor = 5.0)
 # print('scaled bounding box diagnoal', np.linalg.norm(bbox_vertices[0] - bbox_vertices[-1]))
 
 grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
@@ -763,6 +766,7 @@ else:
     
     curve_name = Path(normal_file).stem 
 
+    # plot_isovalue_genus_area_components(isovalues, genera, areas, n_components = None, figname='iso_figs/' + curve_name + '.png')
     plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, figname='iso_figs/' + curve_name + '.png')
 
 
@@ -771,9 +775,9 @@ else:
     print('min_area,corresponding_isovalue', min_area, optimal_isovalue )
     if optimal_isovalue is not None:
 
-        wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-        print('mean_wns on original points:', np.mean(wns))  
-        print('wns on original points:', np.max(wns))
+        # wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+        # print('mean_wns on original points:', np.mean(wns))  
+        # print('wns on original points:', np.max(wns))
     
         wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, optimal_isovalue)
@@ -782,21 +786,27 @@ else:
         print('genus', calculate_genus(SV, SF))
     else:
 
-        wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-        print('mean_wns on original points:', np.mean(wns))  
-        print('wns on original points:', np.max(wns))
+        # wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+        # print('mean_wns on original points:', np.mean(wns))  
+        # print('wns on original points:', np.max(wns))
+
+        print('should come here')
     
         wns = igl.fast_winding_number_for_points(points, normals, points_area , grid_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
+        slider_value = 0.5
+        last_value = 0.5
         print('genus',calculate_genus(SV, SF))
 
 
-print('count_mesh_components', count_mesh_components(SV, SF))
+# ps.init()
+# ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+# ps.set_ground_plane_mode("none")
+# ps.show()
 
-ps.init()
-ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-ps.set_ground_plane_mode("none")
-ps.show()
+print('area_sum', sum(igl.doublearea(SV,SF)/2))
+print('genus', calculate_genus(SV, SF))
+print('count_mesh_components', count_mesh_components(SV, SF))
 
 
 
@@ -871,6 +881,18 @@ def callback():
         input_value = slider_value
 
     if not psim.IsAnyItemActive() and (last_value != slider_value or last_area != area_slider):
+
+        # Remove all existing components
+        try:
+            # Remove all component meshes
+            for i in range(10):  # Using a reasonable upper limit
+                try:
+                    ps.remove_surface_mesh(f'component {i}')
+                except:
+                    break
+        except:
+            pass  # If mesh doesn't exist, continu
+        
         # Use the current area-scaled points
         current_points_area = points_area * area_slider
 
@@ -887,17 +909,27 @@ def callback():
         print('area_sum', area_sum)
         print('genus', calculate_genus(SV, SF))
         print('count_mesh_components', count_mesh_components(SV, SF))
+        # print('curvature',  igl.principal_curvature(SV, SF) )
 
         components = get_mesh_components(SV, SF)
         # print('components', components)
 
         for i in range(len(components)):
+            sv_i, sv_f = components[i]
+            print(f'{i}th genus ', calculate_genus(sv_i, sv_f))
+            mesh_i = trimesh.Trimesh(vertices=sv_i, faces=sv_f)
+            print(f"Is watertight: {mesh_i.is_watertight}")
+
+
+
+
+
+        for i in range(len(components)):
             sv_i, sf_j = components[i]
-            ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
-
-
+            mesh_i = ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
     
-        ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+            
+    
         last_value = slider_value
     
     if psim.Button("Export button"):

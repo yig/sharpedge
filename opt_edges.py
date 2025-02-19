@@ -832,6 +832,9 @@ if __name__ == "__main__":
         for e1, e2, weight in pairwise:
             n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1] )
             n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2] )
+            # if the edges are adjacent, correct for parallel transport
+            # if adjacent_and_ordered( e1, e2 ): n1 = rotation( from = e1, to = e2 ) * n1
+            # elif adjacent_and_ordered( e2, e1 ): n2 = rotation( from = e2, to = e1 ) * n2
             E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2
             W_pairwise += weight
         # Normalize by the total weight

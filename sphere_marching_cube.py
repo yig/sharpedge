@@ -348,7 +348,7 @@ def plot_points_normal(points, normals):
 
 
 
-def calculate_genus(vertices, faces):
+def calculate_eular_char(vertices, faces):
     V = len(vertices)  # Number of vertices
     F = len(faces)  # Number of faces
     
@@ -363,14 +363,85 @@ def calculate_genus(vertices, faces):
     
     # Euler characteristic
     euler_char = V - E + F
+
+   
+    return euler_char
+
+
+def get_mesh_components(V, F):
+    """
+    Separate mesh into connected components and return vertices and faces for each
     
-    # Genus formula for closed orientable surfaces
-    genus = (2 - euler_char) / 2  # Use float division to prevent errors
-
-    return euler_char  # Ensure integer output
-
-
-
+    Parameters:
+    -----------
+    V : array-like
+        Vertex coordinates, shape (n_vertices, dimension)
+    F : array-like
+        Face indices, shape (n_faces, vertices_per_face)
+        
+    Returns:
+    --------
+    list of tuples : [(V1,F1), (V2,F2), ...] where each tuple contains:
+        - Vi: vertices for component i
+        - Fi: faces for component i with reindexed vertex indices
+    """
+    
+    # Build adjacency list representation
+    adj = defaultdict(set)
+    for face in F:
+        n = len(face)
+        for i in range(n):
+            v1, v2 = face[i], face[(i + 1) % n]
+            adj[v1].add(v2)
+            adj[v2].add(v1)
+    
+    # Iterative DFS using stack to get vertex sets
+    def get_component_vertices(start, visited):
+        component_verts = set()
+        stack = [start]
+        while stack:
+            vertex = stack.pop()
+            if not visited[vertex]:
+                visited[vertex] = True
+                component_verts.add(vertex)
+                stack.extend(neighbor for neighbor in adj[vertex] 
+                           if not visited[neighbor])
+        return component_verts
+    
+    # Initialize visited array and components list
+    visited = defaultdict(bool)
+    components = []
+    
+    # Find all components
+    for vertex in range(len(V)):
+        if not visited[vertex]:
+            # Get vertices in this component
+            component_verts = get_component_vertices(vertex, visited)
+            
+            # Create vertex index mapping for this component
+            old_to_new = {old_idx: new_idx for new_idx, old_idx in 
+                         enumerate(sorted(component_verts))}
+            
+            # Get vertices for this component
+            component_V = V[sorted(component_verts)]
+            
+            # Get faces that belong to this component and reindex them
+            component_faces = []
+            for face in F:
+                # Check if face belongs to this component
+                if all(v in component_verts for v in face):
+                    # Reindex face vertices
+                    new_face = [old_to_new[v] for v in face]
+                    component_faces.append(new_face)
+            
+            # Convert faces to array
+            component_F = np.array(component_faces)
+            
+            # Add to components list if valid
+            if len(component_faces) > 0:
+                components.append((component_V, component_F))
+    
+    return components
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -549,7 +620,7 @@ print('wns on matched_vertices:', np.max(wns))
 
 plot_points_normal(points, normals)
 # Display initial mesh
-ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+# ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
 
 
 
@@ -636,12 +707,58 @@ def callback():
 
         area = igl.doublearea( SV, SF ) / 2.0
         area_sum = sum( area )
+        euler_char = calculate_eular_char(SV, SF)
         print('area_sum', area_sum)
-        print('genus', calculate_genus(SV, SF))
+        print('euler_char', euler_char)
+
+        components = get_mesh_components(SV, SF)
+        
+        # boundary components
+        b = len(components)
+
+        print('b components', b )
+
+        # x = 2 - 2g - b
+        genus = ( 2 - b - euler_char ) / 2
+        print('genus', genus)
+        print('int(genus)', int(genus))
+
+        print('for each component, genus')
+
+        # print(components)
+
+        for i in range(len(components)):
+            sv_i, sv_f = components[i]
+            print('ith euler char ', calculate_eular_char(sv_i, sv_f))
+
+
+
+
+
+
+        # Remove all existing components
+        try:
+            # Remove all component meshes
+            for i in range(10):  # Using a reasonable upper limit
+                try:
+                    ps.remove_surface_mesh(f'component {i}')
+                except:
+                    break
+        except:
+            pass  # If mesh doesn't exist, continu
+        
+
+  
+
+        for i in range(len(components)):
+            sv_i, sf_j = components[i]
+            ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
+ 
+
+    
 
 
     
-        ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
         last_value = slider_value
     
     if psim.Button("Export button"):

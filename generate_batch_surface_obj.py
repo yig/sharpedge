@@ -90,7 +90,7 @@ def optimize_edge_normals( sketch_folder ):
 
 # optimize_edge_normals('sketches/flowrep')
 
-normal_files = natural_sort( glob.glob('normal/onshape*.normal')  )
+normal_files = natural_sort( glob.glob('normal/t2f*.normal')  )
 print(normal_files)
 
 generate_all_surface_from_normal_files( normal_files , folder= 'genus_0_min_surface')
