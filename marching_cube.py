@@ -12,10 +12,13 @@ import gpytoolbox
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial import cKDTree
+from scipy.spatial import cKDTree, KDTree
 import trimesh
 
 from pathlib import Path
+from sklearn.neighbors import BallTree
+from scipy.spatial import ConvexHull
+import open3d as o3d
 
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
@@ -381,6 +384,8 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
     genera = []
     isovalues = []
     n_components = []
+    larget_component_genera = []
+    largest_component_surface_areas = []
 
 
     for isovalue in np.arange(isovalue_start, isovalue_end, isovalue_step):
@@ -390,14 +395,31 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
 
         if len(SV) > 0 and len(SF) > 0:
             area = sum ( igl.doublearea(SV, SF) / 2.0 )
-            n_component = count_mesh_components(SV, SF)
+            components = get_mesh_components(SV, SF)
+
+            n_component = len(components)
             n_components.append( n_component )
 
+            largest_component = max(components, key=lambda comp: len(comp[1]))
+            # print('largest_component', largest_component)
+            large_sv, large_sf = largest_component
+
+            max_com = count_mesh_components(large_sv, large_sf )
+            # print('len(max_com)', max_com)
+            # print('large_sv, large_sf', large_sv, large_sf)
+            large_area = sum( igl.doublearea(large_sv, large_sf) / 2.0 )
+            # print('large_area',large_area)
+            large_genus = calculate_genus( large_sv, large_sf)
+            # print('large_genus', large_genus)
+            larget_component_genera.append( large_genus ) 
+            largest_component_surface_areas.append( large_area )
 
         else:
             # Handle the empty case
             area = 0  # or whatever default value makes sense
             n_components.append( 0 )
+            larget_component_genera.append( 0 ) 
+            largest_component_surface_areas.append( 0 )
             print("Warning: Empty mesh detected")
     
         areas.append( area )
@@ -405,13 +427,15 @@ def calculate_area_and_genus(points, normals, cube_vertices, box_division, isova
         genera.append( genus)
         isovalues.append( isovalue )
 
-    return isovalues, genera, areas, n_components
+    return isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas
 
-
-def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=None, figname='isovalue_plot.png'):
+def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=None,
+                                        largest_component_genus=None, largest_component_surface_areas=None, 
+                                        figname='isovalue_plot.png'):
     '''
-    Creates a multi y-axis plot showing the relationship between isovalues vs areas, genera, and optionally number of components
-    
+    Creates a multi y-axis plot showing the relationship between isovalues vs areas, genera, and optionally
+    number of components, largest component genus, and largest component surface areas
+    ç
     Parameters:
     -----------
     isovalues : list
@@ -422,33 +446,37 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=N
         List of corresponding areas
     n_components : list, optional
         List of number of components (default: None)
+    largest_component_genus : list, optional
+        List of genera values for the largest component (default: None)
+    largest_component_surface_areas : list, optional
+        List of surface areas for the largest component (default: None)
     figname : str, optional
         Output filename for saving the plot (default: 'isovalue_plot.png')
-    
+        
     Returns:
     --------
     None : Displays the plot
     '''
     # Create figure and primary axis
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    fig, ax1 = plt.subplots(figsize=(12, 7))
     
     # Plot genera on primary y-axis
     color1 = 'tab:orange'
     ax1.set_xlabel('Isovalue')
     ax1.set_ylabel('Number of Genera', color=color1)
-    line1 = ax1.plot(isovalues, genera, color=color1, label='Genera')
+    line1 = ax1.plot(isovalues, genera, color=color1, label='Total Genera')
     ax1.tick_params(axis='y', labelcolor=color1)
     
     # Create secondary y-axis for areas
     ax2 = ax1.twinx()
     color2 = 'tab:blue'
     ax2.set_ylabel('Area', color=color2)
-    line2 = ax2.plot(isovalues, areas, color=color2, label='Area')
+    line2 = ax2.plot(isovalues, areas, color=color2, label='Total Area')
     ax2.tick_params(axis='y', labelcolor=color2)
     
     # Initialize lists for legend
     lines = line1 + line2
-    labels = ['Genera', 'Area']
+    labels = ['Total Genera', 'Total Area']
     
     # Create third y-axis for components only if n_components is provided
     if n_components is not None:
@@ -463,6 +491,26 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=N
         # Add components to legend lists
         lines += line3
         labels.append('Components')
+    
+    # Plot largest component genus if provided
+    if largest_component_genus is not None:
+        color4 = 'tab:red'
+        line4 = ax1.plot(isovalues, largest_component_genus, color=color4, 
+                         linestyle='--', label='Largest Component Genus')
+        
+        # Add to legend lists
+        lines += line4
+        labels.append('Largest Component Genus')
+    
+    # Plot largest component surface area if provided
+    if largest_component_surface_areas is not None:
+        color5 = 'tab:purple'
+        line5 = ax2.plot(isovalues, largest_component_surface_areas, color=color5, 
+                         linestyle='--', label='Largest Component Area')
+        
+        # Add to legend lists
+        lines += line5
+        labels.append('Largest Component Area')
     
     # Add legend
     ax1.legend(lines, labels, loc='upper right')
@@ -479,6 +527,9 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=N
     from matplotlib.ticker import MultipleLocator
     ax1.xaxis.set_minor_locator(MultipleLocator(0.1))
     
+    # Title
+    plt.title('Mesh Properties vs Isovalue')
+    
     # Save figure if filename is provided
     if figname is not None:
         plt.savefig(figname, dpi=300, bbox_inches='tight')
@@ -486,7 +537,6 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=N
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
     plt.show()
-
 
 def find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components):
     '''
@@ -665,6 +715,85 @@ def get_mesh_components(V, F):
 
 
 
+def calculate_points_area(points, threshold=3e-2):
+    """
+    Calculate area associated with each point based on neighbor density.
+    
+    Parameters:
+    - points: numpy array of shape (n_points, n_dimensions)
+    - threshold: distance threshold for considering points as neighbors
+    
+    Returns:
+    - points_area: numpy array of shape (n_points,) containing area values
+    """
+    # Create a BallTree once for all points
+    tree = BallTree(points)
+    
+    # Query all points at once to find neighbors within threshold
+    # Returns a list where each element contains indices of neighbors for each point
+    neighbors_indices = tree.query_radius(points, r=threshold)
+    
+    # Count neighbors for each point (including self)
+    points_neighbors = np.array([len(indices) for indices in neighbors_indices])
+
+        # Calculate the average of points_neighbors
+    average = np.mean(points_neighbors)
+
+    # Create new array where values > average become 1000, others become 1
+    points_neighbors = np.where(points_neighbors > average, 1e3, 1)
+
+    
+    print('points_neighbors', points_neighbors)
+    # Calculate weights as inverse of neighbor count (including self)
+    weights = 1.0 / points_neighbors
+    # weights = points_neighbors
+    
+    # Calculate normalized weights (portions)
+    weights_sum = np.sum(weights)
+    normalized_weights = weights / weights_sum
+    
+    # Calculate area for each point (assuming area is proportional to normalized weight * π)
+    points_area = normalized_weights * np.pi 
+
+    
+    return points_area
+
+
+def hpr_surface_area(points, normals):
+    points_area = []
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(points)
+    pcd.normals = o3d.utility.Vector3dVector(normals)
+
+
+
+    for i in range(len(normals)):
+        camera = points[i] + normals[i] * 0.01
+        radius = 0.1
+        visible_points, pt_map = pcd.hidden_point_removal(camera, radius)
+        surface_area = ConvexHull(points[pt_map]).area
+        points_area.append(surface_area)
+        print('i, len(visible_indices), surface_area', i, len(pt_map), surface_area)
+
+    points_area =  np.asarray( points_area )
+
+    # return points_area
+
+    # scaled_areas = points_area * (np.pi / np.sum(points_area))
+    return points_area
+
+
+
+
+def bending_energy( V, F ):
+    L = igl.cotmatrix( V, F )
+    BV = (L*(L*V))
+    avg_bending = np.average( BV, axis = 0 )
+
+    return sum( avg_bending )
+
+
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
 # Add arguments
@@ -672,9 +801,9 @@ parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
-parser.add_argument('--box_division', type=int, default=100,
+parser.add_argument('--box_division', type=int, default=200,
                     help='Box division parameter (default: 100)')
-parser.add_argument('--use_points_area', type=str, default='false')
+parser.add_argument('--use_points_area', type=str, default='true')
 
 args = parser.parse_args()
 
@@ -715,6 +844,7 @@ points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
 
 
 
+
 # scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
 # print('scale', scale)
 # print('mean_wn after scale', mean_wn)
@@ -739,15 +869,30 @@ last_value = 0.5
 
 if use_points_area is True:
 
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-    sorted_wns = np.sort(wns)[::-1]
-    # print('sorted_wns on original points', sorted_wns)
-    print('mean_wns on original points:', np.mean(wns))  
-    print('wns on original points:', np.max(wns))
+    ## The above is using winding number on original field to find te scale 
+    # wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
+    # sorted_wns = np.sort(wns)[::-1]
+    # # print('sorted_wns on original points', sorted_wns)
+    # print('mean_wns on original points:', np.mean(wns))  
+    # print('wns on original points:', np.max(wns))
 
 
-    scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
-    wns = igl.fast_winding_number_for_points(points, normals, points_area * scale, grid_vertices)
+    # scale, mean_wn, _ = find_optimal_scale(points, normals, target_mean=1.25)
+    # wns = igl.fast_winding_number_for_points(points, normals, points_area * scale, grid_vertices)
+
+
+
+    # points_area = calculate_points_area(points)
+    # points_area = np.ones((points.shape[0], )) / points.shape[0] 
+    # points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
+    # points_area = hpr_surface_area(points, normals)
+    points_area = estimate_voronoi_volume_knn(points) 
+
+    print('np.sum(points_area)', np.sum(points_area))
+    points_area = (np.pi * points_area) / np.sum(points_area)
+    print('np.sum(points_area)', np.sum(points_area))
+
+    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
     SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
     print('genus',calculate_genus(SV, SF))
     area = igl.doublearea( SV, SF ) / 2.0
@@ -756,21 +901,21 @@ if use_points_area is True:
 
 
 
-    area_slider = scale 
-    last_area  = scale
+    area_slider = 1.0 
+    last_area  = 1.0
 
 
 else:
-    isovalues, genera, areas, n_components = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.5, isovalue_end=6.0, isovalue_step=0.1)
-    print('isovalues, genera, areas, n_components', isovalues, genera, areas, n_components)
-    
+    isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.5, isovalue_end=6.0, isovalue_step=0.1)
+    print('isovalues, genera, areas, n_componentsisovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas', isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas)
     curve_name = Path(normal_file).stem 
 
     # plot_isovalue_genus_area_components(isovalues, genera, areas, n_components = None, figname='iso_figs/' + curve_name + '.png')
-    plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, figname='iso_figs/' + curve_name + '.png')
+    plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas, figname='iso_figs/' + curve_name + '.png')
 
 
-    optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components)
+    # optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components)
+    optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, larget_component_genera, largest_component_surface_areas, n_components)
 
     print('min_area,corresponding_isovalue', min_area, optimal_isovalue )
     if optimal_isovalue is not None:
@@ -799,10 +944,10 @@ else:
         print('genus',calculate_genus(SV, SF))
 
 
-# ps.init()
-# ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-# ps.set_ground_plane_mode("none")
-# ps.show()
+ps.init()
+ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+ps.set_ground_plane_mode("none")
+ps.show()
 
 print('area_sum', sum(igl.doublearea(SV,SF)/2))
 print('genus', calculate_genus(SV, SF))
@@ -903,6 +1048,7 @@ def callback():
         area_sum = sum( area )
         # print('new mean_wns on grid_vertices:', np.mean(wns))  
         # print('new wns on grid_vertices:', np.max(wns))
+        print('bending_energy', bending_energy(SV, SF))
         
         print('len(sv)', len(SV))
         print('len(sf)', len(SF))
@@ -927,8 +1073,6 @@ def callback():
         for i in range(len(components)):
             sv_i, sf_j = components[i]
             mesh_i = ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
-    
-            
     
         last_value = slider_value
     
