@@ -18,7 +18,8 @@ import trimesh
 from pathlib import Path
 from sklearn.neighbors import BallTree
 from scipy.spatial import ConvexHull
-import open3d as o3d
+from sklearn.neighbors import NearestNeighbors
+from scipy.linalg import svd
 
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
@@ -713,75 +714,121 @@ def get_mesh_components(V, F):
     
     return components
 
-
-
-def calculate_points_area(points, threshold=3e-2):
+def compute_voronoi_areas(points, normals, k=20, normal_threshold=0.1):
     """
-    Calculate area associated with each point based on neighbor density.
+    Compute Voronoi areas for points in a point cloud using k-nearest neighbors.
     
     Parameters:
-    - points: numpy array of shape (n_points, n_dimensions)
-    - threshold: distance threshold for considering points as neighbors
-    
+    points: np.ndarray (n x 3)
+        Input point cloud coordinates
+    normals: np.ndarray (n x 3)
+        Point normals (should be normalized)
+    k: int
+        Number of nearest neighbors to consider (default: 20)
+    normal_threshold: float
+        Threshold for normal compatibility (default: 0.7)
+        
     Returns:
-    - points_area: numpy array of shape (n_points,) containing area values
+    np.ndarray (n,)
+        Voronoi area for each point
     """
-    # Create a BallTree once for all points
-    tree = BallTree(points)
+    n_points = len(points)
+    voronoi_areas = np.zeros(n_points)
     
-    # Query all points at once to find neighbors within threshold
-    # Returns a list where each element contains indices of neighbors for each point
-    neighbors_indices = tree.query_radius(points, r=threshold)
+    # Initialize nearest neighbor search
+    nbrs = NearestNeighbors(n_neighbors=k+1, algorithm='auto').fit(points)
+    distances, indices = nbrs.kneighbors(points)
     
-    # Count neighbors for each point (including self)
-    points_neighbors = np.array([len(indices) for indices in neighbors_indices])
-
-        # Calculate the average of points_neighbors
-    average = np.mean(points_neighbors)
-
-    # Create new array where values > average become 1000, others become 1
-    points_neighbors = np.where(points_neighbors > average, 1e3, 1)
-
+    # Process each point
+    for i in range(n_points):
+        # Get neighbors (excluding the point itself)
+        neighbor_indices = indices[i, 1:]
+        neighbor_points = points[neighbor_indices]
+        neighbor_normals = normals[neighbor_indices]
+        
+        # Filter neighbors based on normal compatibility
+        normal_dots = np.abs(np.dot(neighbor_normals, normals[i]))
+        valid_neighbors = normal_dots > normal_threshold
+        
+        # If no valid neighbors based on normals, use all neighbors
+        if not np.any(valid_neighbors):
+            valid_points = neighbor_points
+        else:
+            valid_points = neighbor_points[valid_neighbors]
+        
+        # Compute local coordinate system using PCA
+        centered_points = valid_points - points[i]
+        U, S, Vt = svd(centered_points.T @ centered_points)
+        
+        # Project points onto best-fit plane (first two principal components)
+        projection_matrix = U[:, :2]
+        projected_points = centered_points @ projection_matrix
+        
+        # Compute 2D Voronoi area
+        voronoi_areas[i] = compute_2d_voronoi_area(projected_points)
     
-    print('points_neighbors', points_neighbors)
-    # Calculate weights as inverse of neighbor count (including self)
-    weights = 1.0 / points_neighbors
-    # weights = points_neighbors
+    return voronoi_areas
+
+def compute_average_point_spacing(points):
+    """
+    Compute average spacing between points in a point set.
     
-    # Calculate normalized weights (portions)
-    weights_sum = np.sum(weights)
-    normalized_weights = weights / weights_sum
+    Parameters:
+    points: np.ndarray (n x d)
+        Input points (can be 2D or 3D)
+        
+    Returns:
+    float
+        Average spacing between neighboring points
+    """
+    if len(points) < 2:
+        return 1.0  # Default spacing if insufficient points
+        
+    # Use nearest neighbors to estimate average spacing
+    nbrs = NearestNeighbors(n_neighbors=2, algorithm='auto').fit(points)
+    distances, _ = nbrs.kneighbors(points)
+    # Take the second column as it represents distance to nearest neighbor
+    # (first column is distance to self, which is 0)
+    avg_spacing = np.mean(distances[:, 1])
+    return max(avg_spacing, 1e-5)  # Ensure spacing is never exactly zero
+
+def compute_2d_voronoi_area(points_2d):
+    """
+    Compute 2D Voronoi area for a point and its neighbors using Triangle.
+    This is a placeholder - you'll need to integrate with Triangle library.
     
-    # Calculate area for each point (assuming area is proportional to normalized weight * π)
-    points_area = normalized_weights * np.pi 
-
+    Parameters:
+    points_2d: np.ndarray (n x 2)
+        2D projected points
+        
+    Returns:
+    float
+        Voronoi area for the central point
+    """
+    try:
+        # Here you would integrate with Triangle library
+        # For now, we'll use a simple approximation based on the
+        # average distance to neighbors
+        distances = np.linalg.norm(points_2d, axis=1)
+        if len(distances) == 0:
+            # Fallback: use global point spacing if no neighbors
+            return compute_average_point_spacing(points_2d)**2
+        area = np.pi * np.mean(distances)**2
+        return max(area, 1e-10)  # Ensure area is never exactly zero
+    except Exception as e:
+        print(f"Error computing 2D Voronoi area: {e}")
+        # Fallback: use global point spacing
+        return compute_average_point_spacing(points_2d)**2
     
-    return points_area
 
 
-def hpr_surface_area(points, normals):
-    points_area = []
+def estimate_bounding_sphere_surface_area(points):
+    """
 
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    pcd.normals = o3d.utility.Vector3dVector(normals)
-
-
-
-    for i in range(len(normals)):
-        camera = points[i] + normals[i] * 0.01
-        radius = 0.1
-        visible_points, pt_map = pcd.hidden_point_removal(camera, radius)
-        surface_area = ConvexHull(points[pt_map]).area
-        points_area.append(surface_area)
-        print('i, len(visible_indices), surface_area', i, len(pt_map), surface_area)
-
-    points_area =  np.asarray( points_area )
-
-    # return points_area
-
-    # scaled_areas = points_area * (np.pi / np.sum(points_area))
-    return points_area
+    """
+    centroid = np.mean(points, axis=0)  # 计算点云质心
+    max_radius = np.max(np.linalg.norm(points - centroid, axis=1))  # 计算最大距离
+    return 4 * np.pi * max_radius**2  # 计算球面面积
 
 
 
@@ -815,6 +862,7 @@ use_points_area = args.use_points_area.lower() == 'true'
 
 V, E, N = load_normal_data(normal_file)
 
+
 # print('np.mean(V)', np.mean(V))
 
 # move it to later so that I can run the script to get all obj
@@ -838,7 +886,7 @@ bbox_vertices = generate_bounding_box_points(V, scale_factor = 5.0)
 grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
 
 # now I use 4 pi                                                     
-points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
+# points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
 
 
 
@@ -886,11 +934,23 @@ if use_points_area is True:
     # points_area = np.ones((points.shape[0], )) / points.shape[0] 
     # points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
     # points_area = hpr_surface_area(points, normals)
-    points_area = estimate_voronoi_volume_knn(points) 
+    # points_area = compute_voronoi_areas(points, normals) 
 
-    print('np.sum(points_area)', np.sum(points_area))
-    points_area = (np.pi * points_area) / np.sum(points_area)
-    print('np.sum(points_area)', np.sum(points_area))
+    # print('points_area.tolist()', points_area.tolist())
+
+    surface_area = ConvexHull(points).area
+    print('surface_area', surface_area)
+
+    # bounding_sphere_area = estimate_bounding_sphere_surface_area(points)
+    points_area = np.ones((points.shape[0], )) / points.shape[0] * surface_area
+
+    # print('bounding_sphere_area', bounding_sphere_area)
+
+    # points_area = np.ones((points.shape[0], )) / points.shape[0] * bounding_sphere_area
+    # points_area = points_area * surface_area
+    # print('np.sum(points_area)', np.sum(points_area))
+    # points_area =  (1 * points_area) / np.sum(points_area)
+    # print('np.sum(points_area)', np.sum(points_area))
 
     wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
     SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
