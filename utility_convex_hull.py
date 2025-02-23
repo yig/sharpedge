@@ -985,7 +985,7 @@ if __name__ == "__main__":
 
 
     # export the sketch to gltf
-    export_polylines_gltf(polylines,  gltf_sketch_path + curve_name + '.gltf')
+    # export_polylines_gltf(polylines,  gltf_sketch_path + curve_name + '.gltf')
     
     
     
@@ -1010,7 +1010,7 @@ if __name__ == "__main__":
 
     plot_hull_with_normals(vertices, edges, faces, vertex_normals, edge_normals, face_normals)
 
-    export_hull_gltf(vertices, edges, faces, vertex_normals, edge_normals, face_normals, gltf_hull_path + curve_name + '.gltf')
+    # export_hull_gltf(vertices, edges, faces, vertex_normals, edge_normals, face_normals, gltf_hull_path + curve_name + '.gltf')
 
 
     # ### 3. calculate the edge normal 

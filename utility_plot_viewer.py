@@ -80,7 +80,7 @@ def plot_edge_constraints(V, E, P, constraints, scale=0.03, filename = None):
         V: (n,3) array of vertex coordinates
         E: (m,2) array of edge vertex pairs
         P: list of lists, where each inner list contains vertex indices for a polyline with its color
-        edge_normals: dictionary mapping edge indices to normal vectors
+        constraints: dictionary mapping edge indices to normal vectors
         scale: scaling factor for normal vectors (default: 0.03)
         filename: if provided, save plot to this filename (default: None)
     """
@@ -222,3 +222,123 @@ def plot_normal_data(V, E, N, scale=0.03):
     plt.axis('off')
     plt.axis('equal')
     plt.show()
+
+
+
+def plot_polyline_best_constraints(V, E, P, polyline_normal, scale=0.03, str=None, filename=None):
+    """
+    Args:
+        V: (n,3) array of vertex coordinates
+        E: (m,2) array of edge vertex pairs
+        P: list of lists, where each inner list contains vertex indices for a polyline with its color
+        polyline_normal: dictionary, key - polyline_index, value : (edge_pos_in_polyline, best_normal_vector)
+        scale: scaling factor for normal vectors (default: 0.03)
+        str: optional string label for the plot (default: None)
+        filename: if provided, save plot to this filename (default: None)
+    """
+    # Create figure
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot polylines
+    for polyline_idx, polyline in enumerate(P):
+        polyline_points = np.array([V[index] for index in polyline])
+        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2])
+
+    # Plot normal vectors for constrained edges
+    for polyline_idx, (edge_pos, normal) in polyline_normal.items():
+        polyline = P[polyline_idx]
+        # Get the edge vertices
+        start = V[polyline[edge_pos]]
+        end = V[polyline[edge_pos + 1]]
+        
+        # Calculate midpoint of edge
+        mid = (start + end) / 2
+        
+        # Plot normal vector
+        ax.quiver(mid[0], mid[1], mid[2],
+                 normal[0], normal[1], normal[2],
+                 color='green', length=scale, normalize=True,
+                 arrow_length_ratio=0.2)
+
+    # Make axes equal and set labels
+    plt.axis('off')
+    plt.axis('equal')
+    
+    # Add title if str is provided
+    if str is not None:
+        ax.set_title(str)
+
+    # Save to file if filename is provided
+    if filename:
+        plt.savefig(filename, 
+                    dpi=300,           # High resolution
+                    bbox_inches='tight',# Trim white space
+                    pad_inches=0.1)     # Small padding
+        plt.close()  # Close the figure to free memory
+    else:
+        plt.show()
+
+
+def plot_polyline_normals(V, E, P, polyline_normals, scale=0.03, str=None, filename=None):
+    """
+    Args:
+        V: (n,3) array of vertex coordinates
+        E: (m,2) array of edge vertex pairs
+        P: list of lists, where each inner list contains vertex indices for a polyline with its color
+        polyline_normals: dictionary, key - polyline_index, value: a list of normals corresponding to each segment of polyline
+        scale: scaling factor for normal vectors (default: 0.03)
+        str: optional string label for the plot (default: None)
+        filename: if provided, save plot to this filename (default: None)
+    """
+    # Create figure
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot polylines
+    for polyline_idx, polyline in enumerate(P):
+        polyline_points = np.array([V[index] for index in polyline])
+        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2])
+
+        # Plot normal vectors for each segment of the polyline
+        if polyline_idx in polyline_normals:
+            normals = polyline_normals[polyline_idx]
+            # For each segment in the polyline
+            for i in range(len(polyline) - 1):
+                # Get segment endpoints
+                start = V[polyline[i]]
+                end = V[polyline[i + 1]]
+                
+                # Calculate midpoint of segment
+                mid = (start + end) / 2
+                
+                # Get corresponding normal vector
+                normal = normals[i]
+                
+                # Plot normal vector
+                ax.quiver(mid[0], mid[1], mid[2],
+                         normal[0], normal[1], normal[2],
+                         color='green', length=scale, normalize=True,
+                         arrow_length_ratio=0.2)
+
+    # Make axes equal and set labels
+    plt.axis('off')
+    plt.axis('equal')
+    
+    # Add title if str is provided
+    if str is not None:
+        ax.set_title(str)
+
+    # Save to file if filename is provided
+    if filename:
+        plt.savefig(filename, 
+                    dpi=300,           # High resolution
+                    bbox_inches='tight',# Trim white space
+                    pad_inches=0.1)     # Small padding
+        plt.close()  # Close the figure to free memory
+    else:
+        plt.show()
