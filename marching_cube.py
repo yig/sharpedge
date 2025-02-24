@@ -749,7 +749,7 @@ last_value = 0.5
 
 
 
-# ps.init()
+ps.init()
 
 
 if use_points_area is True:
