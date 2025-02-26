@@ -15,7 +15,7 @@ import trimesh
 
 from pathlib import Path
 from scipy.spatial import ConvexHull
-from utility_voronoi_area import compute_geodesic_voronoi_areas
+from utility_voronoi_area import compute_geodesic_voronoi_areas, visualize_with_polyscope
 import sys 
 
 def n_for_segment(segment, target_length):
@@ -113,7 +113,6 @@ def resample_for_points_normal(V, E, N, sample_length=0.01, proximity_threshold=
     
     return np.array(points), np.array(normals)
 
-
 def generate_bounding_box_points(V, scale_factor=2):
     """Generate axis-aligned bounding box vertices around 3D points.
     Args:
@@ -202,7 +201,6 @@ def plot_points_normal(points, normals):
     
     # Show the visualization window
     ps.show()
-
 
 def plot_points_wns(tet_vertices, wns):
     """
@@ -294,61 +292,6 @@ def plot_points_large_wns(tet_vertices, wns):
     plt.axis('equal')
     plt.show()
 
-
-def find_optimal_scale(points, normals, target_mean=1.0, points_area = np.pi, tolerance=0.01, max_iterations=50):
-    """
-    Find the optimal scale for base_points_area to achieve a target mean winding number.
-    
-    Args:
-        points (ndarray): Point coordinates
-        normals (ndarray): Normal vectors
-        target_mean (float): Target mean winding number (default: 1.0)
-        tolerance (float): Acceptable difference from target mean (default: 0.01)
-        max_iterations (int): Maximum number of iterations (default: 50)
-        
-    Returns:
-        tuple: (optimal_scale, mean_wn, base_points_area)
-            - optimal_scale: The scale that achieves the target mean
-            - mean_wn: The achieved mean winding number
-            - base_points_area: The scaled base points area
-    """
-    # Binary search parameters
-    scale_min = 0.01
-    scale_max = 10.0
-    
-    for i in range(max_iterations):
-        # Try current scale
-        scale = (scale_min + scale_max) / 2
-        base_points_area = np.ones((points.shape[0],)) / points.shape[0] * points_area * scale
-        
-        # Calculate winding numbers
-        wns = igl.fast_winding_number_for_points(points, normals, base_points_area, points)
-        current_mean = np.mean(wns)
-        
-        # Check if we're close enough
-        if abs(current_mean - target_mean) < tolerance:
-            return scale, current_mean, base_points_area
-        
-        # Adjust search range
-        if current_mean < target_mean:
-            scale_min = scale
-        else:
-            scale_max = scale
-            
-        # Debug info
-        print(f"Iteration {i+1}: scale = {scale:.4f}, mean = {current_mean:.4f}")
-    
-    # If we reach max iterations, return best attempt
-    return scale, current_mean, base_points_area
-
-
-def area_for_isovalue( points, normals, points_area, grid_vertices, box_division, isovalue ):
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, isovalue)
-    area = igl.doublearea( SV, SF ) / 2.0 
-    return sum( area )
-
-
 def calculate_genus(vertices, faces):
     V = len(vertices)  # Number of vertices
     F = len(faces)  # Number of faces
@@ -369,63 +312,6 @@ def calculate_genus(vertices, faces):
     genus = (2 - euler_char) / 2  # Use float division to prevent errors
 
     return genus  # Ensure integer output
-
-
-def calculate_area_and_genus(points, normals, cube_vertices, box_division, isovalue_start, isovalue_end, isovalue_step = 0.1):
-    '''
-    '''
-
-    points_area = np.ones((points.shape[0], )) / points.shape[0] * np.pi
-    wns = igl.fast_winding_number_for_points(points, normals, points_area , cube_vertices)
-
-    areas = []
-    genera = []
-    isovalues = []
-    n_components = []
-    larget_component_genera = []
-    largest_component_surface_areas = []
-
-
-    for isovalue in np.arange(isovalue_start, isovalue_end, isovalue_step):
-
-        SV, SF = gpytoolbox.marching_cubes(wns, cube_vertices, box_division, box_division, box_division, isovalue)
-        # print(SV, SF)
-
-        if len(SV) > 0 and len(SF) > 0:
-            area = sum ( igl.doublearea(SV, SF) / 2.0 )
-            components = get_mesh_components(SV, SF)
-
-            n_component = len(components)
-            n_components.append( n_component )
-
-            largest_component = max(components, key=lambda comp: len(comp[1]))
-            # print('largest_component', largest_component)
-            large_sv, large_sf = largest_component
-
-            max_com = count_mesh_components(large_sv, large_sf )
-            # print('len(max_com)', max_com)
-            # print('large_sv, large_sf', large_sv, large_sf)
-            large_area = sum( igl.doublearea(large_sv, large_sf) / 2.0 )
-            # print('large_area',large_area)
-            large_genus = calculate_genus( large_sv, large_sf)
-            # print('large_genus', large_genus)
-            larget_component_genera.append( large_genus ) 
-            largest_component_surface_areas.append( large_area )
-
-        else:
-            # Handle the empty case
-            area = 0  # or whatever default value makes sense
-            n_components.append( 0 )
-            larget_component_genera.append( 0 ) 
-            largest_component_surface_areas.append( 0 )
-            print("Warning: Empty mesh detected")
-    
-        areas.append( area )
-        genus = calculate_genus(SV, SF)
-        genera.append( genus)
-        isovalues.append( isovalue )
-
-    return isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas
 
 def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=None,
                                         largest_component_genus=None, largest_component_surface_areas=None, 
@@ -535,59 +421,6 @@ def plot_isovalue_genus_area_components(isovalues, genera, areas, n_components=N
     # Adjust layout to prevent label cutoff
     plt.tight_layout()
     plt.show()
-
-def find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components):
-    '''
-    Find the isovalue and area where:
-    - genus = 0
-    - number of components = 1
-    - area > 0
-    and has minimal surface area within that segment.
-    
-    Parameters:
-    -----------
-    isovalues : list
-        List of isovalues
-    genera : list
-        List of corresponding genera counts
-    areas : list
-        List of corresponding areas
-    n_components : list
-        List of number of components
-        
-    Returns:
-    --------
-    tuple : (optimal_isovalue, minimal_area)
-        The isovalue and area where conditions are met and area is minimal in that segment
-    '''
-    # Initialize variables
-    found_valid = False
-    min_area = float('inf')
-    optimal_isovalue = None
-    
-    # Iterate through all values
-    for i in range(len(genera)):
-        # If we find invalid conditions after finding valid ones, break
-        if found_valid and (genera[i] != 0 or areas[i] <= 0):
-            break
-            
-        # Check all conditions:
-        # - genus = 0
-        # - exactly 1 component
-        # - area > 0
-        if genera[i] == 0 and areas[i] > 0:
-            found_valid = True
-            
-            # If this area is smaller than our current minimum
-            if areas[i] < min_area:
-                min_area = areas[i]
-                optimal_isovalue = isovalues[i]
-    
-    # If we never found valid conditions, return None
-    if not found_valid:
-        return None, None
-        
-    return optimal_isovalue, min_area
 
 def count_mesh_components(V, F):
     """
@@ -709,7 +542,43 @@ def get_mesh_components(V, F):
             if len(component_faces) > 0:
                 components.append((component_V, component_F))
     
+    components.sort(key=lambda x: len(x[1]), reverse=True)
     return components
+
+def generate_surface_iterations(points, normals, grid_vertices, box_division, iterations = 0):
+    '''
+    '''
+
+    surfaces = []
+    points_areas = []
+
+    # estimate the points area using convex hull
+    convex_hull_area = ConvexHull(points).area 
+    points_area = convex_hull_area * np.ones((points.shape[0], )) / points.shape[0] 
+
+
+    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
+    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
+
+    surfaces.append((SV, SF))
+    points_areas.append( points_area )
+
+    for i in range(iterations):
+        # now update the points area use voronoi 
+        # the sum of points_area igl.doublearea( SV, SF ) / 2.0
+        points_area, geodesic_distances, mesh, closest_vertices, face_owners  = compute_geodesic_voronoi_areas(SV,SF, points)
+
+        # 
+        visualize_with_polyscope(SV, SF, points, face_owners, points_area)
+        # use the updated points_area to recalculate the surface again 
+        wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
+        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
+
+        surfaces.append((SV, SF))
+        points_areas.append( points_area )
+    
+    return surfaces, points_areas
+
 
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
@@ -719,20 +588,20 @@ parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
 parser.add_argument('surface_file', nargs='?',
                     help='The surface file obj saved, if not provided, no surface_file will be generated.')
+parser.add_argument('--iterations', type=int, default=1,
+                    help='How many iterations to update the surface.')
 parser.add_argument('--box_division', type=int, default=100,
                     help='Box division parameter (default: 100)')
-parser.add_argument('--use_points_area', type=str, default='true')
 
 args = parser.parse_args()
 
 normal_file = args.normal_file
 surface_file = args.surface_file
 box_division = args.box_division
-use_points_area = args.use_points_area
-use_points_area = args.use_points_area.lower() == 'true'
+iterations = args.iterations
+
 
 V, E, N = load_normal_data(normal_file)
-
 points, normals = resample_for_points_normal(V, E, N, 0.01)
 
 print(len(points))
@@ -741,296 +610,44 @@ print(len(normals))
 # scale larger
 # bbox_vertices = generate_bounding_box_points(V, scale_factor = 1.5)
 bbox_vertices = generate_bounding_box_points(V, scale_factor = 2)
-
 grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
 
-slider_value = 0.5
-last_value = 0.5
 
-
+surfaces, points_areas = generate_surface_iterations(points, normals, grid_vertices, box_division, iterations)
 
 ps.init()
-
-
-if use_points_area is True:
-    
-    # start with estimate, sum(points_area) = convex_hull_area
-    convex_hull_area = ConvexHull(points).area 
-
-    points_area = np.ones((points.shape[0], )) / points.shape[0] * convex_hull_area
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-    
-    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
-    area = igl.doublearea( SV, SF ) / 2.0
-    surface_area = sum( area )
-
-    print('1st round')
-    print('genus',calculate_genus(SV, SF))
-    print('sum(points_area)', convex_hull_area)
-    print('surface_area', surface_area)
-    print('surface_area - sum(points_area)', surface_area - convex_hull_area)
-    print('-------------------')
-
-
-
-    ps_mesh = ps.register_surface_mesh("round 1", SV, SF)
-    ps.set_ground_plane_mode("none")
-    ps.show()
-
- 
-    # update the points_area base on the estimate surface
-    points_area = compute_geodesic_voronoi_areas(SV,SF, points)
-
-    # another round
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
-
-    area = igl.doublearea( SV, SF ) / 2.0
-    surface_area = sum( area )
-    print('2nd round')
-    print('genus',calculate_genus(SV, SF))
-    print('sum(points_area)',np.sum(points_area))
-    print('surface area', surface_area)
-    print('surface_area - sum(points_area)', surface_area - np.sum(points_area))
-    print('-------------------')
-
-     
-
-    ps_mesh = ps.register_surface_mesh("round 2", SV, SF)
-    ps.set_ground_plane_mode("none")
-    ps.show()
-
-
-    ### another round to try:
-    points_area = compute_geodesic_voronoi_areas(SV,SF, points)
-
-    # another round
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
-
-    area = igl.doublearea( SV, SF ) / 2.0
-    surface_area = sum( area )
-    print('3rd round')
-    print('genus',calculate_genus(SV, SF))
-    print('sum(points_area)',np.sum(points_area))
-    print('surface area', surface_area)
-    print('surface_area - sum(points_area)', surface_area - np.sum(points_area))
-    print('-------------------')
-
-
-
-    ps_mesh = ps.register_surface_mesh("round 3", SV, SF)
-    ps.set_ground_plane_mode("none")
-    ps.show()
-
-    ### another round to try:
-    points_area = compute_geodesic_voronoi_areas(SV,SF, points)
-
-    # another round
-    wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-    SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
-
-    area = igl.doublearea( SV, SF ) / 2.0
-    surface_area = sum( area )
-    print('4th round')
-    print('genus',calculate_genus(SV, SF))
-    print('sum(points_area)',np.sum(points_area))
-    print('surface area', surface_area)
-    print('surface_area - sum(points_area)', surface_area - np.sum(points_area))
-    print('-------------------')
-
-    ps_mesh = ps.register_surface_mesh("round 4", SV, SF)
-    ps.set_ground_plane_mode("none")
-    ps.show()
-
-
-    area_slider = 1.0 
-    last_area  = 1.0
-
-
-else:
-    isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas = calculate_area_and_genus(points, normals, grid_vertices, box_division, isovalue_start=0.5, isovalue_end=6.0, isovalue_step=0.1)
-    print('isovalues, genera, areas, n_componentsisovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas', isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas)
-    curve_name = Path(normal_file).stem 
-
-    # plot_isovalue_genus_area_components(isovalues, genera, areas, n_components = None, figname='iso_figs/' + curve_name + '.png')
-    plot_isovalue_genus_area_components(isovalues, genera, areas, n_components, larget_component_genera, largest_component_surface_areas, figname='iso_figs/' + curve_name + '.png')
-
-
-    # optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, genera, areas, n_components)
-    optimal_isovalue, min_area = find_minimal_surface_genus_zero_segment(isovalues, larget_component_genera, largest_component_surface_areas, n_components)
-
-    print('min_area,corresponding_isovalue', min_area, optimal_isovalue )
-    if optimal_isovalue is not None:
-
-        # wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-        # print('mean_wns on original points:', np.mean(wns))  
-        # print('wns on original points:', np.max(wns))
-    
-        wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
-        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, optimal_isovalue)
-        slider_value = optimal_isovalue
-        last_value = optimal_isovalue
-        print('genus', calculate_genus(SV, SF))
-    else:
-
-        # wns = igl.fast_winding_number_for_points(points, normals, points_area, points)
-        # print('mean_wns on original points:', np.mean(wns))  
-        # print('wns on original points:', np.max(wns))
-
-        print('should come here')
-    
-        wns = igl.fast_winding_number_for_points(points, normals, points_area , grid_vertices)
-        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
-        slider_value = 0.5
-        last_value = 0.5
-        print('genus',calculate_genus(SV, SF))
-
-
-ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-ps.set_ground_plane_mode("none")
-ps.show()
-
-print('area_sum', sum(igl.doublearea(SV,SF)/2))
-print('genus', calculate_genus(SV, SF))
-print('count_mesh_components', count_mesh_components(SV, SF))
-
-
-
-if surface_file:
-    export_obj(SV, SF, surface_file)
-    # sys.exit()
-
-
-# 
-# 
-
 plot_normal_data(V, E, N)
 plot_points_normal(points, normals)
 
 
 
-# Display initial mesh
-# ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
+## print the properties of the surfaces
+
+for i in range(len(surfaces)):
+    SV, SF = surfaces[i]
+    print('----------------')
+    print(f"{i}th surface")
+    mesh_genus = calculate_genus(SV, SF)
+    mesh_components = get_mesh_components(SV, SF)
+    mesh_surface =  sum(igl.doublearea(SV, SF)/2)
+    points_area_sum = np.sum(points_areas[i])
+    largest_sv, largest_sf = mesh_components[0]
+
+    print("genus", mesh_genus)
+    print('# components',len(mesh_components))
+    print('sum(surface_area)',mesh_surface)
+    print('np.sum(points_area)', points_area_sum)
+    print('sum(surface_area) - np.sum(points_area)', mesh_surface - points_area_sum)
+    print('largest component genus', calculate_genus(largest_sv, largest_sf))
+    print('largest component area', sum(igl.doublearea(largest_sv, largest_sf)/2))
+
+    ps_mesh = ps.register_surface_mesh(f"mesh {i}" , SV, SF)
+    # ps_mesh = ps.register_surface_mesh(f"mesh {i}" , largest_sv, largest_sf)
+
+    print()
 
 
-
-def callback():
-    global slider_value, last_value, area_slider, last_area, SV, SF
-    
-    # Add slider for 'a' (point areas)
-    changed_area_slider, area_slider = psim.SliderFloat("Point area (a)", area_slider, v_min=0.0001, v_max=10)
-    changed_area_input, area_input = psim.InputFloat("Area input", area_slider, step=0.1)
-    
-    # Synchronize area slider and input value
-    if changed_area_input and area_input != area_slider:
-        area_slider = area_input
-    elif changed_area_slider and area_slider != area_input:
-        area_input = area_slider
-
-    # Recalculate winding numbers if area changed
-    if last_area != area_slider:
-
-        current_points_area = points_area * area_slider
-
-        # Scale the base area values by the current area_slider value
-        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, points)
-        sorted_wns = np.sort(wns)[::-1]
-        print('sorted_wns on original points', sorted_wns)
-        print('new mean_wns on original points:', np.mean(wns))  
-        print('new wns on original points:', np.max(wns))
-
-
-        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, grid_vertices)
-        # sorted_wns = np.sort(wns)[::-1]
-        # mean_wns = np.mean(wns)
-        print('new mean_wns on grid_vertices:', np.mean(wns))  
-        print('new wns on grid_vertices:', np.max(wns))
-        
-
-        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, slider_value)
-
-        print('len(sv)', len(SV))
-        print('len(sf)', len(SF))
-        print('genus', calculate_genus(SV, SF))
-
-        ps_mesh = ps.register_surface_mesh("my mesh", SV, SF)
-        last_area = area_slider
-
-    # Original iso-value slider
-    changed_slider, slider_value = psim.SliderFloat("Iso value", slider_value, v_min=-10.0, v_max=10.0)
-    changed_input, input_value = psim.InputFloat("Input", slider_value, step=0.1)
-
-    # Synchronize slider and input value
-    if changed_input and input_value != slider_value:
-        slider_value = input_value
-    elif changed_slider and slider_value != input_value:
-        input_value = slider_value
-
-    if not psim.IsAnyItemActive() and (last_value != slider_value or last_area != area_slider):
-
-        # Remove all existing components
-        try:
-            # Remove all component meshes
-            for i in range(10):  # Using a reasonable upper limit
-                try:
-                    ps.remove_surface_mesh(f'component {i}')
-                except:
-                    break
-        except:
-            pass  # If mesh doesn't exist, continu
-        
-        # Use the current area-scaled points
-        current_points_area = points_area * area_slider
-
-        wns = igl.fast_winding_number_for_points(points, normals, current_points_area, grid_vertices)
-        SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, slider_value)
-        
-        area = igl.doublearea( SV, SF ) / 2.0
-        area_sum = sum( area )
-        # print('new mean_wns on grid_vertices:', np.mean(wns))  
-        # print('new wns on grid_vertices:', np.max(wns))
-        
-        print('len(sv)', len(SV))
-        print('len(sf)', len(SF))
-        print('area_sum', area_sum)
-        print('genus', calculate_genus(SV, SF))
-        print('count_mesh_components', count_mesh_components(SV, SF))
-        # print('curvature',  igl.principal_curvature(SV, SF) )
-
-        components = get_mesh_components(SV, SF)
-        # print('components', components)
-
-        for i in range(len(components)):
-            sv_i, sv_f = components[i]
-            print(f'{i}th genus ', calculate_genus(sv_i, sv_f))
-            mesh_i = trimesh.Trimesh(vertices=sv_i, faces=sv_f)
-            print(f"Is watertight: {mesh_i.is_watertight}")
-
-
-
-
-
-        for i in range(len(components)):
-            sv_i, sf_j = components[i]
-            mesh_i = ps.register_surface_mesh('component '  + str(i), sv_i, sf_j)
-    
-        last_value = slider_value
-    
-    if psim.Button("Export button"):
-        if surface_file:
-            export_obj(SV, SF, surface_file)
-        else:
-            export_obj(SV, SF, 'output.obj')
-
-
-ps.init()
-ps.set_user_callback(callback)
-ps.set_ground_plane_mode("none")
 ps.show()
-
-
-
 
 
 
