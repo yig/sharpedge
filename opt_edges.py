@@ -1,7 +1,7 @@
 import numpy as np
 
 from utility_io import load_sketch_polyline_data, write_normal_data
-from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames
+from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals
 from utility_segment_distance import segment_to_segment_distance
 
 from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf
@@ -350,8 +350,9 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
         if best_normal_vector is not None:
             polyline_to_best_normal[polyline_idx] = best_edge_normal_pair
     
-    print("Polylines with their most perpendicular normals:", polyline_to_best_normal)
-    
+    # print("Polylines with their most perpendicular normals:", polyline_to_best_normal)
+    print("Polylines with their most perpendicular normals:", len(polyline_to_best_normal))
+    plot_polyline_best_constraints(V, E, P, polyline_to_best_normal, str='most perpendicular on polyline')
 
     # Second pass: Compute parallel transport for each polyline with a normal
     polyline_normals = {}
@@ -369,6 +370,7 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
             polyline_normals[polyline_idx] = normal_vectors
             
     print('polyline_normals', polyline_normals)
+    plot_polyline_normals(V, E, P, polyline_normals, str = 'parallel transport most perpendicular normal')
     
     
     # Convert polyline normals to edge normals
@@ -390,7 +392,6 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
 
     export_sketch_normal_gltf(V, E, polylines, edge_normal_dict_to_ndarray(edge_normals, len(E)), 'debug_normals/initial_parallel_transport/' + curve_name + '.gltf' )
     
-
   
     ## Third pass:
     # now let me do this, for the polyline which does not have normals
@@ -404,6 +405,7 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
     print('polyline_normals.keys()', polyline_normals.keys())
     unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
     print("Polylines without normals:", unconstrained_polylines)
+    unconstrained_polylines_best_normal = {}
 
     # Propagate normals to unconstrained polylines
     for polyline_idx in unconstrained_polylines:
@@ -478,22 +480,39 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
                 pos_in_polyline = len(edge_indices) - 1
             
             # Get polyline points for parallel transport
-            polyline_points = [V[index] for index in P[polyline_idx]]
             polyline_best_normal_constraint = (pos_in_polyline, best_normal)
-            
-            # Compute parallel transport
-            normal_vectors = parallel_transport_bi_direction(
-                polyline_points, 
-                polyline_best_normal_constraint
-            )
-            polyline_normals[polyline_idx] = normal_vectors
-            
-            # Update edge_normals with new normals
-            for i, (edge_idx, is_reversed) in enumerate(zip(edge_indices, is_edge_reversed)):
-                edge_normals[edge_idx] = normal_vectors[i]
+            unconstrained_polylines_best_normal[polyline_idx] = (pos_in_polyline, best_normal)
+    
+    print('unconstrained_polylines_best_normal', unconstrained_polylines_best_normal)
+    plot_polyline_best_constraints(V, E, P, unconstrained_polylines_best_normal, scale=0.08, str = 'borrow nearby edge normal')
+
+    for polyline_idx, polyline_best_normal_constraint in unconstrained_polylines_best_normal.items():
+        edge_indices, is_edge_reversed = polyline_edge_data[polyline_idx]
+        
+        # Get first and last edges of the polyline
+        start_edge_idx = edge_indices[0]
+        end_edge_idx = edge_indices[-1]
+
+        pos_in_polyline, best_normal = polyline_best_normal_constraint
+        # Get polyline points for parallel transport
+        polyline_points = [V[index] for index in P[polyline_idx]]
+
+
+        # Compute parallel transport
+        normal_vectors = parallel_transport_bi_direction(
+            polyline_points, 
+            polyline_best_normal_constraint
+        )
+        polyline_normals[polyline_idx] = normal_vectors
+        
+        # Update edge_normals with new normals
+        for i, (edge_idx, is_reversed) in enumerate(zip(edge_indices, is_edge_reversed)):
+            edge_normals[edge_idx] = normal_vectors[i]
                 
     edge_normal_list = [(i,edge_normals[i]) for i in range(len(E)) if i in edge_normals]
-    # print('edge_normal_list', edge_normal_list)
+    #print('edge_normal_list', edge_normal_list)
+
+    plot_edge_constraints(V, E, P, edge_normal_list)
 
 
     return edge_normal_list
@@ -662,6 +681,7 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
     edge_normal_list = [(i,edge_normals[i]) for i in range(len(E)) if i in edge_normals]
     print('edge_normal_list', edge_normal_list)
 
+    plot_edge_constraints(V, E, P, edge_normal_list)
     return edge_normal_list
 
 def normal_for_edge( theta, U, V ): return np.cos( theta ) * U + np.sin( theta ) * V
@@ -753,6 +773,7 @@ if __name__ == "__main__":
 
 
     # only need points and polyline indices to draw
+    # same polyline, same color
     plot_sketch_data(V, P)
 
     '''
@@ -761,7 +782,8 @@ if __name__ == "__main__":
     plot edge normals
     '''
     edge_constraints = get_sketch_edge_constraints(V, E)
-    print('edge_constraints', edge_constraints)
+    # print('edge_constraints', edge_constraints)
+    print('len(edge_constraints)', len(edge_constraints))
     plot_edge_constraints(V, E, P, edge_constraints)
 
     # edge_filtered_normals = np.zeros((len(E), 3))
