@@ -396,75 +396,49 @@ def unconstrained_polyline_borrow_nearby_edges_normals(V, E, polyline_edge_data,
         edge_to_normal_map : 
     '''
 
-    # print('edge_to_normal_map.keys()', edge_to_normal_map.keys())
+    ## 
     unconstrained_edge_to_normal_map = {}
-    unconstrained_polylines_found_normal = {}
+    unconstrained_polylines_candidate_normals = defaultdict(list)
 
     for polyline_idx in unconstrained_polylines:
         edge_indices, is_edge_reversed = polyline_edge_data[polyline_idx]
-        unconstrained_polylines_found_normal[polyline_idx] = 0
 
 
         for e0 in edge_indices:
             # most nearby edge to e0
-            # but not in edge_indices
-            e1 = np.argmin([float('inf') if i in edge_indices else distances[e0, i] for i in range(len(distances))])
-            
-            # print(e0, e1)
-            if e1 in edge_to_normal_map:
-                # get the n1 from the most nearby 
-                n1 = edge_to_normal_map[e1]
-                # compute e0 tangent
-                e0_tangent = compute_edge_tangent(V, E[e0])
-                
-                perpendicularity = np.clip(1.0 - np.abs(np.dot(e0_tangent, n1)), 0, 1)
-                if perpendicularity > 1e-12:
-                    unconstrained_edge_to_normal_map[e0] = n1
-                    unconstrained_polylines_found_normal[polyline_idx] += 1
-    
-    # For these polylines, it means that their most nearby edge does not have normal
-    # How about just check the starting and ending normal?
-    # Maybe I can also add sort by distance here?
-    # However, this is still kind of random
-    for polyline_idx in unconstrained_polylines_found_normal:
-        if unconstrained_polylines_found_normal[polyline_idx] == 0:
-            edge_indices, is_edge_reversed = polyline_edge_data[polyline_idx]
-
-            # Process first edge (e0)
-            e0 = edge_indices[0]
             sorted_nearby_edges = sorted([(i, distances[e0, i]) for i in range(len(distances))], key=lambda x: x[1])
-            for e1, _ in sorted_nearby_edges:
+
+            for e1, e0_e1_distance in sorted_nearby_edges:
+                print(e1)
+                # print(e0, e1)
                 if e1 in edge_to_normal_map:
+                    # get the n1 from the most nearby 
                     n1 = edge_to_normal_map[e1]
+                    # compute e0 tangent
                     e0_tangent = compute_edge_tangent(V, E[e0])
+                    
                     perpendicularity = np.clip(1.0 - np.abs(np.dot(e0_tangent, n1)), 0, 1)
                     if perpendicularity > 1e-12:
-                        unconstrained_edge_to_normal_map[e0] = n1
+                        # a tuple of distance from e0 - e1, perpendicularity, e0, n1
+                        unconstrained_polylines_candidate_normals[polyline_idx].append((e0_e1_distance, perpendicularity, e0, n1))
                         break
+    
+    print('unconstrained_polylines_candidate_normals', unconstrained_polylines_candidate_normals)
+    # sort by distance, then perpendicularity
 
-            # Process last edge (e_last)
-            e_last = edge_indices[-1]
-            sorted_nearby_edges = sorted([(i, distances[e_last, i]) for i in range(len(distances))], key=lambda x: x[1])
-            for e1, _ in sorted_nearby_edges:
-                if e1 in edge_to_normal_map:
-                    n1 = edge_to_normal_map[e1]
-                    e_last_tangent = compute_edge_tangent(V, E[e_last])
-                    perpendicularity = np.clip(1.0 - np.abs(np.dot(e_last_tangent, n1)), 0, 1)
-                    if perpendicularity > 1e-12:
-                        unconstrained_edge_to_normal_map[e_last] = n1
-                        break
-                  
-        
+    for polyline_idx in unconstrained_polylines_candidate_normals:
+        distance_normal_list = unconstrained_polylines_candidate_normals[polyline_idx]
+        # sort and then only get the top 3 that most near and perpendicular 
+        # sort by distance, then perpendicular 
+        # or sort by perpendicular and then distance 
+        # sorted_distance_normal_list = sorted(distance_normal_list, key=lambda x: (x[0], x[1]))[:3]
+        sorted_distance_normal_list = sorted(distance_normal_list, key=lambda x: (x[1], x[0]))[:3]
+        for distance_normal_item in sorted_distance_normal_list:
+            _, _, e0, n1 = distance_normal_item
+            unconstrained_edge_to_normal_map[e0] = n1
 
-
-    ## still some unconstrained_polylines might have no 
 
     
-    # then from this edge_to_normal_map
-    # find the best normal for the unconstrainted polyline
-
-    # print('unconstrained_edge_to_normal_map.keys()', unconstrained_edge_to_normal_map.keys())
-
     unconstrained_polylines_best_normal = find_most_perpendicular_edge_normal_on_polyline(V, E, polyline_edge_data, unconstrained_edge_to_normal_map)
 
 
@@ -612,9 +586,9 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
     print("Polylines without normals:", unconstrained_polylines)
     unconstrained_polylines_best_normal = unconstrained_polyline_borrow_nearby_edges_normals(V, E, polyline_edge_data, unconstrained_polylines, edge_normals, edge_distances)
     # print('unconstrained_polylines_best_normal', unconstrained_polylines_best_normal)
-    plot_polyline_best_constraints(V, E, P, unconstrained_polylines_best_normal, scale=0.08, str = 'borrow nearby edge normal')
+    plot_polyline_best_constraints(V, E, P, unconstrained_polylines_best_normal, scale=0.09, str = 'borrow nearby edge normal')
     unconstrained_polyline_normals = parallel_transport_with_best_normal_on_polyline(V, P, polyline_edge_data, unconstrained_polylines_best_normal)
-    plot_polyline_normals(V, E, P, unconstrained_polyline_normals, str = 'parallel transport of the polyline with borrowed normal')
+    plot_polyline_normals(V, E, P, unconstrained_polyline_normals,scale=0.09,  str = 'parallel transport of the polyline with borrowed normal')
     polyline_normals = {**polyline_normals, **unconstrained_polyline_normals}
 
     edge_normals = polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data)
