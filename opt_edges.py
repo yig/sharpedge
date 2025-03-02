@@ -13,6 +13,8 @@ import scipy.optimize as opt
 from pathlib import Path
 from collections import defaultdict
 
+import argparse
+
 # import jax.numpy as jnp
 # import jax
 
@@ -608,7 +610,6 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
     return edge_normal_list
 
 
-
 def estimate_initial_thetas(Us, Vs, estimated_normals):
     '''
     Convert normal vectors to theta values using frame vectors as basis.
@@ -817,7 +818,6 @@ def edge_normal_tuple_to_ndarray(edge_normals, num_edges):
     return normals
 
 if __name__ == "__main__":
-    import argparse
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('normal_file', nargs='?', help='The curve sketch with optimized normal information.')
@@ -895,6 +895,10 @@ if __name__ == "__main__":
     # plot_edge_constraints(V, E, P, estimate_normals)
     export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(estimate_normals, len(E)), 'debug_normals/initial_estimate/' + curve_name + '.gltf')
     
+    estimate_normals_list = [normal for _,normal in estimate_normals]
+    estimate_normals_list = estimate_normals_list / np.linalg.norm(estimate_normals_list, axis=1)[:, np.newaxis]
+
+    write_normal_data(V, E, estimate_normals_list , 'normal_estimate/' + curve_name + '.normal')
 
 
 

@@ -110,6 +110,58 @@ def plot_normal_data(V, E, N):
     # Show the window
     ps.show()
 
+def plot_two_normals(V, E, N1, N2):
+    """
+    Plot edges and two sets of normal vectors using Polyscope:
+    - Edges shown as curves
+    - Two different normal vectors shown at edge midpoints with different colors
+    
+    Args:
+        V: (n,3) array of vertex coordinates
+        E: (m,2) array of edge vertex pairs
+        N1: (m,3) array of first set of normal vectors for edges
+        N2: (m,3) array of second set of normal vectors for edges
+    """
+    ps.init()
+    
+    # Register the point cloud
+    ps_points = ps.register_point_cloud("vertices", V)
+    ps_points.set_color((0.0, 0.0, 1.0))  # Blue color for vertices
+    ps_points.set_radius(0.002)  # Small point size
+    
+    # Create curve network for edges
+    ps_edges = ps.register_curve_network("edges", V, E)
+    ps_edges.set_color((0.0, 0.0, 0.0))  # Black color for edges
+    ps_edges.set_radius(0.001)  # Edge thickness
+    
+    # Calculate edge midpoints
+    midpoints = (V[E[:, 0]] + V[E[:, 1]]) / 2
+    
+    # Register vectors at midpoints for first normal set
+    ps_vectors1 = ps.register_point_cloud("normals1", midpoints)
+    ps_vectors1.set_radius(0.0005)  # Much smaller radius for midpoints
+    ps_vectors1.set_color((0.0, 1.0, 0.0))  # Green for first set
+    ps_vectors1.add_vector_quantity("normal_vectors1", N1,
+                                   enabled=True,
+                                   color=(0.0, 1.0, 0.0),
+                                   length=0.10)  # Green color for first normals
+    
+    # Register vectors at midpoints for second normal set
+    ps_vectors2 = ps.register_point_cloud("normals2", midpoints)
+    ps_vectors2.set_radius(0.0005)  # Much smaller radius for midpoints
+    ps_vectors2.set_color((1.0, 0.0, 0.0))  # Red for second set
+    ps_vectors2.add_vector_quantity("normal_vectors2", N2,
+                                   enabled=True,
+                                   color=(1.0, 0.0, 0.0),
+                                   length=0.10)  # Red color for second normals
+    
+    # Set visualization options
+    ps.set_ground_plane_mode("none")
+    
+    # Show the window
+    ps.show()
+
+    
 def plot_cdt_skecth(vertices, lines):
     """
     Create a 3D visualization of the vertices and lines using Polyscope,
