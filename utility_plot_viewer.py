@@ -74,7 +74,7 @@ def plot_convex_hull_with_normals(points, faces, normals, scale=0.03):
     plt.show()
 
 
-def plot_edge_constraints(V, E, P, constraints, scale=0.03, filename = None):
+def plot_edge_constraints(V, E, P, constraints, scale=0.03, str=None, filename = None):
     """
     Args:
         V: (n,3) array of vertex coordinates
@@ -114,6 +114,11 @@ def plot_edge_constraints(V, E, P, constraints, scale=0.03, filename = None):
     # Make axes equal and set labels
     plt.axis('off')
     plt.axis('equal')
+
+        # Add title if str is provided
+    if str is not None:
+        ax.set_title(str)
+
 
     # Save to file if filename is provided
     if filename:

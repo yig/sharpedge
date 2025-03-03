@@ -593,12 +593,15 @@ parser.add_argument('--iterations', type=int, default=1,
 parser.add_argument('--box_division', type=int, default=100,
                     help='Box division parameter (default: 100)')
 
+
 args = parser.parse_args()
 
 normal_file = args.normal_file
 surface_file = args.surface_file
 box_division = args.box_division
 iterations = args.iterations
+
+
 
 
 V, E, N = load_normal_data(normal_file)
@@ -647,7 +650,22 @@ for i in range(len(surfaces)):
     print()
 
 
-ps.show()
+sv0,sf0 = surfaces[0]
+sv1,sf1 = surfaces[1]
+
+curve_name = Path(normal_file).stem
+
+
+export_obj(sv0, sf0, 'convex_hull_area_surface/' + curve_name + '.obj' )
+export_obj(sv1, sf1, 'convex_hull_voronoi_area/' + curve_name + '.obj' )
+
+# if surface_file:
+
+#     export_obj()
+#     exit()
+
+
+# ps.show()
 
 
 

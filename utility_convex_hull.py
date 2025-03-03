@@ -204,7 +204,6 @@ def calculate_sketch_edge_normals(V, E, epsilon):
     vertex_normals, hull_edge_normals, face_normals = compute_hull_normals(
         hull_vertices, hull_edges, hull_faces
     )
-    
     # Step 3: Initialize output array for sketch edge normals
     edge_normals = np.zeros((len(E), 3))
 
@@ -539,7 +538,7 @@ def export_sketch_normal_gltf(vertices, edges, polylines, edge_normals, filename
     # Constants for visualization
     NORMAL_SHAFT_RADIUS = 0.002
     NORMAL_HEAD_RADIUS = 0.004
-    VERTEX_RADIUS = 0.01
+    VERTEX_RADIUS = 0.005
     POLYLINE_RADIUS = 0.002
     NORMAL_SCALE = 0.1
     
@@ -593,6 +592,104 @@ def export_sketch_normal_gltf(vertices, edges, polylines, edge_normals, filename
     print(f"GLTF file saved as: {filename}")
 
  
+def export_sketch_dict_normal_gltf(vertices, edges, polylines, polyline_normal, filename="sketch_with_normal.gltf", save_debug_gltf=True):
+    """
+    Export 3D sketch with edges, normals, and polylines as a GLTF file.
+
+    Parameters
+    ----------
+    vertices : np.ndarray, shape (N, 3)
+        Array of vertex coordinates
+    edges : np.ndarray, shape (M, 2)
+        Array of edge vertex indices
+    polylines : list of lists
+        List of polylines, where each polyline is a list of vertex indices
+    polyline_normal : dict
+        Dictionary in format {polyline_idx: (position_in_polyline, normal_vector)}
+        - polyline_idx: index of the polyline
+        - position_in_polyline: position of the edge in the polyline
+        - normal_vector: normal vector for the edge
+    filename : str
+        Output GLTF filename
+    save_debug_gltf : bool, default=True
+        Whether to save the GLTF file
+    """
+    # Skip if saving is disabled
+    if not save_debug_gltf:
+        print(f"GLTF export skipped for: {filename}")
+        return
+        
+    # Initialize exporter
+    exporter = GLTFGeometryExporter()
+
+    # Constants for visualization
+    NORMAL_SHAFT_RADIUS = 0.002
+    NORMAL_HEAD_RADIUS = 0.004
+    VERTEX_RADIUS = 0.005
+    POLYLINE_RADIUS = 0.002
+    NORMAL_SCALE = 0.1
+
+    # Ensure vertices is a numpy array
+    vertices = np.asarray(vertices)
+
+    # Add edge normals (green arrows)
+    edge_normal_points = []
+    edge_normal_directions = []
+
+    # Process normals from the polyline_normal dictionary
+    for polyline_idx, (edge_pos, normal) in polyline_normal.items():
+        # Get the polyline
+        polyline = polylines[polyline_idx]
+        
+        # Get the edge vertices
+        v1_idx = polyline[edge_pos]
+        v2_idx = polyline[edge_pos + 1]
+        
+        # Convert normal to numpy array if it isn't already
+        normal = np.asarray(normal, dtype=float)
+        
+        if np.any(np.abs(normal) > 1e-15):  # More robust zero check
+            # Calculate midpoint of edge for normal placement
+            midpoint = ((vertices[v1_idx] + vertices[v2_idx]) / 2).tolist()
+            edge_normal_points.append(midpoint)
+            edge_normal_directions.append((normal * NORMAL_SCALE).tolist())
+
+    if edge_normal_points:
+        exporter.add_normal_arrows(edge_normal_points, edge_normal_directions,
+                                    color=(0, 1, 0),  # Green normals
+                                    shaft_radius=NORMAL_SHAFT_RADIUS,
+                                    head_radius=NORMAL_HEAD_RADIUS)
+
+    # Generate colors for polylines using the same rainbow colormap
+    num_polylines = len(polylines)
+    colors = []
+    for i in range(num_polylines):
+        # Convert matplotlib's rainbow colors to RGB
+        rgba = plt.cm.rainbow(i / max(1, num_polylines - 1))
+        colors.append(rgba[:3])  # Take only RGB values, ignore alpha
+
+    # Add polylines and their vertices
+    for i, (polyline, color) in enumerate(zip(polylines, colors)):
+        # Convert vertex indices to 3D points
+        polyline_points = np.array([vertices[idx] for idx in polyline])
+        
+        # Add the polyline as cylinder strips
+        exporter.add_cylinder_strips(polyline_points, 
+                                    color=color,
+                                    radius=POLYLINE_RADIUS,
+                                    add_spheres=False)
+        
+        # Add vertices as spheres with matching color
+        exporter.add_spheres(polyline_points,
+                            color=color,
+                            radius=VERTEX_RADIUS)
+
+    # Save the GLTF file
+    exporter.save(filename)
+    print(f"GLTF file saved as: {filename}")
+
+
+
 def plot_hull_with_normals(vertices, edges, faces, vertex_normals, edge_normals, face_normals):
     """
     Simple visualization of a 3D hull with its normals.

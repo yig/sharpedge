@@ -58,6 +58,7 @@ def load_sketch_polyline_data(filename):
     print(f"- {len(vertices)} vertices")
     print(f"- {len(edges)} unique edges")
     print(f"- {len(polylines)} polylines")
+    print()
 
     return V, E, P
 
@@ -343,3 +344,30 @@ def load_obj(filename):
     print(f"- {len(faces)} faces")
     
     return vertices, faces
+
+def write_string_to_file(content, filename, encoding='utf-8'):
+    """
+    Write a string to a file.
+    
+    Parameters
+    ----------
+    content : str
+        The string content to write to the file
+    filename : str
+        Path to the output file
+    encoding : str, default='utf-8'
+        File encoding to use
+    
+    Returns
+    -------
+    bool
+        True if successful, False otherwise
+    """
+    try:
+        with open(filename, 'w', encoding=encoding) as file:
+            file.write(content)
+        print(f"Successfully wrote to file: {filename}")
+        return True
+    except Exception as e:
+        print(f"Error writing to file {filename}: {str(e)}")
+        return False
