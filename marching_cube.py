@@ -17,6 +17,8 @@ from pathlib import Path
 from scipy.spatial import ConvexHull
 from utility_voronoi_area import compute_geodesic_voronoi_areas, visualize_with_polyscope
 import sys 
+from plot2gltf import GLTFGeometryExporter
+
 
 def n_for_segment(segment, target_length):
     """Calculate number of sample points needed for a line segment.
@@ -569,7 +571,7 @@ def generate_surface_iterations(points, normals, grid_vertices, box_division, it
         points_area, geodesic_distances, mesh, closest_vertices, face_owners  = compute_geodesic_voronoi_areas(SV,SF, points)
 
         # 
-        visualize_with_polyscope(SV, SF, points, face_owners, points_area)
+        # visualize_with_polyscope(SV, SF, points, face_owners, points_area)
         # use the updated points_area to recalculate the surface again 
         wns = igl.fast_winding_number_for_points(points, normals, points_area, grid_vertices)
         SV, SF = gpytoolbox.marching_cubes(wns, grid_vertices, box_division, box_division, box_division, 0.5)
@@ -580,14 +582,96 @@ def generate_surface_iterations(points, normals, grid_vertices, box_division, it
     return surfaces, points_areas
 
 
+def export_sketch_normal_surface_gltf(vertices, edges, edge_normals, SV, SF, filename="sketch_surface_with_normal.gltf"):
+    """
+    Export 3D sketch with edges, normals, and polylines as a GLTF file.
+    
+    Parameters
+    ----------
+    vertices : np.ndarray, shape (N, 3)
+        Array of vertex coordinates
+    edges : np.ndarray, shape (M, 2)
+        Array of edge vertex indices
+    edge_normals : array-like
+        Array/list of edge normal vectors. Can be:
+        - np.ndarray of shape (M, 3)
+        - list of np.ndarray
+        - list of lists
+    filename : str
+        Output GLTF filename
+    """
+
+        
+    # Initialize exporter
+    exporter = GLTFGeometryExporter()
+    
+    # Constants for visualization
+    NORMAL_SHAFT_RADIUS = 0.002
+    NORMAL_HEAD_RADIUS = 0.004
+    VERTEX_RADIUS = 0.005
+    EDGE_RADIUS = 0.002
+    NORMAL_SCALE = 0.1
+
+    # Add edges as cylinder strips
+    for edge in edges:
+        v1_idx, v2_idx = edge
+        start_point = vertices[v1_idx]
+        end_point = vertices[v2_idx]
+        
+        # Create a small line segment for the cylinder strip
+        edge_points = np.array([start_point, end_point])
+        
+        # Add the edge
+        exporter.add_cylinder_strips(edge_points, 
+                                   color=(0, 0, 1),
+                                   radius=EDGE_RADIUS)
+    
+    # Add vertices as spheres
+    exporter.add_spheres(vertices, 
+                       color=(0, 0, 1), 
+                       radius=VERTEX_RADIUS)
+
+    
+    # Ensure inputs are numpy arrays
+    vertices = np.asarray(vertices)
+    edges = np.asarray(edges)
+    
+    # Add edge normals (green arrows)
+    edge_normal_points = []
+    edge_normal_directions = []
+    
+    for (v1_idx, v2_idx), normal in zip(edges, edge_normals):
+        # Convert normal to numpy array if it isn't already
+        normal = np.asarray(normal, dtype=float)
+        
+        if np.any(np.abs(normal) > 1e-15):  # More robust zero check
+            # Calculate midpoint of edge for normal placement
+            midpoint = ((vertices[v1_idx] + vertices[v2_idx]) / 2).tolist()
+            edge_normal_points.append(midpoint)
+            edge_normal_directions.append((normal * NORMAL_SCALE).tolist())
+    
+    if edge_normal_points:
+        exporter.add_normal_arrows(edge_normal_points, edge_normal_directions,
+                                 color=(0, 1, 0),  # Green normals
+                                 shaft_radius=NORMAL_SHAFT_RADIUS,
+                                 head_radius=NORMAL_HEAD_RADIUS)
+    
+
+    
+    exporter.add_triangles(SV, SF, color=(0.5, 0.5, 0.5, 0.5)) 
+    # Save the GLTF file
+    exporter.save(filename)
+    print(f"GLTF file saved as: {filename}")
+
+
 
 parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
 # Add arguments
 parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
-parser.add_argument('surface_file', nargs='?',
-                    help='The surface file obj saved, if not provided, no surface_file will be generated.')
+parser.add_argument('gltf_file', nargs='?',
+                    help='The gltf file obj saved, if not provided, no gltf_file will be generated.')
 parser.add_argument('--iterations', type=int, default=1,
                     help='How many iterations to update the surface.')
 parser.add_argument('--box_division', type=int, default=100,
@@ -597,7 +681,7 @@ parser.add_argument('--box_division', type=int, default=100,
 args = parser.parse_args()
 
 normal_file = args.normal_file
-surface_file = args.surface_file
+gltf_file = args.gltf_file
 box_division = args.box_division
 iterations = args.iterations
 
@@ -656,16 +740,11 @@ sv1,sf1 = surfaces[1]
 curve_name = Path(normal_file).stem
 
 
-export_obj(sv0, sf0, 'convex_hull_area_surface/' + curve_name + '.obj' )
-export_obj(sv1, sf1, 'convex_hull_voronoi_area/' + curve_name + '.obj' )
-
-# if surface_file:
-
-#     export_obj()
-#     exit()
+if gltf_file:
+    export_sketch_normal_surface_gltf(V, E, N, SV, SF, gltf_file)
 
 
-# ps.show()
+ps.show()
 
 
 

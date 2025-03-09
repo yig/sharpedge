@@ -12,3 +12,10 @@ imgui.ini
 tex_math/
 3d-sketches-curated-dataset-main/
 debug_normals/
+debug_normals_gltf/
+debug_normals_w_r/
+iso_figs/
+debug_surfaces/
+made_examples/
+normal_w_r/
+

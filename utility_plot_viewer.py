@@ -110,6 +110,7 @@ def plot_edge_constraints(V, E, P, constraints, scale=0.03, str=None, filename =
                 normal[0], normal[1], normal[2],
                 color='green', length=scale, normalize=True,
                 arrow_length_ratio=0.2)
+        # ax.text(mid[0], mid[1], mid[2], edge_idx)
 
     # Make axes equal and set labels
     plt.axis('off')

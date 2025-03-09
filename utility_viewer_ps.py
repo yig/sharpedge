@@ -161,6 +161,85 @@ def plot_two_normals(V, E, N1, N2):
     # Show the window
     ps.show()
 
+def plot_different_normals(V, E, N1, N2, angle_threshold_degrees=20):
+    """
+    Plot edges and only the normal vectors that differ by more than the specified angle threshold
+    
+    Args:
+        V: (n,3) array of vertex coordinates
+        E: (m,2) array of edge vertex pairs
+        N1: (m,3) array of first set of normal vectors for edges
+        N2: (m,3) array of second set of normal vectors for edges
+        angle_threshold_degrees: Minimum angle difference to consider normals "very different"
+    """
+    import numpy as np
+    import polyscope as ps
+    
+    # Convert angle threshold to radians
+    angle_threshold = np.deg2rad(angle_threshold_degrees)
+    
+    # Calculate dot products between normalized vectors to get cosines of angles
+    N1_normalized = N1 / np.linalg.norm(N1, axis=1, keepdims=True)
+    N2_normalized = N2 / np.linalg.norm(N2, axis=1, keepdims=True)
+    
+    dot_products = np.sum(N1_normalized * N2_normalized, axis=1)
+    # Clip to valid range for arccos
+    dot_products = np.clip(dot_products, -1.0, 1.0)
+    # Calculate angles
+    angles = np.arccos(dot_products)
+    
+    # Find indices where angle difference exceeds threshold
+    different_indices = np.where(angles > angle_threshold)[0]
+    
+    # Calculate edge midpoints
+    midpoints = (V[E[:, 0]] + V[E[:, 1]]) / 2
+    
+    # Only select midpoints and normals at the different indices
+    different_midpoints = midpoints[different_indices]
+    different_N1 = N1[different_indices]
+    different_N2 = N2[different_indices]
+    
+    ps.init()
+    # Register the point cloud
+    ps_points = ps.register_point_cloud("vertices", V)
+    ps_points.set_color((0.0, 0.0, 1.0))  # Blue color for vertices
+    ps_points.set_radius(0.002)  # Small point size
+    
+    # Create curve network for edges
+    ps_edges = ps.register_curve_network("edges", V, E)
+    ps_edges.set_color((0.0, 0.0, 0.0))  # Black color for edges
+    ps_edges.set_radius(0.001)  # Edge thickness
+    
+    if len(different_indices) > 0:
+        # Register vectors at midpoints for first normal set (at different locations only)
+        ps_vectors1 = ps.register_point_cloud("different_normals1", different_midpoints)
+        ps_vectors1.set_radius(0.0005)  # Much smaller radius for midpoints
+        ps_vectors1.set_color((0.8, 0.2, 0.2))  # Red for first set
+        ps_vectors1.add_vector_quantity("normal_vectors1", different_N1,
+                                       enabled=True,
+                                       color=(1.0, 0.0, 0.0),
+                                       length=0.10)  # Red color for first normals
+        
+        # Register vectors at midpoints for second normal set (at different locations only)
+        ps_vectors2 = ps.register_point_cloud("different_normals2", different_midpoints)
+        ps_vectors2.set_radius(0.0005)  # Much smaller radius for midpoints
+        ps_vectors2.set_color((0.2, 0.2, 0.8))  # Blue for second set
+        ps_vectors2.add_vector_quantity("normal_vectors2", different_N2,
+                                       enabled=True,
+                                       color=(0.0, 0.0, 1.0),
+                                       length=0.10)  # Blue color for second normals
+    
+    # Set visualization options
+    ps.set_ground_plane_mode("none")
+    
+    # Print some statistics
+    print(f"Total number of normal pairs: {len(N1)}")
+    print(f"Number of significantly different normal pairs: {len(different_indices)}")
+    print(f"Percentage of different normals: {100 * len(different_indices) / len(N1):.2f}%")
+    
+    # Show the window
+    ps.show()
+
     
 def plot_cdt_skecth(vertices, lines):
     """
