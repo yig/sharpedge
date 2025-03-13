@@ -22,34 +22,21 @@ import argparse
 
 
 
-# this should be a matrix 
-#      e0, e1, ... en-1
-# e0   0
-# e1       0
-# ...         
-# en-1              0
-
-# 1. the diagnoal all 0, the weights of an edge to itself.
-# 2. for all the edges, compute their segment-segment distance, divide 1 / (distance + epsilon) to avoid divide 0
-# 3. loop through the polyline, find the neighboring edges and add them another extra high weights 
-def create_edge_weight_matrix(V, E, P, neighbor_weight=1, epsilon=1e-2):
+def create_edge_weight_matrix(V, E, P, epsilon=1):
     """
     Create a matrix for edges with weights based on segment distances and neighbor relationships.
     The matrix is built in three steps:
     1. Initialize diagonal elements to 0 (edge to itself)
-    2. Compute weights for all edge pairs based on inverse segment distance
-    3. Add extra high weights for neighboring edges in the same polyline
+    2. When 2 edges are not in the same polyline, compute weights for all edge pairs based on inverse segment distance 
     
     Args:
         V: (n,3) array of vertex coordinates
         E: (m,2) array of edge vertex index pairs
         P: list of arrays containing vertex indices for each polyline
-        neighbor_weight: extra weight to add for neighboring edges in same polyline
         epsilon: small value to avoid division by zero
         
     Returns:
         numpy array: cost matrix where entry (i,j) is the weight between edges i and j
-        rotations: a dictionary from a pair of edge indices to a 3x3 rotation matrix
     """
     num_edges = len(E)
     # Step 1: Initialize cost matrix with zeros (diagonal already zero)
@@ -86,7 +73,7 @@ def create_edge_weight_matrix(V, E, P, neighbor_weight=1, epsilon=1e-2):
                 distance, _, _ = segment_to_segment_distance(a1, a2, b1, b2)
                 
                 # Set weight as inverse of distance
-                weight = 1.0 / (distance + epsilon)
+                weight = 1.0 / (distance * 10 + epsilon)
                 # maybe a sigmod function
                 
                 # Matrix is symmetric
@@ -94,7 +81,11 @@ def create_edge_weight_matrix(V, E, P, neighbor_weight=1, epsilon=1e-2):
                 
                 weight_matrix[j,i] = weight
     
-    # Step 3: Add extra weights for neighboring edges in polylines
+    return weight_matrix
+
+def create_rotation_dictionary(V, E, P):
+    '''
+    '''
     rotations = {}
     for polyline in P:
         # For each edge pair in the polyline
@@ -115,8 +106,8 @@ def create_edge_weight_matrix(V, E, P, neighbor_weight=1, epsilon=1e-2):
             
             # Create a parallel transport matrix from edge1 to edge2
             rotations[(edge1_idx, edge2_idx)] = rotation_matrix_from( V[v2] - V[v1], V[v3] - V[v2] )
+    return rotations
     
-    return weight_matrix, rotations
 
 # pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) 
 # such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
@@ -159,10 +150,10 @@ def extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_cons
             e0 = edge_indices[i]
             e1 = edge_indices[i+1]
             e2 = edge_indices[i+2]
-            pairwise.append((e0, e1, 10))
-            pairwise.append((e1, e2, 10))
+            pairwise.append((e0, e1, 1))
+            pairwise.append((e1, e2, 1))
         if len(edge_indices) == 2:
-            pairwise.append((edge_indices[0], edge_indices[1], 10))
+            pairwise.append((edge_indices[0], edge_indices[1], 1))
     
     edge_constraints_dict = {}
 
@@ -246,6 +237,43 @@ def find_edge_indices_from_polyline(polyline, E):
             raise ValueError(f"Edge ({v1},{v2}) not found in edge list")
     
     return edge_indices, edge_reversed
+
+def random_normal_on_polylines(Us, Vs, polyline_edge_data, polyline_indices):
+    '''
+    From the best normal of the polyline, parallel transport it on both direction of the polyline.
+    Notice depend on the polyline_to_best_normal, this will transport on a subset of polyline.
+    Means not all polylines will get normals after this.
+
+    
+    Parameters:
+    -----------
+    Us : frame
+    Vs : frame
+    polyline_edge_data : dictionary, {polyline_idx: (edge_indices, is_edge_reversed)}
+                       : the polyline edge_indices and whether the edge is reversed
+
+    polyline_indices: set or list containing the polyline which we want random normal on them
+
+    Return :
+        polyline_normals: dictionary, {polyline_index: [normals]} 
+                          polyline_index as key and a list of normals corresponding to each edge in the polyline
+
+    '''
+    polyline_normals = {}
+
+    for polyline_idx in polyline_indices:
+        edge_indices, _ = polyline_edge_data[polyline_idx]
+            
+
+        normal_vectors = []
+        # Compute parallel transport
+        for edge_index in edge_indices:
+            n = normal_for_edge( np.random.uniform(0, 2 * np.pi)  , Us[ edge_index ], Vs[ edge_index ] )
+            normal_vectors.append(n)
+
+        polyline_normals[polyline_idx] = normal_vectors
+    
+    return polyline_normals
 
 
 def create_frames_for_each_polyline(V, E, P):
@@ -548,7 +576,7 @@ def polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data):
     return edge_normals
 
 
-def estimate_initial_normals(V, E, P, edge_normal_constraints):
+def estimate_initial_normals(V, E, P, edge_normal_constraints, Us, Vs):
     '''
     Estimates initial normal angles (thetas) for polylines using parallel transport.
     
@@ -675,6 +703,8 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints):
     
     unconstrained_polyline_normals = parallel_transport_with_best_normal_on_polyline(V, P, polyline_edge_data, unconstrained_polylines_best_normal)
     
+    ## how about just use random normals for those who are unconstrainted? no, not good!
+    # unconstrained_polyline_normals = random_normal_on_polylines(Us, Vs, polyline_edge_data, unconstrained_polylines)
 
     if show_plot is True:
         plot_polyline_normals(V, E, P, unconstrained_polyline_normals,scale=0.09,  str = 'parallel transport of the polyline with borrowed normal')
@@ -993,8 +1023,9 @@ if __name__ == "__main__":
     '''
     estimate initial constraints
     '''
+    Us, Vs = create_frames_for_each_polyline(V, E, P )
 
-    estimate_normals, unconstrained_polylines = estimate_initial_normals(V, E, P, edge_constraints)
+    estimate_normals, unconstrained_polylines = estimate_initial_normals(V, E, P, edge_constraints, Us, Vs)
 
     estimate_normals_list = [normal for _,normal in estimate_normals]
     estimate_normals_list = estimate_normals_list / np.linalg.norm(estimate_normals_list, axis=1)[:, np.newaxis]
@@ -1006,7 +1037,8 @@ if __name__ == "__main__":
 
 
 
-    weight_matrix, rotations = create_edge_weight_matrix(V, E, P)
+    weight_matrix = create_edge_weight_matrix(V, E, P)
+    rotations = create_rotation_dictionary(V, E, P )
     pairwise = extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_constraints)
     # print('len(pairwise)', len(pairwise))
 
@@ -1020,7 +1052,6 @@ if __name__ == "__main__":
     # 1. all the polylines have 
     # '''
 
-    Us, Vs = create_frames_for_each_polyline(V, E, P )
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
 
 
@@ -1063,7 +1094,7 @@ if __name__ == "__main__":
         E_pairwise /= W_pairwise
         
         # return 1 * E_constraint +  1e4 * E_pairwise
-        return 1e2 * E_constraint +  1 * E_pairwise
+        return 1e-2 * E_constraint +  1e4 * E_pairwise
         # return E_constraint
 
 
@@ -1081,10 +1112,6 @@ if __name__ == "__main__":
 
     opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
 
-    if show_plot is True:
-        plot_edge_constraints(V, E, P,  opt_normals, scale=0.08, str = "optimize result")
-
-    # # print(opt_normals)
 
     N = [normal for _,normal in opt_normals]
     N_normalized = N / np.linalg.norm(N, axis=1)[:, np.newaxis]
@@ -1095,6 +1122,12 @@ if __name__ == "__main__":
         write_normal_data(V, E, N_normalized , 'debug_normals_gltf/final_optimize/' + curve_name + '.normal')
 
     
+
+    if show_plot is True:
+        plot_edge_constraints(V, E, P,  opt_normals, scale=0.08, str = "optimize result")
+
+    # # print(opt_normals)
+
     if gltf_file:
         export_sketch_normal_gltf(V, E, polylines, N_normalized, gltf_file)
 
