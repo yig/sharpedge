@@ -4,10 +4,11 @@ from utility_io import load_sketch_polyline_data, write_normal_data, write_strin
 from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals
 from utility_segment_distance import segment_to_segment_distance
 
-from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf, export_sketch_dict_normal_gltf
+from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf, export_sketch_polyline_normal_gltf
 from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
+from utility_edge_rotation import create_edge_rotation_map
 
 import scipy.optimize as opt
 
@@ -16,23 +17,24 @@ from collections import defaultdict
 
 import argparse
 
+
 # import jax.numpy as jnp
 # import jax
 
 
-
-
-def create_edge_weight_matrix(V, E, P, epsilon=1):
+def create_edge_weight_matrix(V, E, edge_to_polyline_map, epsilon=1):
     """
-    Create a matrix for edges with weights based on segment distances and neighbor relationships.
+    Create a matrix for edges with weights based on segment distances.
     The matrix is built in three steps:
     1. Initialize diagonal elements to 0 (edge to itself)
-    2. When 2 edges are not in the same polyline, compute weights for all edge pairs based on inverse segment distance 
+    2. When 2 edges are not in the same polyline,
+       compute weights for all edge pairs based on inverse segment distance. 
     
     Args:
         V: (n,3) array of vertex coordinates
         E: (m,2) array of edge vertex index pairs
-        P: list of arrays containing vertex indices for each polyline
+        edge_to_polyline_map : dict {edge_idx: polyline_idx}
+        Mapping from edge indices to the polyline they belong to.
         epsilon: small value to avoid division by zero
         
     Returns:
@@ -42,33 +44,25 @@ def create_edge_weight_matrix(V, E, P, epsilon=1):
     # Step 1: Initialize cost matrix with zeros (diagonal already zero)
     weight_matrix = np.zeros((num_edges, num_edges))
 
-    # get polyline edge data 
-    edge_to_polylines = {}
-    
-    for polyline_idx, polyline in enumerate(P):
-        # Store edge data for reuse
-        edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
-        for edge_index in edge_indices:
-            edge_to_polylines[edge_index] = polyline_idx
-    
-    print('edge_to_polylines', edge_to_polylines)
-
     
     # Step 2: Compute weights based on segment distances
     for i in range(num_edges):
         for j in range(i+1, num_edges):  # Only compute upper triangle
-            # Get vertex coordinates for both edges
-            a1 = V[E[i,0]]
-            a2 = V[E[i,1]]
-            b1 = V[E[j,0]]
-            b2 = V[E[j,1]]
+ 
 
-            polyline_i = edge_to_polylines[i]
-            polyline_j = edge_to_polylines[j]
+            polyline_i = edge_to_polyline_map[i]
+            polyline_j = edge_to_polyline_map[j]
 
-            if polyline_i == polyline_j:
-                continue 
-            else:
+
+
+            if polyline_i != polyline_j:
+                # Get vertex coordinates for both edges
+                a1 = V[E[i,0]]
+                a2 = V[E[i,1]]
+                b1 = V[E[j,0]]
+                b2 = V[E[j,1]]
+
+            
                 # Compute distance between segments
                 distance, _, _ = segment_to_segment_distance(a1, a2, b1, b2)
                 
@@ -76,57 +70,35 @@ def create_edge_weight_matrix(V, E, P, epsilon=1):
                 weight = 1.0 / (distance * 10 + epsilon)
                 # maybe a sigmod function
                 
-                # Matrix is symmetric
-                weight_matrix[i,j] = weight
+                # Matrix is symmetric for now
+                weight_matrix[i,j] = weight 
                 
-                weight_matrix[j,i] = weight
+                weight_matrix[j,i] = weight 
     
     return weight_matrix
 
-def create_rotation_dictionary(V, E, P):
-    '''
-    '''
-    rotations = {}
-    for polyline in P:
-        # For each edge pair in the polyline
-        for i in range(len(polyline)-2):
-            v1, v2, v3 = polyline[i], polyline[i+1], polyline[i+2]
-            
-            # Find indices in E for edge1 (v1-v2) and edge2 (v2-v3)
-            # Check both directions for each edge
-            edge1_mask = ((E[:,0] == v1) & (E[:,1] == v2)) | ((E[:,0] == v2) & (E[:,1] == v1))
-            edge2_mask = ((E[:,0] == v2) & (E[:,1] == v3)) | ((E[:,0] == v3) & (E[:,1] == v2))
-            
-            edge1_idx = np.where(edge1_mask)[0][0]
-            edge2_idx = np.where(edge2_mask)[0][0]
-            
-            # # Add neighbor weight to both positions
-            # weight_matrix[edge1_idx, edge2_idx] += neighbor_weight
-            # weight_matrix[edge2_idx, edge1_idx] += neighbor_weight
-            
-            # Create a parallel transport matrix from edge1 to edge2
-            rotations[(edge1_idx, edge2_idx)] = rotation_matrix_from( V[v2] - V[v1], V[v3] - V[v2] )
-    return rotations
-    
 
 # pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) 
 # such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
 # len(pairwise) <= 3 * len(edges)
 # each edge will get at most 3 pair
 # some may duplicate. so do not use duplicates
-def extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_constraints):
+def extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines, edge_constraints_map):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
     avoiding duplicates and ensuring each edge pair appears only once.
     
     Args:
-        weight_matrix (np.ndarray): NxN array where entry (i,j) is the weight between edges i and j
+        V:
+        E:
+
         P : array-like, shape (K,)
             Polyline definitions, where each element is a list/array of vertex indices
             forming a polyline. K is number of polylines.
+        weight_matrix (np.ndarray): NxN array where entry (i,j) is the weight between edges i and j
         unconstrained_polylines: polyline who doesn't have any edge normals set 
-        edge_constraints : the edge normal constraints get from convex hull, a list [(index, normal)]
+        edge_constraints_map : the edge normal constraints get from convex hull, { index, normal}
     
     Returns:
         list of tuples: [(edge_idx1, edge_idx2, weight), ...] sorted by weight in descending order,
@@ -155,21 +127,14 @@ def extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_cons
         if len(edge_indices) == 2:
             pairwise.append((edge_indices[0], edge_indices[1], 1))
     
-    edge_constraints_dict = {}
 
-    for edge_index, edge_normal in edge_constraints:
-        edge_constraints_dict[edge_index] = edge_normal
 
     # Get matrix size
     matrix_size = len(weight_matrix)
-    polyline_weight_pair_cnt = 0
 
-    # same polyline, must be zero in the weights matrix
-
-    print('focus on i',i )
     # Process each edge
     for i in range(matrix_size):
-        if i not in edge_constraints_dict and edge_to_polylines[i] in unconstrained_polylines:
+        if i not in edge_constraints_map and edge_to_polylines[i] in unconstrained_polylines:
 
             # Get weights for current edge (excluding self-connection)
             weights = weight_matrix[i].copy()
@@ -187,17 +152,31 @@ def extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_cons
             # Add the pairs to result, ensuring i < j to avoid duplicates
             for j in sorted_indices[:3]:
                 # edge_pair = tuple(sorted([i, j]))  # Sort indices to ensure consistent ordering
-                pairwise.append((i, j, weights[j]))
+                pairwise.append((i, j, weights[j] ))
              
     # then for the same polyline, add 
 
+
     # Convert set to sorted list
     pairwise_list = sorted(list(pairwise), key=lambda x: x[2], reverse=True)
-    
+
     print('pairwise_list', pairwise_list)
-    return pairwise_list
+
+    pairwise_list_length = []
+
+    E_lengths = np.zeros(len(E))
+    for index, (i,j) in enumerate( E ):
+        E_lengths[index] += np.linalg.norm( V[i] - V[j] )
 
 
+    for item in pairwise_list:
+        i, j, weight = item 
+        weight *= E_lengths[e1] + E_lengths[e2]
+        pairwise_list_length.append((i, j, weight))
+
+    print('pairwise_list_length', pairwise_list_length)
+
+    return pairwise_list_length
 
 def find_edge_indices_from_polyline(polyline, E):
     '''
@@ -275,7 +254,6 @@ def random_normal_on_polylines(Us, Vs, polyline_edge_data, polyline_indices):
     
     return polyline_normals
 
-
 def create_frames_for_each_polyline(V, E, P):
     '''
     Creates local coordinate frames (U, V) for each edge in a network of polylines.
@@ -309,7 +287,6 @@ def create_frames_for_each_polyline(V, E, P):
             Us[edge_indices[idx]] = u
             Vs[edge_indices[idx]] = v
     
-
     return Us, Vs 
 
 def compute_edge_tangent(V, edge):
@@ -345,199 +322,92 @@ def edge_distance_matrix(V, E):
     
     return distances
 
-def find_most_perpendicular_edge_normal_on_polyline(V, E, polyline_edge_data, edge_to_normal_map):
+def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_normal_map, edge_distance_matrix):
     '''
-    From the edge_to_normal_map, find the most perpendicular edge normal on the polyline.
-    Notice depend on the edge_to_normal_map, this may only find a subset of the polylines
-    that have most perpendicular edge normal.
-
-
+    Assigns normals to unconstrained polylines by borrowing normals from nearby constrained edges.
+    
+    For polylines that don't have normal constraints from the convex hull, this function
+    finds nearby edges that do have assigned normals and borrows them based on geometric
+    compatibility. The best normal is selected based on perpendicularity to the edge tangent
+    and proximity.
+    
     Parameters:
     -----------
-    V : array-like, shape (N, 3)
-        Vertex coordinates in 3D space, where N is number of vertices.
-
-    E : array-like, shape (M, 2)
+    vertices : array-like, shape (N, 3)
+        Vertex coordinates in 3D space, where N is the number of vertices.
+    
+    edges : array-like, shape (M, 2)
         Edge connectivity, where each row contains indices (i,j) representing 
-        an edge between vertices V[i] and V[j]. M is number of edges.
-
-    polyline_edge_data : dictionary, {polyline_idx: (edge_indices, is_edge_reversed)}
-                         the polyline edge_indices and whether the edge is reversed
-
-    edge_to_normal_map : dictionary , {edge_idx, normal}
-
-    Return:
-        polyline_to_best_normal: 
-            Store the most perpendicular normal for polyline
-            Format: {polyline_idx: (position_in_polyline, normal_vector)}
+        an edge between vertices V[i] and V[j]. M is the number of edges.
+    
+    polyline_edge_data : tuple(list, list)
+        A tuple containing (edge_indices, is_edge_reversed) where:
+        - edge_indices: list of edge indices that form the polyline
+        - is_edge_reversed: boolean list indicating whether each edge direction is reversed
+    
+    edge_normal_map : dict
+        Dictionary mapping edge indices to their assigned normal vectors {edge_idx: normal_vector}
+    
+    edge_distance_matrix : array-like, shape (M, M)
+        Matrix of minimum distances between all pairs of edges
+    
+    Returns:
+    --------
+    tuple(int, ndarray)
+        A tuple containing:
+        - best_position: The position in the polyline where the best normal was found
+        - best_normal: The normal vector assigned to the polyline
     '''
+    # Collect potential normal candidates for each edge in the polyline
+    normal_candidates = []
+    edge_indices, is_edges_reversed = polyline_edge_data
+    
+    # For each edge in the polyline, find the closest edge with a known normal
+    for target_edge_idx in edge_indices:
+        # Sort nearby edges by distance to the target edge
 
-    # Store the most perpendicular normal for each polyline
-    # Format: {polyline_idx: (position_in_polyline, normal_vector)}
-    polyline_to_best_normal = {}
 
-    for polyline_idx, (edge_indices, is_edge_reversed) in polyline_edge_data.items():
+        sorted_nearby_edges = sorted(
+            [(nearby_edge_idx, edge_distance_matrix[target_edge_idx, nearby_edge_idx]) 
+             for nearby_edge_idx in range(len(edge_distance_matrix))], 
+            key=lambda x: x[1]
+        )
         
-        # Track the best normal found for this polyline
-        best_normal_vector = None
-        smallest_dot_product = 1  # cos(0°) = 1, largest possible dot product
-        best_edge_normal_pair = None
-        
-        # print(f"Polyline {polyline_idx} edges:", edge_indices, is_edge_reversed)
-        
-        # Check each edge in polyline for normal constraints
-        for pos_in_polyline, edge_idx in enumerate(edge_indices):
-            if edge_idx in edge_to_normal_map:
-                current_normal = edge_to_normal_map[edge_idx]
-                edge_direction = compute_edge_tangent(V, E[edge_idx])
+        # Find the closest edge with a normal constraint
+        for nearby_edge_idx, distance in sorted_nearby_edges:
+            if nearby_edge_idx in edge_normal_map:
+                # Get the normal from the nearby edge
+                candidate_normal = edge_normal_map[nearby_edge_idx]
                 
-                # Smaller dot product means more perpendicular vectors
-                perpendicularity = np.abs(np.dot(edge_direction, current_normal))
+                # Compute the tangent of the target edge
+                target_edge_tangent = compute_edge_tangent(V, E[target_edge_idx])
                 
-                # Update if this is the most perpendicular normal so far
-                if best_normal_vector is None or perpendicularity < smallest_dot_product:
-                    best_normal_vector = current_normal
-                    smallest_dot_product = perpendicularity
-                    
-                    # Handle edge orientation for the normal vector
-                    # the orientation should not matter here ?
-                    # if is_edge_reversed[pos_in_polyline]:
-                    #     best_edge_normal_pair = (pos_in_polyline, -best_normal_vector)
-                    # else:
-                    #     best_edge_normal_pair = (pos_in_polyline, best_normal_vector)
-                    
-                    best_edge_normal_pair = (pos_in_polyline, best_normal_vector)
-        
-        # Store the best normal if one was found
-        if best_normal_vector is not None:
-            polyline_to_best_normal[polyline_idx] = best_edge_normal_pair
+                # Calculate how perpendicular the normal is to the edge
+                # A value of 1.0 means perfectly perpendicular, 0.0 means parallel
+                perpendicularity = np.clip(1.0 - np.abs(np.dot(target_edge_tangent, candidate_normal)), 0, 1)
+                
+                # Only consider normals that are sufficiently perpendicular
+                if perpendicularity > 1e-12:
+                    # Store: (distance, perpendicularity, target edge, candidate normal)
+                    normal_candidates.append((distance, perpendicularity, target_edge_idx, candidate_normal))
+                    break  # Found a valid candidate, move to next edge
     
-
-    return polyline_to_best_normal
-
-
-def parallel_transport_with_best_normal_on_polyline(V, P, polyline_edge_data, polyline_to_best_normal):
-    '''
-    From the best normal of the polyline, parallel transport it on both direction of the polyline.
-    Notice depend on the polyline_to_best_normal, this will transport on a subset of polyline.
-    Means not all polylines will get normals after this.
-
+    # Create a map of candidate normals for edges in the polyline
+    edge_to_candidate_normal_map = {}
     
-    Parameters:
-    -----------
-    V : array-like, shape (N, 3)
-        Vertex coordinates in 3D space, where N is number of vertices.
+    # Select the best candidates based on perpendicularity first, then distance
+    # Limit to top 3 candidates for stability
+    best_candidates = sorted(normal_candidates, key=lambda x: (x[1], x[0]))[:3]
     
-    P : array-like, shape (K,)
-        Polyline definitions, where each element is a list/array of vertex indices
-        forming a polyline. K is number of polylines.
+    for _, _, target_edge_idx, candidate_normal in best_candidates:
+        edge_to_candidate_normal_map[target_edge_idx] = candidate_normal
     
-    polyline_edge_data : dictionary, {polyline_idx: (edge_indices, is_edge_reversed)}
-                       : the polyline edge_indices and whether the edge is reversed
-
-    polyline_to_best_normal: dictionary,{polyline_idx: (position_in_polyline, normal_vector)}
-                             Store the most perpendicular normal for polyline
-
-    Return :
-        polyline_normals: dictionary, {polyline_index: [normals]} 
-                          polyline_index as key and a list of normals corresponding to each edge in the polyline
-
-    '''
-    polyline_normals = {}
-    for polyline_idx, polyline in enumerate(P):
-        if polyline_idx in polyline_to_best_normal:
-            # Reuse stored edge data instead of recomputing
-            edge_indices, _ = polyline_edge_data[polyline_idx]
-            
-            # Get polyline points for parallel transport
-            polyline_points = [V[index] for index in polyline]
-            polyline_best_normal_constraint = polyline_to_best_normal[polyline_idx]
-            
-            # Compute parallel transport
-            normal_vectors = parallel_transport_bi_direction(polyline_points, polyline_best_normal_constraint)
-            polyline_normals[polyline_idx] = normal_vectors
+    # Find the best position and normal on the polyline using the candidate normals
+    best_position, best_normal = find_best_perpendicular_normal_on_polyline(
+        V, E, polyline_edge_data, edge_to_candidate_normal_map
+    )
     
-    return polyline_normals
-
-
-def unconstrained_polyline_borrow_nearby_edges_normals(V, E, polyline_edge_data, unconstrained_polylines, edge_to_normal_map, distances):
-    '''
-    For the unconstrained polyline, which they don't get any normal constraint from convex hull.
-    I want to borrow normals from the nearby edges. Which is nearby edge normal from convex hull.
-
-    If there's no normal found, use random value ? 
-
-
-    Parameters:
-    -----------
-    V : array-like, shape (N, 3)
-        Vertex coordinates in 3D space, where N is number of vertices.
-
-    E : array-like, shape (M, 2)
-        Edge connectivity, where each row contains indices (i,j) representing 
-        an edge between vertices V[i] and V[j]. M is number of edges.
-
-    polyline_edge_data : dictionary, {polyline_idx: (edge_indices, is_edge_reversed)}
-                       : the polyline edge_indices and whether the edge is reversed
-
-    unconstrained_polylines : set, contain the index of polyline which doesnot have any normal constraints
-
-    edge_to_normal_map : edge_idx, normal
-
-    distances : a matrix of minimum distances between all pairs of edges
-
-    Return:
-        edge_to_normal_map : 
-    '''
-
-    ## 
-    unconstrained_edge_to_normal_map = {}
-    unconstrained_polylines_candidate_normals = defaultdict(list)
-
-    for polyline_idx in unconstrained_polylines:
-        edge_indices, is_edge_reversed = polyline_edge_data[polyline_idx]
-
-
-        for e0 in edge_indices:
-            # most nearby edge to e0
-            sorted_nearby_edges = sorted([(i, distances[e0, i]) for i in range(len(distances))], key=lambda x: x[1])
-
-            for e1, e0_e1_distance in sorted_nearby_edges:
-                # print(e1)
-                # print(e0, e1)
-                if e1 in edge_to_normal_map:
-                    # get the n1 from the most nearby 
-                    n1 = edge_to_normal_map[e1]
-                    # compute e0 tangent
-                    e0_tangent = compute_edge_tangent(V, E[e0])
-                    
-                    perpendicularity = np.clip(1.0 - np.abs(np.dot(e0_tangent, n1)), 0, 1)
-                    if perpendicularity > 1e-12:
-                        # a tuple of distance from e0 - e1, perpendicularity, e0, n1
-                        unconstrained_polylines_candidate_normals[polyline_idx].append((e0_e1_distance, perpendicularity, e0, n1))
-                        break
-    
-    # print('unconstrained_polylines_candidate_normals', unconstrained_polylines_candidate_normals)
-    # sort by distance, then perpendicularity
-
-    for polyline_idx in unconstrained_polylines_candidate_normals:
-        distance_normal_list = unconstrained_polylines_candidate_normals[polyline_idx]
-        # sort and then only get the top 3 that most near and perpendicular 
-        # sort by distance, then perpendicular 
-        # or sort by perpendicular and then distance 
-        # sorted_distance_normal_list = sorted(distance_normal_list, key=lambda x: (x[0], x[1]))[:3]
-        sorted_distance_normal_list = sorted(distance_normal_list, key=lambda x: (x[1], x[0]))[:3]
-        for distance_normal_item in sorted_distance_normal_list:
-            _, _, e0, n1 = distance_normal_item
-            unconstrained_edge_to_normal_map[e0] = n1
-
-
-    
-    unconstrained_polylines_best_normal = find_most_perpendicular_edge_normal_on_polyline(V, E, polyline_edge_data, unconstrained_edge_to_normal_map)
-
-
-
-    return unconstrained_polylines_best_normal
+    return (best_position, best_normal)
 
 def polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data):
     '''
@@ -575,34 +445,94 @@ def polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data):
             
     return edge_normals
 
-
-def estimate_initial_normals(V, E, P, edge_normal_constraints, Us, Vs):
+def find_best_perpendicular_normal_on_polyline(vertices, edges, polyline_edge_data, edge_constraints_map):
     '''
-    Estimates initial normal angles (thetas) for polylines using parallel transport.
+    Identifies the edge normal from constraint map that is most perpendicular to its edge direction.
+    
+    For edges with normal constraints, calculates which normal is most perpendicular 
+    to its corresponding edge tangent direction (smallest absolute dot product).
     
     Parameters:
     -----------
-    V : array-like, shape (N, 3)
-        Vertex coordinates in 3D space, where N is number of vertices.
-    
-    E : array-like, shape (M, 2)
-        Edge connectivity, where each row contains indices (i,j) representing 
-        an edge between vertices V[i] and V[j]. M is number of edges.
-    
-    P : array-like, shape (K,)
-        Polyline definitions, where each element is a list/array of vertex indices
-        forming a polyline. K is number of polylines.
-    
-    edge_normal_constraints :  list of tuple
-        Each tuple contains (edge_idx, normal) where:
-        - edge_idx (int): Index of the edge in E
-        - normal (np.ndarray): (3,) normalized direction vector
+    vertices : ndarray, shape (n_vertices, 3)
+        3D coordinates of vertices.
+        
+    edges : ndarray, shape (n_edges, 2)
+        Edge connectivity, where edges[i] = [v1, v2] connects vertices[v1] to vertices[v2].
+        
+    polyline_edge_data : tuple (edge_indices, is_edge_reversed)
+        Contains the indices of edges in this polyline and boolean flags indicating 
+        whether each edge direction is reversed in the polyline.
+        
+    edge_constraints_map : dict {edge_idx: normal_vector}
+        Maps edge indices to their constrained normal vectors (unit length).
         
     Returns:
     --------
-    thetas : array-like, shape (M,)
-        Estimated normal angles (in radians) for each edge in E.
-        The angles define the normal vector orientation for each edge.
+    tuple (position_in_polyline, normal_vector) or None
+        The position of the edge in the polyline and its normal vector that is
+        most perpendicular to the edge direction. Returns None if no constrained edges found.
+    '''
+    edge_indices, _ = polyline_edge_data  # Unpack the tuple
+    
+    best_normal = None 
+    min_dot_product = 1.0  # Dot product of perpendicular vectors is 0, so smaller is better
+    best_position = None
+    
+    # Check each edge in the polyline
+    for position, edge_idx in enumerate(edge_indices):
+        # Skip edges without normal constraints
+        if edge_idx not in edge_constraints_map:
+            continue
+            
+        # Get the constrained normal and calculate the edge direction
+        normal = edge_constraints_map[edge_idx]
+        edge_tangent = compute_edge_tangent(vertices, edges[edge_idx])
+        
+        # Calculate perpendicularity (smaller absolute dot product = more perpendicular)
+        perpendicularity = abs(np.dot(edge_tangent, normal))
+        
+        # Update if this is more perpendicular than previous best
+        if best_normal is None or perpendicularity < min_dot_product:
+            best_normal = normal
+            min_dot_product = perpendicularity
+            best_position = position
+    
+    assert best_position != None , "This should not happen"
+    return (best_position, best_normal)
+
+def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map):
+    '''
+    Estimates initial normals for polylines using parallel transport.
+    
+    Parameters:
+    -----------
+    vertices : ndarray, shape (n_vertices, 3)
+        Vertex coordinates in 3D space.
+    
+    edges : ndarray, shape (n_edges, 2)
+        Edge connectivity, where each row contains indices (i,j) representing
+        an edge between vertices[i] and vertices[j].
+    
+    polylines : list of arrays
+        List where each element is an array of vertex indices forming a polyline.
+    
+    polyline_to_edge_map : dict {polyline_idx: (edge_indices, is_edge_reversed)}
+        Mapping from polyline indices to the edges that compose them and whether
+        each edge direction is reversed in the polyline.
+    
+    edge_to_polyline_map : dict {edge_idx: polyline_idx}
+        Mapping from edge indices to the polyline they belong to.
+    
+    normal_constraints_map : {edge_idx, normal} 
+        - edge_idx (int): Index of the edge in the edges array
+        - normal (ndarray): (3,) normalized direction vector constraining the normal
+    
+    Returns:
+    --------
+    normals : ndarray, shape (n_edges, 3)
+        The estimated normal vector for each edge.
+    
     
     Algorithm:
     ----------
@@ -619,62 +549,51 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints, Us, Vs):
     
     Notes:
     ------
-    - Angles are returned in radians
     - Uses parallel transport to maintain smooth normal vector field
     - For unconstrained polylines, proximity is determined by shortest distance
       between polyline midpoints
     '''
-    # Convert constraints list to dictionary for O(1) lookup time
-    edge_to_normal_map = {edge_idx: normal for edge_idx, normal in edge_normal_constraints}
-    
-    # Store polyline edge data to avoid recomputing
-    # Format: {polyline_idx: (edge_indices, is_edge_reversed)}
-    polyline_edge_data = {}
-    
-    for polyline_idx, polyline in enumerate(P):
-        # Store edge data for reuse
-        edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
-        polyline_edge_data[polyline_idx] = (edge_indices, is_edge_reversed)
-    
-    # First pass: Find most perpendicular normal for each polyline
-    # Store the most perpendicular normal for each polyline
-    # Format: {polyline_idx: (position_in_polyline, normal_vector)}
-    constrained_polyline_to_best_normal =  find_most_perpendicular_edge_normal_on_polyline(V, E, polyline_edge_data, edge_to_normal_map)
+
+    # constrained_polyline_indices : which polyline_index have normal
+    constrained_polyline_indices = set()
+    for edge_idx, normal in edge_constraints_map.items():
+        constrained_polyline_indices.add( edge_to_polyline_map[edge_idx] )
+
+    print('constrained_polyline_indices',constrained_polyline_indices)
+
+
+    ### First : Find most perpendicular normal for each polyline
+    polyline_to_best_normal_map = {} 
+    for polyline_idx in constrained_polyline_indices:
+        polyline_edge_data = polyline_to_edge_map[polyline_idx]
+        (pos_in_polyline, normal) = find_best_perpendicular_normal_on_polyline(V, E, polyline_edge_data, edge_constraints_map)
+        polyline_to_best_normal_map[polyline_idx] = (pos_in_polyline, normal)
+
+    # print('polyline_to_best_normal_map', polyline_to_best_normal_map)
+    # print("len(polyline_to_best_normal_map)", len(polyline_to_best_normal_map))
+
+
+    if show_plot:
+        plot_polyline_best_constraints(V, E, P, polyline_to_best_normal_map, str='most perpendicular on polyline')
 
     if save_debug_gltf:
-        export_sketch_dict_normal_gltf(V, E, P, constrained_polyline_to_best_normal, 'debug_normals_gltf/initial_most_perpendicular/' + curve_name + '.gltf')
+        export_sketch_polyline_normal_gltf(V, E, P, polyline_to_best_normal_map, 'debug_normals_gltf/initial_most_perpendicular/' + curve_name + '.gltf')
     
-    # print("Polylines with their most perpendicular normals:", polyline_to_best_normal)
-    print("Polylines with their most perpendicular normals:", len(constrained_polyline_to_best_normal))
+    ### Second : Compute parallel transport for each polyline with a normal   
+    polyline_normals = {}
+    for polyline_idx, (pos_in_polyline, normal) in polyline_to_best_normal_map.items():
+        polyline_points = [V[index] for index in P[polyline_idx]]            
+        normal_vectors = parallel_transport_bi_direction(polyline_points, (pos_in_polyline, normal))
+        polyline_normals[polyline_idx] = normal_vectors
 
-    if show_plot is True:
-        plot_polyline_best_constraints(V, E, P, constrained_polyline_to_best_normal, str='most perpendicular on polyline')
+    # print('len(polyline_normals)', len(polyline_normals))
+    # print('polyline_normals', polyline_normals)
 
-    # Second pass: Compute parallel transport for each polyline with a normal
-    polyline_normals = parallel_transport_with_best_normal_on_polyline(V, P , polyline_edge_data, constrained_polyline_to_best_normal)
-
-    # print('constrained_polyline_normals', constrained_polyline_normals)
-    print('len(polyline_normals)', len(polyline_normals))
-
-    if show_plot is True:
+    if show_plot:
         plot_polyline_normals(V, E, P, polyline_normals, str = 'parallel transport most perpendicular normal')
-        # trusted_edge_normals = polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data)
-        # # print('unconstrained_edge_normals', unconstrained_edge_normals)
-        # trusted_edge_normals_list = edge_normal_dict_to_ndarray(trusted_edge_normals, len(E))
-        # trusted_normalized = np.asarray(trusted_edge_normals_list)
-        # # trusted_normalized = trusted_normalized / np.linalg.norm(trusted_normalized, axis=1)[:, np.newaxis]
-        # trusted_normalized = np.divide(trusted_normalized, np.linalg.norm(trusted_normalized, axis=1)[:, np.newaxis], out=np.zeros_like(trusted_normalized), where=np.linalg.norm(trusted_normalized, axis=1)[:, np.newaxis] > 0)
-        # write_normal_data(V, E, trusted_normalized, 'debug_normals/' + curve_name + '.normal')
-    
-    
-    # Convert polyline normals to edge normals
-    # Format: {edge_idx: normal_vector}
-    edge_normals = polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data)
-
-    print('len(constrained_edge_normals)', len(edge_normals))
 
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, polylines, edge_normal_dict_to_ndarray(edge_normals, len(E)), 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
+        export_sketch_polyline_normal_gltf(V, E, P, polyline_normals, 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
     
   
     ## Third pass:
@@ -683,68 +602,77 @@ def estimate_initial_normals(V, E, P, edge_normal_constraints, Us, Vs):
     # edge < epsilon edge_normals as constraints to propogate on those who does not have normal
     # polylines
 
+    unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
+    # print("Polylines without normals:", unconstrained_polylines)
+
+    # Update the edge-to-normal mapping 
+    # with propagated normals from each polyline
+    edge_constraints_map_updated = {}
+    for polyline_idx, propagated_normals in polyline_normals.items():
+        polyline_edges, _ = polyline_to_edge_map[polyline_idx]
+    
+        # Associate each edge with its corresponding normal vector from the parallel transport
+        for position, edge_id in enumerate(polyline_edges):
+            edge_constraints_map_updated[edge_id] = propagated_normals[position]
+
+    
+
     # Identify polylines without normals
     edge_distances = edge_distance_matrix(V, E)
+    unconstrained_polyline_to_best_normal_map = {}
+    for polyline_idx in unconstrained_polylines:
+        unconstrained_polyline_to_best_normal_map[polyline_idx] = assign_normals_to_unconstrained_polylines(V, E, polyline_to_edge_map[polyline_idx], edge_constraints_map_updated, edge_distances)
 
-    # print('polyline_normals.keys()', constrained_polyline_normals.keys())
+    # print('len(unconstrained_polyline_to_best_normal_map)', len(unconstrained_polyline_to_best_normal_map))
+    # print('unconstrained_polyline_to_best_normal_map', unconstrained_polyline_to_best_normal_map)
 
-
-    unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
-
-    print("Polylines without normals:", unconstrained_polylines)
-
-    unconstrained_polylines_best_normal = unconstrained_polyline_borrow_nearby_edges_normals(V, E, polyline_edge_data, unconstrained_polylines, edge_normals, edge_distances)
-    # print('unconstrained_polylines_best_normal', unconstrained_polylines_best_normal)
-
-    if show_plot is True:
-        plot_polyline_best_constraints(V, E, P, unconstrained_polylines_best_normal, scale=0.09, str = 'borrow nearby edge normal')
+    if show_plot:
+        plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.09, str = 'borrow nearby edge normal')
     if save_debug_gltf:
-        export_sketch_dict_normal_gltf(V, E, P, unconstrained_polylines_best_normal, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
+        export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_to_best_normal_map, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
     
-    unconstrained_polyline_normals = parallel_transport_with_best_normal_on_polyline(V, P, polyline_edge_data, unconstrained_polylines_best_normal)
+    unconstrained_polyline_normals = {}
+    for polyline_idx, (pos_in_polyline, normal) in unconstrained_polyline_to_best_normal_map.items():
+        polyline_points = [V[index] for index in P[polyline_idx]]          
+        normal_vectors = parallel_transport_bi_direction(polyline_points, (pos_in_polyline, normal))
+        unconstrained_polyline_normals[polyline_idx] = normal_vectors
     
     ## how about just use random normals for those who are unconstrainted? no, not good!
-    # unconstrained_polyline_normals = random_normal_on_polylines(Us, Vs, polyline_edge_data, unconstrained_polylines)
 
-    if show_plot is True:
+    if show_plot:
         plot_polyline_normals(V, E, P, unconstrained_polyline_normals,scale=0.09,  str = 'parallel transport of the polyline with borrowed normal')
     if save_debug_gltf:
-        unconstrained_edge_normals = polyline_normal_to_edge_normal(unconstrained_polyline_normals, polyline_edge_data)
-        # print('unconstrained_edge_normals', unconstrained_edge_normals)
-        unconstrained_edge_normals_list = edge_normal_dict_to_ndarray(unconstrained_edge_normals, len(E))
-        # print('unconstrained_edge_normals_list', unconstrained_edge_normals_list)
-        export_sketch_normal_gltf(V, E, polylines, unconstrained_edge_normals_list, 'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
-
+        export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_normals, 'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
 
     polyline_normals = {**polyline_normals, **unconstrained_polyline_normals}
 
-    edge_normals = polyline_normal_to_edge_normal(polyline_normals, polyline_edge_data)
+    edge_constraints_map_estimated = {}
+    for polyline_idx, propagated_normals in polyline_normals.items():
+        polyline_edges, _ = polyline_to_edge_map[polyline_idx]
+    
+        # Associate each edge with its corresponding normal vector from the parallel transport
+        for position, edge_id in enumerate(polyline_edges):
+            edge_constraints_map_estimated[edge_id] = propagated_normals[position]
 
     if save_debug_gltf:
         info = (
             f' total_edges: {len(E)}\n'
-            f' has_normal_edges: {len(edge_normal_constraints)}\n'
+            f' has_normal_edges: {len(edge_constraints_map)}\n'
             f' total_polylines: {len(P)}\n'
-            f' has_normal_polylines: {len(constrained_polyline_to_best_normal)}\n'
+            f' has_normal_polylines: {len(polyline_to_best_normal_map)}\n'
             f' borrowed_normal_polylines: {len(unconstrained_polyline_normals)}'
         )
         
         write_string_to_file(info, 'debug_normals_gltf/normal_info/' + curve_name + '.txt')
 
 
-    # print("unconstrained_polyline_normals.keys()", unconstrained_polyline_normals.keys())
-    # print("unconstrained_polylines" , set(unconstrained_polylines) - set(unconstrained_polyline_normals))
-    # print("len(polyline_normals.keys())", len(polyline_normals.keys()))
-    # print("len(P)", len(P))
     assert len( polyline_normals.keys() ) == len(P), "Some polylines do not have normals"
 
-    edge_normal_list = [(i,edge_normals[i]) for i in range(len(E)) if i in edge_normals]    
 
     if show_plot is True:
-        plot_edge_constraints(V, E, P, edge_normal_list, scale= 0.03, str= "initial estimate")
+        plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.03, str= "initial estimate")
 
-    return edge_normal_list, unconstrained_polylines
-
+    return edge_constraints_map_estimated
 
 def estimate_initial_thetas(Us, Vs, estimated_normals):
     '''
@@ -923,37 +851,43 @@ def recover_normal_from_thetas(thetas, Us, Vs):
         for i, theta in enumerate(thetas)
     ]
 
-def edge_normal_dict_to_ndarray(edge_normals, num_edges):
+def convert_edge_normals_to_array(edge_normals, num_edges):
     """
-    Convert edge normals from dictionary format to numpy array.
+    Convert edge normal data to a numpy array, supporting both list and dictionary formats.
+    This function is used so that we can save the edge constraints in a standardized format.
     
-    Args:
-        edge_normals (dict): Dictionary with edge indices as keys and normal vectors as values
-        num_edges (int): Total number of edges
-        
+    Parameters:
+    -----------
+    edge_normals : list of tuples or dictionary
+        Either:
+        - List of (edge_index, normal_vector) pairs where normal_vector is a 3D vector.
+        - Dictionary mapping edge indices to normal vectors {edge_index: normal_vector}
+    
+    num_edges : int
+        Total number of edges in the mesh.
+    
     Returns:
-        numpy.ndarray: Array of shape (num_edges, 3) containing edge normal vectors
+    --------
+    numpy.ndarray
+        Array of shape (num_edges, 3) containing normal vectors for each edge.
+        Positions without assigned normals will be zero vectors.
     """
-    if not isinstance(edge_normals, dict):
-        raise TypeError("edge_normals must be a dictionary")
-        
+    # Initialize array with zeros
     normals = np.zeros((num_edges, 3))
-    for edge_index, normal in edge_normals.items():
-        normals[edge_index] = normal
-        
-    return normals
-
-def edge_normal_tuple_to_ndarray(edge_normals, num_edges):
-    '''
-    Convert edge normal tuples format to numpy array
-    '''
-    normals = np.zeros((num_edges, 3))
-    for edge_index, normal in edge_normals:
-        normals[edge_index] = normal
-        
+    
+    # Handle dictionary input format
+    if isinstance(edge_normals, dict):
+        for edge_index, normal in edge_normals.items():
+            normals[edge_index] = normal
+    # Handle list of tuples input format
+    else:
+        for edge_index, normal in edge_normals:
+            normals[edge_index] = normal
+            
     return normals
 
 if __name__ == "__main__":
+    
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('normal_file', nargs='?', help='The curve sketch with optimized normal information.')
@@ -971,89 +905,133 @@ if __name__ == "__main__":
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
 
-    print('show_plot', show_plot)
-    print('save_debug_gltf',save_debug_gltf)
-    
+
     if curve_file is None:
-        curve_file = 'files_starter/simple_objs/onshape_simple_mouse.obj'
+        curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
 
 
     curve_name = Path(curve_file).stem
 
-    '''
-    - V: nx3 array of vertex coordinates
-    - E: mx2 array of edge vertex index pairs with no duplicates
-    - P: list of arrays containing vertex indices for each polyline
-    '''
+    #region Load Sketch and Plot Sketch
+    ####################################
+
+    # V: nx3 array of vertex coordinates
+    # E: mx2 array of edge vertex index pairs with no duplicates
+    # P: list of arrays containing vertex indices for each polyline
     V, E, P = load_sketch_polyline_data(curve_file)
-    polylines = [[V[i] for i in line] for line in P]
+
+
+    # This is not needed, but I want to check there's no duplicates
+    from utility_dup_checker import check_duplicates
+    dup_checker = check_duplicates(V, E, P)
+
+    assert dup_checker['duplicate_vertices'] == False
+    assert dup_checker['duplicate_edges'] == False  
+    assert dup_checker['duplicate_polylines'] == False 
+
+
 
     print('len(V)', len(V))
     print('len(E)', len(E))
     print('len(P)', len(P))
+    print()
+
+    print('V.shape', V.shape)
+    print('E.shape', E.shape)
+
 
 
     # only need points and polyline indices to draw
     # same polyline, same color
-    if show_plot is True:
+    if show_plot:
         plot_sketch_data(V, P)
 
-    '''
-    normals: convex hull point normals
-    edge_normals: assign and filter the point normals on edges
-    plot edge normals
-    '''
+    #####################################
+    #endregion
+
+
+    #region Initial normal estimate
+    #####################################
+
+    # edge normal from convex hull
+    # edge_constraints : [ (edge_idx, normal) ]
+    # only the ones with normal will be in the list 
     edge_constraints = get_sketch_edge_constraints(V, E)
     # print('edge_constraints', edge_constraints)
     print('len(edge_constraints)', len(edge_constraints))
-    if show_plot is True:
-        plot_edge_constraints(V, E, P, edge_constraints, scale=0.03, str = 'edge constraints from convex hull')
-        write_normal_data(V, E, edge_normal_tuple_to_ndarray(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
-
-    # edge_filtered_normals = np.zeros((len(E), 3))
-    # for edge_index, normal in edge_constraints:
-    #     edge_filtered_normals[edge_index] = normal
-
-
-
-    if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(edge_constraints, len(E)),'debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
-        
-
-    '''
-    estimate initial constraints
-    '''
-    Us, Vs = create_frames_for_each_polyline(V, E, P )
-
-    estimate_normals, unconstrained_polylines = estimate_initial_normals(V, E, P, edge_constraints, Us, Vs)
-
-    estimate_normals_list = [normal for _,normal in estimate_normals]
-    estimate_normals_list = estimate_normals_list / np.linalg.norm(estimate_normals_list, axis=1)[:, np.newaxis]
-    # plot_edge_constraints(V, E, P, estimate_normals)
-    if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, polylines, edge_normal_tuple_to_ndarray(estimate_normals, len(E)), 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
-        write_normal_data(V, E, estimate_normals_list , 'debug_normals_gltf/initial_estimate/' + curve_name + '.normal')
-
-
-
-
-    weight_matrix = create_edge_weight_matrix(V, E, P)
-    rotations = create_rotation_dictionary(V, E, P )
-    pairwise = extract_pairwise_weight(weight_matrix, P, unconstrained_polylines, edge_constraints)
-    # print('len(pairwise)', len(pairwise))
-
-
-
-    # '''
-    # optimization:
-
-    # I think initial guesses are important. To have better initial guess
     
-    # 1. all the polylines have 
-    # '''
+    edge_constraints_map = {edge_idx: normal for edge_idx, normal in edge_constraints}
 
+    # plot and save debug gltf
+    if show_plot:
+        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull')
+        write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
+    
+    if save_debug_gltf:
+        export_sketch_normal_gltf(V, E, P, edge_constraints,'debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
+
+ 
+    # Build polyline to edge and edge to polyline mappings
+    polyline_to_edge_map = {}
+    edge_to_polyline_map = {}
+
+    for polyline_idx, polyline in enumerate(P):
+        # Map polyline to its edges and edge orientations
+        edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
+        polyline_to_edge_map[polyline_idx] = (edge_indices, is_edge_reversed)
+        
+        # Create reverse mapping from each edge to its parent polyline
+        for edge_idx in edge_indices:
+            edge_to_polyline_map[edge_idx] = polyline_idx
+
+    constrained_polyline_indices = set()
+    for edge_idx, normal in edge_constraints:
+        constrained_polyline_indices.add( edge_to_polyline_map[edge_idx] )
+
+    unconstrained_polylines_indices = set(range(len(P))) - constrained_polyline_indices
+
+    print('constrained_polyline_indices', constrained_polyline_indices)
+    print('unconstrained_polylines_indices', unconstrained_polylines_indices)
+
+
+
+
+    estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map)
+
+    if save_debug_gltf:
+        export_sketch_normal_gltf(V, E, P, estimate_normals, 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
+        write_normal_data(V, E, convert_edge_normals_to_array(estimate_normals, len(E)) , 'debug_normals_gltf/initial_estimate/' + curve_name + '.normal')
+
+
+
+    # computes local coordinate frames for edges by generating parallel transport 
+    # frames along polylines and mapping them to the global edge indices
+    Us, Vs = create_frames_for_each_polyline( V, E, P )
+    
+    # show the frame on each edge
+    # if show_plot:
+    #     plot_edge_frames(V, E, P, Us, Vs, scale=0.08)
+    
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
+    # print('thetas0', thetas0)
 
+    #####################################
+    #endregion
+
+
+    #region Optimization
+    #####################################
+
+
+    #endregion
+
+
+    weight_matrix = create_edge_weight_matrix(V, E, edge_to_polyline_map)
+    rotations = create_edge_rotation_map(V, E )
+
+    pairwise = extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines_indices, edge_constraints_map)
+    
+    # print('len(pairwise)', len(pairwise))
 
 
 
@@ -1093,9 +1071,7 @@ if __name__ == "__main__":
         # Normalize by the total weight
         E_pairwise /= W_pairwise
         
-        # return 1 * E_constraint +  1e4 * E_pairwise
         return 1e-2 * E_constraint +  1e4 * E_pairwise
-        # return E_constraint
 
 
     result = opt.minimize( E_total,
@@ -1117,24 +1093,19 @@ if __name__ == "__main__":
     N_normalized = N / np.linalg.norm(N, axis=1)[:, np.newaxis]
 
 
+    
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, polylines, N_normalized, 'debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, N_normalized, 'debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
         write_normal_data(V, E, N_normalized , 'debug_normals_gltf/final_optimize/' + curve_name + '.normal')
 
-    
-
-    if show_plot is True:
+    if show_plot:
         plot_edge_constraints(V, E, P,  opt_normals, scale=0.08, str = "optimize result")
 
-    # # print(opt_normals)
-
     if gltf_file:
-        export_sketch_normal_gltf(V, E, polylines, N_normalized, gltf_file)
+        export_sketch_normal_gltf(V, E, P, N_normalized, gltf_file)
 
-
-
-
-    write_normal_data(V, E, N_normalized , normal_file)
+    if normal_file:
+        write_normal_data(V, E, N_normalized , normal_file)
 
 
 

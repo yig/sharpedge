@@ -53,6 +53,9 @@ def load_sketch_polyline_data(filename):
     
     # Store polylines as list of numpy arrays
     P = polylines
+
+
+
     
     print(f"\nRead from {filename}:")
     print(f"- {len(vertices)} vertices")
@@ -157,8 +160,8 @@ def write_normal_data(V, E, N, filename):
         filename (str): Path to output OBJ file
         
     File format:
-        v x y z    # vertex coordinates
-        e i j      # edge between vertices i and j (1-based indices)
+        v x y z     # vertex coordinates
+        e i j       # edge between vertices i and j (1-based indices)
         vn nx ny nz # normal vector for edge
         
     Note:
