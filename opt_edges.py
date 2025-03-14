@@ -8,7 +8,6 @@ from utility_convex_hull import get_sketch_edge_constraints, export_sketch_norma
 from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
-from utility_edge_rotation import create_edge_rotation_map
 
 import scipy.optimize as opt
 
@@ -108,7 +107,8 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         edge_idx1 < edge_idx2 to avoid duplicates.
     """
     pairwise = []
-        
+    
+    pair_cnt = 0
     for i in range(len(E)):
         ei = E[i]
         ei_weights = weights[i]
@@ -123,10 +123,11 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
                 ei_ej_weight = ei_weights[j]
 
                 if ej_polyline != ei_polyline:
-                    if ei_ej_weight != 0:
+                    if ei_ej_weight != 0 and pair_cnt < 3:
                         pairwise.append((i, j, ei_ej_weight ))
-                        break
+                        pair_cnt +=1
 
+    
     for i in range(len(E)):
         ei_polyline = edge_to_polyline_map[i]
         ei = E[i]        
@@ -148,7 +149,6 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         pairwise_length.append((i, j, weight))
 
     return pairwise_length
-
 
 
 def build_vertex_to_edges_map(edges):
@@ -174,6 +174,41 @@ def build_vertex_to_edges_map(edges):
             f"Vertex {vertex_idx} has duplicate edge entries"
     
     return vertex_to_edges
+
+def create_edge_rotation_map( V, E ):
+    '''
+    V: (n,3) array of vertex coordinates
+    E: (m,2) array of edge vertex index pairs
+    '''
+    rotations = {}
+
+    for i in range(len(E)):
+        for j in range(len(E)):
+
+            if i == j:
+                continue
+            
+            ei = E[i]
+            ej = E[j]
+
+            # if they share an endpoint
+            shared_indices = set(ei) & set(ej)
+            if len(shared_indices) != 0:
+                assert len(shared_indices) == 1
+                ## Get the shared index
+                shared_index = next(iter(shared_indices))
+                ## Get the non-shared index from ei
+                ei_other_index = next( iter( set(ei) - shared_indices ))
+                ## Get the non-shared index from ej
+                ej_other_index = next( iter( set(ej) - shared_indices ))
+
+                # Let's always go ei to ej
+                vector_ei = V[shared_index] - V[ei_other_index]
+                vector_ej = V[ej_other_index] - V[shared_index]
+
+                rotations[(i, j)] = rotation_matrix_from( vector_ei, vector_ej )
+
+    return rotations
 
 
 def find_edge_indices_from_polyline(polyline, E):
