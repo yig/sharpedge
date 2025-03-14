@@ -107,43 +107,47 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         representing edges that should have similar normals. Each pair appears only once with
         edge_idx1 < edge_idx2 to avoid duplicates.
     """
-    # Create set for unique pairwise penalties
     pairwise = []
-    
+        
     for i in range(len(E)):
-        i_weights = weights[i]
-        if i not in edge_constraints_map and edge_to_polyline_map[i] in unconstrained_polylines:
+        ei = E[i]
+        ei_weights = weights[i]
+        ei_polyline = edge_to_polyline_map[i]
 
-            desc_indices = np.argsort(i_weights)[::-1] 
+        if i not in edge_constraints_map and ei_polyline in unconstrained_polylines:
 
-            for j in desc_indices[:3]:
-                if i_weights[j] != 0:
-                    pairwise.append((i, j, i_weights[j] ))
-             
+            desc_indices = np.argsort(ei_weights)[::-1] 
 
-    return pairwise
+            for j in desc_indices:
+                ej_polyline = edge_to_polyline_map[j]
+                ei_ej_weight = ei_weights[j]
 
+                if ej_polyline != ei_polyline:
+                    if ei_ej_weight != 0:
+                        pairwise.append((i, j, ei_ej_weight ))
+                        break
 
-    # Convert set to sorted list
-    pairwise_list = sorted(list(pairwise), key=lambda x: x[2], reverse=True)
+    for i in range(len(E)):
+        ei_polyline = edge_to_polyline_map[i]
+        ei = E[i]        
+        for j in range(i+1, len(E)):
+            ej = E[j]
+            ej_polyline = edge_to_polyline_map[j]
+            if set(ei) & set(ej) and ei_polyline == ej_polyline :
+                pairwise.append((i, j, weights[i,j]))
 
-    print('pairwise_list', pairwise_list)
-
-    pairwise_list_length = []
 
     E_lengths = np.zeros(len(E))
     for index, (i,j) in enumerate( E ):
         E_lengths[index] += np.linalg.norm( V[i] - V[j] )
 
-
-    for item in pairwise_list:
-        i, j, weight = item 
+    pairwise_length = []
+    for i_j_weight in pairwise:
+        i, j, weight = i_j_weight 
         weight *= E_lengths[i] + E_lengths[j]
-        pairwise_list_length.append((i, j, weight))
+        pairwise_length.append((i, j, weight))
 
-    print('pairwise_list_length', pairwise_list_length)
-
-    return pairwise_list_length
+    return pairwise_length
 
 
 
