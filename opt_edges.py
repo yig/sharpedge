@@ -21,8 +21,37 @@ import argparse
 # import jax.numpy as jnp
 # import jax
 
+def edge_distance_matrix(V, E):
+    '''
+    Compute a matrix of minimum distances between all pairs of edges in a mesh using 
+    segment-to-segment distance calculations.
+    '''
+    n_edges = len(E)
+    distances = np.zeros((n_edges, n_edges))
+    
+    for i, ei in enumerate(E):
+        # Get vertices of first edge
+        ei_v0, ei_v1 = V[ei[0]], V[ei[1]]
+        
+        for j in range(i + 1, len(E)):  # Only compute lower triangle due to symmetry
+            ej = E[j]
+            ej_v0, ej_v1 = V[ej[0]], V[ej[1]]
 
-def create_edge_weight_matrix(V, E, edge_to_polyline_map, epsilon=1):
+            # help me to save some time
+            # if ei and ej already shared a vertex
+            # their distance must be 0
+            # Check if the set is empty
+            if not set(ei) & set(ej):
+
+                # Compute distance between segments, discarding closest points
+                dist, _, _ = segment_to_segment_distance(ei_v0, ei_v1, ej_v0, ej_v1)
+            
+                distances[i, j] = dist
+                distances[j, i] = dist
+    
+    return distances
+
+def create_edge_weight_matrix(E, distances, epsilon=1):
     """
     Create a matrix for edges with weights based on segment distances.
     The matrix is built in three steps:
@@ -32,48 +61,25 @@ def create_edge_weight_matrix(V, E, edge_to_polyline_map, epsilon=1):
     
     Args:
         V: (n,3) array of vertex coordinates
-        E: (m,2) array of edge vertex index pairs
-        edge_to_polyline_map : dict {edge_idx: polyline_idx}
-        Mapping from edge indices to the polyline they belong to.
+        distances: array-like, shape (M, M)
+                   Matrix of minimum distances between all pairs of edges
         epsilon: small value to avoid division by zero
         
     Returns:
         numpy array: cost matrix where entry (i,j) is the weight between edges i and j
     """
     num_edges = len(E)
-    # Step 1: Initialize cost matrix with zeros (diagonal already zero)
     weight_matrix = np.zeros((num_edges, num_edges))
 
     
-    # Step 2: Compute weights based on segment distances
     for i in range(num_edges):
-        for j in range(i+1, num_edges):  # Only compute upper triangle
- 
-
-            polyline_i = edge_to_polyline_map[i]
-            polyline_j = edge_to_polyline_map[j]
-
-
-
-            if polyline_i != polyline_j:
-                # Get vertex coordinates for both edges
-                a1 = V[E[i,0]]
-                a2 = V[E[i,1]]
-                b1 = V[E[j,0]]
-                b2 = V[E[j,1]]
-
+        for j in range(i+1, num_edges):  
             
-                # Compute distance between segments
-                distance, _, _ = segment_to_segment_distance(a1, a2, b1, b2)
-                
-                # Set weight as inverse of distance
-                weight = 1.0 / (distance * 10 + epsilon)
-                # maybe a sigmod function
-                
-                # Matrix is symmetric for now
-                weight_matrix[i,j] = weight 
-                
-                weight_matrix[j,i] = weight 
+            # maybe a sigmod function here
+            weight = 1.0 / (distances[i, j] * 10 + epsilon)
+
+            weight_matrix[i,j] = weight     
+            weight_matrix[j,i] = weight 
     
     return weight_matrix
 
@@ -83,7 +89,7 @@ def create_edge_weight_matrix(V, E, edge_to_polyline_map, epsilon=1):
 # len(pairwise) <= 3 * len(edges)
 # each edge will get at most 3 pair
 # some may duplicate. so do not use duplicates
-def extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines, edge_constraints_map):
+def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, weights):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
@@ -91,14 +97,10 @@ def extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines, edg
     
     Args:
         V:
-        E:
-
-        P : array-like, shape (K,)
-            Polyline definitions, where each element is a list/array of vertex indices
-            forming a polyline. K is number of polylines.
-        weight_matrix (np.ndarray): NxN array where entry (i,j) is the weight between edges i and j
+        E: 
         unconstrained_polylines: polyline who doesn't have any edge normals set 
         edge_constraints_map : the edge normal constraints get from convex hull, { index, normal}
+        weights : NxN array where entry (i,j) is the weight between edges i and j
     
     Returns:
         list of tuples: [(edge_idx1, edge_idx2, weight), ...] sorted by weight in descending order,
@@ -107,54 +109,19 @@ def extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines, edg
     """
     # Create set for unique pairwise penalties
     pairwise = []
-
-    # get polyline edge data 
-    # also for the same polyline, for the neigboring edges, just give them 1
-    edge_to_polylines = {}
     
-    for polyline_idx, polyline in enumerate(P):
-        # Store edge data for reuse
-        edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
-        for edge_index in edge_indices:
-            edge_to_polylines[edge_index] = polyline_idx
-        
-        for i in range( len(edge_indices)-2):
-            e0 = edge_indices[i]
-            e1 = edge_indices[i+1]
-            e2 = edge_indices[i+2]
-            pairwise.append((e0, e1, 1))
-            pairwise.append((e1, e2, 1))
-        if len(edge_indices) == 2:
-            pairwise.append((edge_indices[0], edge_indices[1], 1))
-    
+    for i in range(len(E)):
+        i_weights = weights[i]
+        if i not in edge_constraints_map and edge_to_polyline_map[i] in unconstrained_polylines:
 
+            desc_indices = np.argsort(i_weights)[::-1] 
 
-    # Get matrix size
-    matrix_size = len(weight_matrix)
-
-    # Process each edge
-    for i in range(matrix_size):
-        if i not in edge_constraints_map and edge_to_polylines[i] in unconstrained_polylines:
-
-            # Get weights for current edge (excluding self-connection)
-            weights = weight_matrix[i].copy()
-            weights[i] = 0  # Zero out self-connection
-            
-            # Get indices of all non-zero weights
-            non_zero_indices = np.where(weights > 0)[0]
-            # Sort these indices by their weights in descending order
-            sorted_indices = non_zero_indices[np.argsort(-weights[non_zero_indices])]
-            sorted_weights = weights[sorted_indices]
-
-            print('i, sorted_indices, sorted_weights', i, sorted_indices, sorted_weights)
-
-
-            # Add the pairs to result, ensuring i < j to avoid duplicates
-            for j in sorted_indices[:3]:
-                # edge_pair = tuple(sorted([i, j]))  # Sort indices to ensure consistent ordering
-                pairwise.append((i, j, weights[j] ))
+            for j in desc_indices[:3]:
+                if i_weights[j] != 0:
+                    pairwise.append((i, j, i_weights[j] ))
              
-    # then for the same polyline, add 
+
+    return pairwise
 
 
     # Convert set to sorted list
@@ -171,12 +138,39 @@ def extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines, edg
 
     for item in pairwise_list:
         i, j, weight = item 
-        weight *= E_lengths[e1] + E_lengths[e2]
+        weight *= E_lengths[i] + E_lengths[j]
         pairwise_list_length.append((i, j, weight))
 
     print('pairwise_list_length', pairwise_list_length)
 
     return pairwise_list_length
+
+
+
+def build_vertex_to_edges_map(edges):
+    '''
+    Create a mapping from each vertex to all edges that contain it.
+    
+    Parameters:
+    vertices: (n,3) array of vertex coordinates
+    edges: (m,2) array of edge vertex index pairs
+    
+    Returns:
+    dict: Mapping from vertex index to list of edge indices
+    '''
+    vertex_to_edges = defaultdict(list)
+    
+    for edge_idx, edge in enumerate(edges):
+        # Add this edge to both of its vertices' lists
+        vertex_to_edges[edge[0]].append(edge_idx)
+        vertex_to_edges[edge[1]].append(edge_idx)
+    
+    for vertex_idx in vertex_to_edges:
+        assert len(vertex_to_edges[vertex_idx]) == len(set(vertex_to_edges[vertex_idx])), \
+            f"Vertex {vertex_idx} has duplicate edge entries"
+    
+    return vertex_to_edges
+
 
 def find_edge_indices_from_polyline(polyline, E):
     '''
@@ -296,33 +290,7 @@ def compute_edge_tangent(V, edge):
     assert np.linalg.norm(tangent) != 0
     return tangent / np.linalg.norm(tangent)
     
-def edge_distance_matrix(V, E):
-    '''
-    Compute a matrix of minimum distances between all pairs of edges in a mesh using 
-    segment-to-segment distance calculations.
-    '''
-    n_edges = len(E)
-    distances = np.zeros((n_edges, n_edges))
-    
-    for i, edge1 in enumerate(E):
-        # Get vertices of first edge
-        e1_v0, e1_v1 = V[edge1[0]], V[edge1[1]]
-        
-        for j in range(i + 1):  # Only compute lower triangle due to symmetry
-            edge2 = E[j]
-            e2_v0, e2_v1 = V[edge2[0]], V[edge2[1]]
-            
-            # Compute distance between segments, discarding closest points
-            dist, _, _ = segment_to_segment_distance(e1_v0, e1_v1, e2_v0, e2_v1)
-            
-            # Store distance in matrix (symmetric)
-            distances[i, j] = dist
-            if i != j:
-                distances[j, i] = dist
-    
-    return distances
-
-def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_normal_map, edge_distance_matrix):
+def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_normal_map, distances):
     '''
     Assigns normals to unconstrained polylines by borrowing normals from nearby constrained edges.
     
@@ -348,7 +316,7 @@ def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_nor
     edge_normal_map : dict
         Dictionary mapping edge indices to their assigned normal vectors {edge_idx: normal_vector}
     
-    edge_distance_matrix : array-like, shape (M, M)
+    distances : array-like, shape (M, M)
         Matrix of minimum distances between all pairs of edges
     
     Returns:
@@ -368,8 +336,8 @@ def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_nor
 
 
         sorted_nearby_edges = sorted(
-            [(nearby_edge_idx, edge_distance_matrix[target_edge_idx, nearby_edge_idx]) 
-             for nearby_edge_idx in range(len(edge_distance_matrix))], 
+            [(nearby_edge_idx, distances[target_edge_idx, nearby_edge_idx]) 
+             for nearby_edge_idx in range(len(distances))], 
             key=lambda x: x[1]
         )
         
@@ -501,7 +469,7 @@ def find_best_perpendicular_normal_on_polyline(vertices, edges, polyline_edge_da
     assert best_position != None , "This should not happen"
     return (best_position, best_normal)
 
-def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map):
+def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances):
     '''
     Estimates initial normals for polylines using parallel transport.
     
@@ -528,6 +496,9 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
         - edge_idx (int): Index of the edge in the edges array
         - normal (ndarray): (3,) normalized direction vector constraining the normal
     
+    distances : array-like, shape (M, M)
+        Matrix of minimum distances between all pairs of edges
+        
     Returns:
     --------
     normals : ndarray, shape (n_edges, 3)
@@ -598,7 +569,6 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
   
     ## Third pass:
     # now let me do this, for the polyline which does not have normals
-    # use the edge from the polyline, then use the edge_distance_matrix to find from the 
     # edge < epsilon edge_normals as constraints to propogate on those who does not have normal
     # polylines
 
@@ -618,10 +588,9 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     
 
     # Identify polylines without normals
-    edge_distances = edge_distance_matrix(V, E)
     unconstrained_polyline_to_best_normal_map = {}
     for polyline_idx in unconstrained_polylines:
-        unconstrained_polyline_to_best_normal_map[polyline_idx] = assign_normals_to_unconstrained_polylines(V, E, polyline_to_edge_map[polyline_idx], edge_constraints_map_updated, edge_distances)
+        unconstrained_polyline_to_best_normal_map[polyline_idx] = assign_normals_to_unconstrained_polylines(V, E, polyline_to_edge_map[polyline_idx], edge_constraints_map_updated, distances)
 
     # print('len(unconstrained_polyline_to_best_normal_map)', len(unconstrained_polyline_to_best_normal_map))
     # print('unconstrained_polyline_to_best_normal_map', unconstrained_polyline_to_best_normal_map)
@@ -974,7 +943,6 @@ if __name__ == "__main__":
     # Build polyline to edge and edge to polyline mappings
     polyline_to_edge_map = {}
     edge_to_polyline_map = {}
-
     for polyline_idx, polyline in enumerate(P):
         # Map polyline to its edges and edge orientations
         edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
@@ -984,19 +952,25 @@ if __name__ == "__main__":
         for edge_idx in edge_indices:
             edge_to_polyline_map[edge_idx] = polyline_idx
 
+
     constrained_polyline_indices = set()
     for edge_idx, normal in edge_constraints:
         constrained_polyline_indices.add( edge_to_polyline_map[edge_idx] )
 
     unconstrained_polylines_indices = set(range(len(P))) - constrained_polyline_indices
 
+
     print('constrained_polyline_indices', constrained_polyline_indices)
     print('unconstrained_polylines_indices', unconstrained_polylines_indices)
 
+    vertex_to_edges_map = build_vertex_to_edges_map( E )
 
+    # print('vertex_to_edges', vertex_to_edges)
+    # compute distance between edges 
+    
+    distances = edge_distance_matrix(V, E)
 
-
-    estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map)
+    estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances)
 
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, estimate_normals, 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
@@ -1023,13 +997,15 @@ if __name__ == "__main__":
     #####################################
 
 
-    #endregion
 
 
-    weight_matrix = create_edge_weight_matrix(V, E, edge_to_polyline_map)
-    rotations = create_edge_rotation_map(V, E )
 
-    pairwise = extract_pairwise_weight(V, E, P, weight_matrix, unconstrained_polylines_indices, edge_constraints_map)
+    weight_matrix = create_edge_weight_matrix(E, distances)
+    rotations = create_edge_rotation_map(V, E)
+
+    print('weight_matrix', weight_matrix)
+    pairwise = extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines_indices, edge_constraints_map, weight_matrix)
+
     
     # print('len(pairwise)', len(pairwise))
 
@@ -1085,6 +1061,9 @@ if __name__ == "__main__":
     thetas = result.x
 
     # print(thetas)
+    
+    ##################################
+    #endregion
 
     opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
 
