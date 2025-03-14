@@ -83,28 +83,25 @@ def create_edge_weight_matrix(E, distances, epsilon=1):
     return weight_matrix
 
 
-# pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) 
-# such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
-# len(pairwise) <= 3 * len(edges)
-# each edge will get at most 3 pair
-# some may duplicate. so do not use duplicates
-def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, weights):
+# Still have questions on how to choose the edge pair to have weights
+# I haven't decide a good choice between which edge pairs to have weight and optimize smooth between them
+def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, weights, n = 3):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
     avoiding duplicates and ensuring each edge pair appears only once.
     
     Args:
-        V:
-        E: 
-        unconstrained_polylines: polyline who doesn't have any edge normals set 
-        edge_constraints_map : the edge normal constraints get from convex hull, { index, normal}
-        weights : NxN array where entry (i,j) is the weight between edges i and j
-    
+        V: Vertex coordinates, shape (num_vertices, dimension)
+        E: Edges as vertex index pairs, shape (num_edges, 2)
+        edge_to_polyline_map: Mapping from edge index to its polyline index
+        unconstrained_polylines: Set of polyline indices that don't have edge normals set
+        edge_constraints_map: Edge normal constraints from convex hull, {edge_index: normal_vector}
+        weights: NxN array where entry (i,j) is the weight between edges i and j
+        n: Number of highest weights to extract for each edge (default: 3)
+
     Returns:
-        list of tuples: [(edge_idx1, edge_idx2, weight), ...] sorted by weight in descending order,
-        representing edges that should have similar normals. Each pair appears only once with
-        edge_idx1 < edge_idx2 to avoid duplicates.
+        list of tuples: [(edge_idx1, edge_idx2, weight)] 
     """
     pairwise = []
     
@@ -115,7 +112,6 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         ei_polyline = edge_to_polyline_map[i]
 
         if i not in edge_constraints_map and ei_polyline in unconstrained_polylines:
-
             desc_indices = np.argsort(ei_weights)[::-1] 
 
             for j in desc_indices:
@@ -123,7 +119,7 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
                 ei_ej_weight = ei_weights[j]
 
                 if ej_polyline != ei_polyline:
-                    if ei_ej_weight != 0 and pair_cnt < 3:
+                    if ei_ej_weight != 0 and pair_cnt < n:
                         pairwise.append((i, j, ei_ej_weight ))
                         pair_cnt +=1
 
@@ -134,7 +130,7 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         for j in range(i+1, len(E)):
             ej = E[j]
             ej_polyline = edge_to_polyline_map[j]
-            if set(ei) & set(ej) and ei_polyline == ej_polyline :
+            if set(ei) & set(ej) and ei_polyline == ej_polyline:
                 pairwise.append((i, j, weights[i,j]))
 
 
