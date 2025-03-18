@@ -85,7 +85,7 @@ def create_edge_weight_matrix(E, distances, epsilon=1):
 
 # Still have questions on how to choose the edge pair to have weights
 # I haven't decide a good choice between which edge pairs to have weight and optimize smooth between them
-def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, weights, n = 3):
+def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, distances, n = 3):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
@@ -97,54 +97,20 @@ def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines,
         edge_to_polyline_map: Mapping from edge index to its polyline index
         unconstrained_polylines: Set of polyline indices that don't have edge normals set
         edge_constraints_map: Edge normal constraints from convex hull, {edge_index: normal_vector}
-        weights: NxN array where entry (i,j) is the weight between edges i and j
+        distances: NxN array where entry (i,j) is the weight between edges i and j
         n: Number of highest weights to extract for each edge (default: 3)
 
     Returns:
         list of tuples: [(edge_idx1, edge_idx2, weight)] 
     """
-    pairwise = []
-    
-    pair_cnt = 0
-    for i in range(len(E)):
-        ei = E[i]
-        ei_weights = weights[i]
-        ei_polyline = edge_to_polyline_map[i]
-
-        if i not in edge_constraints_map and ei_polyline in unconstrained_polylines:
-            desc_indices = np.argsort(ei_weights)[::-1] 
-
-            for j in desc_indices:
-                ej_polyline = edge_to_polyline_map[j]
-                ei_ej_weight = ei_weights[j]
-
-                if ej_polyline != ei_polyline:
-                    if ei_ej_weight != 0 and pair_cnt < n:
-                        pairwise.append((i, j, ei_ej_weight ))
-                        pair_cnt +=1
-
+    pairwise = set()
     
     for i in range(len(E)):
-        ei_polyline = edge_to_polyline_map[i]
-        ei = E[i]        
         for j in range(i+1, len(E)):
-            ej = E[j]
-            ej_polyline = edge_to_polyline_map[j]
-            if set(ei) & set(ej) and ei_polyline == ej_polyline:
-                pairwise.append((i, j, weights[i,j]))
+            if distances[i, j] == 0:
+                pairwise.add((i, j, 1))
 
-
-    E_lengths = np.zeros(len(E))
-    for index, (i,j) in enumerate( E ):
-        E_lengths[index] += np.linalg.norm( V[i] - V[j] )
-
-    pairwise_length = []
-    for i_j_weight in pairwise:
-        i, j, weight = i_j_weight 
-        weight *= E_lengths[i] + E_lengths[j]
-        pairwise_length.append((i, j, weight))
-
-    return pairwise_length
+    return pairwise
 
 
 def build_vertex_to_edges_map(edges):
@@ -550,9 +516,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
        - Locate the nearest polyline that has normal constraints
        - As long as the normal constraint are not parallel to the polyline
        - Try to locate a good one and parallel transport those normals to initialize angles
-       
-    3. Convert all parallel transported normals to angles (thetas)
-    
+           
     Notes:
     ------
     - Uses parallel transport to maintain smooth normal vector field
@@ -631,7 +595,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     # print('unconstrained_polyline_to_best_normal_map', unconstrained_polyline_to_best_normal_map)
 
     if show_plot:
-        plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.09, str = 'borrow nearby edge normal')
+        plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.08, str = 'borrow nearby edge normal')
     if save_debug_gltf:
         export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_to_best_normal_map, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
     
@@ -644,7 +608,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     ## how about just use random normals for those who are unconstrainted? no, not good!
 
     if show_plot:
-        plot_polyline_normals(V, E, P, unconstrained_polyline_normals,scale=0.09,  str = 'parallel transport of the polyline with borrowed normal')
+        plot_polyline_normals(V, E, P, unconstrained_polyline_normals, scale=0.08,  str = 'parallel transport of the polyline with borrowed normal')
     if save_debug_gltf:
         export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_normals, 'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
 
@@ -674,7 +638,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
 
     if show_plot is True:
-        plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.03, str= "initial estimate")
+        plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.08, str= "initial estimate")
 
     return edge_constraints_map_estimated
 
@@ -841,7 +805,7 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
     edge_normal_list = [(i,edge_normals[i]) for i in range(len(E)) if i in edge_normals]
     print('edge_normal_list', edge_normal_list)
 
-    plot_edge_constraints(V, E, P, edge_normal_list)
+    plot_edge_constraints(V, E, P, edge_normal_list, scale = 0.08)
     return edge_normal_list
 
 def normal_for_edge( theta, U, V ): return np.cos( theta ) * U + np.sin( theta ) * V
@@ -972,7 +936,7 @@ if __name__ == "__main__":
         write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
     
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, edge_constraints,'debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
+        export_sketch_normal_gltf(V, E, P, edge_constraints, filename ='debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
 
  
     # Build polyline to edge and edge to polyline mappings
@@ -1008,7 +972,7 @@ if __name__ == "__main__":
     estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances)
 
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, estimate_normals, 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, estimate_normals, filename = 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
         write_normal_data(V, E, convert_edge_normals_to_array(estimate_normals, len(E)) , 'debug_normals_gltf/initial_estimate/' + curve_name + '.normal')
 
 
@@ -1039,7 +1003,7 @@ if __name__ == "__main__":
     rotations = create_edge_rotation_map(V, E)
 
     print('weight_matrix', weight_matrix)
-    pairwise = extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines_indices, edge_constraints_map, weight_matrix)
+    pairwise = extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines_indices, edge_constraints_map, distances)
 
     
     # print('len(pairwise)', len(pairwise))
@@ -1109,14 +1073,14 @@ if __name__ == "__main__":
 
     
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, N_normalized, 'debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, N_normalized, unconstrained_polylines_indices, filename ='debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
         write_normal_data(V, E, N_normalized , 'debug_normals_gltf/final_optimize/' + curve_name + '.normal')
 
     if show_plot:
-        plot_edge_constraints(V, E, P,  opt_normals, scale=0.08, str = "optimize result")
+        plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices, scale=0.08, str = "optimize result")
 
     if gltf_file:
-        export_sketch_normal_gltf(V, E, P, N_normalized, gltf_file)
+        export_sketch_normal_gltf(V, E, P, N_normalized,  unconstrained_polylines_indices, filename = gltf_file)
 
     if normal_file:
         write_normal_data(V, E, N_normalized , normal_file)

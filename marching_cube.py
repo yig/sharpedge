@@ -89,17 +89,18 @@ def resample_for_points_normal(V, E, N, sample_length=0.01, proximity_threshold=
         # Add endpoints if they pass proximity check
         add_point_with_check(p0, normal)
         add_point_with_check(p1, normal)
-        
-        if n == 2:
-            # Add midpoint if needed
-            mid_point = (p0 + p1) / 2
-            add_point_with_check(mid_point, normal)
-        else:
-            # Generate sample points along the edge
-            t = np.linspace(0, 1, n)[1:-1]  # Exclude endpoints
-            for ti in t:
-                point = p0 + ti * edge_vec
-                add_point_with_check(point, normal)
+
+        if np.linalg.norm(normal) > 0:        
+            if n == 2:
+                # Add midpoint if needed
+                mid_point = (p0 + p1) / 2
+                add_point_with_check(mid_point, normal)
+            else:
+                # Generate sample points along the edge
+                t = np.linspace(0, 1, n)[1:-1]  # Exclude endpoints
+                for ti in t:
+                    point = p0 + ti * edge_vec
+                    add_point_with_check(point, normal)
     
     # Convert dictionary back to separate arrays and average normals
     points = []
@@ -670,20 +671,19 @@ parser = argparse.ArgumentParser(description='Marching cube using normal file')
 # Add arguments
 parser.add_argument('normal_file', nargs='?',
                     help='Input file containing normal data (.obj)')
-parser.add_argument('gltf_file', nargs='?',
-                    help='The gltf file obj saved, if not provided, no gltf_file will be generated.')
 parser.add_argument('--iterations', type=int, default=1,
                     help='How many iterations to update the surface.')
 parser.add_argument('--box_division', type=int, default=100,
                     help='Box division parameter (default: 100)')
-
+parser.add_argument('--save_gltf', type=str, choices=['true', 'false'], default='false',
+                   help='Save the gltf tile')    
 
 args = parser.parse_args()
 
 normal_file = args.normal_file
-gltf_file = args.gltf_file
 box_division = args.box_division
 iterations = args.iterations
+save_gltf = args.save_gltf.lower() == 'true'
 
 
 
@@ -740,8 +740,13 @@ sv1,sf1 = surfaces[1]
 curve_name = Path(normal_file).stem
 
 
-if gltf_file:
-    export_sketch_normal_surface_gltf(V, E, N, SV, SF, gltf_file)
+
+if save_gltf:
+    mesh_0_gltf_file = 'gltfs/convex_hull_area_surface/' + curve_name + '.gltf'
+    mesh_1_gltf_file = 'gltfs/convex_hull_voronoi_area/' + curve_name + '.gltf'
+    export_sketch_normal_surface_gltf(V, E, N, sv0, sf0, mesh_0_gltf_file)
+    export_sketch_normal_surface_gltf(V, E, N, sv1, sf1, mesh_1_gltf_file)
+    
 
 
 ps.show()
