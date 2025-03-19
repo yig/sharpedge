@@ -17,5 +17,7 @@ debug_normals_w_r/
 iso_figs/
 debug_surfaces/
 made_examples/
-normal_w_r/
+convex_hull_area_surface/
+convex_hull_voronoi_area/
+
 
