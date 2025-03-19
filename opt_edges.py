@@ -4,7 +4,7 @@ from utility_io import load_sketch_polyline_data, write_normal_data, write_strin
 from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals
 from utility_segment_distance import segment_to_segment_distance
 
-from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf, export_sketch_polyline_normal_gltf
+from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf
 from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
@@ -547,7 +547,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
         plot_polyline_best_constraints(V, E, P, polyline_to_best_normal_map, str='most perpendicular on polyline')
 
     if save_debug_gltf:
-        export_sketch_polyline_normal_gltf(V, E, P, polyline_to_best_normal_map, 'debug_normals_gltf/initial_most_perpendicular/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array(polyline_to_best_normal_map, len(E), polyline_to_edge_map), unconstrained_polylines_indices = None, filename = 'debug_normals_gltf/initial_most_perpendicular/' + curve_name + '.gltf')
     
     ### Second : Compute parallel transport for each polyline with a normal   
     polyline_normals = {}
@@ -563,7 +563,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
         plot_polyline_normals(V, E, P, polyline_normals, str = 'parallel transport most perpendicular normal')
 
     if save_debug_gltf:
-        export_sketch_polyline_normal_gltf(V, E, P, polyline_normals, 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
+        export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array( polyline_normals, len(E), polyline_to_edge_map), unconstrained_polylines_indices = None, filename = 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
     
   
     ## Third pass:
@@ -597,7 +597,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     if show_plot:
         plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.08, str = 'borrow nearby edge normal')
     if save_debug_gltf:
-        export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_to_best_normal_map, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array(unconstrained_polyline_to_best_normal_map, len(E), polyline_to_edge_map), unconstrained_polylines, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
     
     unconstrained_polyline_normals = {}
     for polyline_idx, (pos_in_polyline, normal) in unconstrained_polyline_to_best_normal_map.items():
@@ -610,7 +610,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     if show_plot:
         plot_polyline_normals(V, E, P, unconstrained_polyline_normals, scale=0.08,  str = 'parallel transport of the polyline with borrowed normal')
     if save_debug_gltf:
-        export_sketch_polyline_normal_gltf(V, E, P, unconstrained_polyline_normals, 'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array( unconstrained_polyline_normals, len(E), polyline_to_edge_map), unconstrained_polylines,  'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
 
     polyline_normals = {**polyline_normals, **unconstrained_polyline_normals}
 
@@ -854,6 +854,53 @@ def convert_edge_normals_to_array(edge_normals, num_edges):
             
     return normals
 
+def convert_edge_dict_to_array(poly_line_edge_normal, num_edges, polyline_to_edge_map):
+    '''
+    Given:
+        poly_line_edge_normal
+
+        Dictionary in one of two formats
+        1. {polyline_idx: (position_in_polyline, normal_vector)}
+           - polyline_idx: index of the polyline
+           - position_in_polyline: position of the edge in the polyline
+           - normal_vector: reference normal vector
+        2. {polyline_idx: [normal_vectors]}
+           - polyline_idx: index of the polyline
+           - normal_vectors: list of normal vectors corresponding to each edge in the polyline
+    Return :
+        numpy.ndarray
+        Array of shape (num_edges, 3) containing normal vectors for each edge.
+        Positions without assigned normals will be zero vectors.
+    '''
+    normals = np.zeros((num_edges, 3))
+
+    for polyline_idx, normal_data in poly_line_edge_normal.items():
+        
+        edge_indices, _ = polyline_to_edge_map[polyline_idx]
+
+        if isinstance(normal_data, tuple):
+            # Format 1: (position_in_polyline, normal_vector)
+            edge_pos, normal = normal_data
+            edge_index = edge_indices[edge_pos]
+
+            normals[edge_index] = normal 
+
+        elif isinstance(normal_data, list):
+            # Format 2: [normal_vectors] - list of normals for each edge
+            assert len(edge_indices) == len(normal_data)
+            for i in range(len(edge_indices)):
+                edge_index = edge_indices[i]
+                normal = normal_data[i]
+                normals[edge_index] = normal
+        
+
+    return normals
+            
+                
+
+
+
+
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
@@ -930,13 +977,6 @@ if __name__ == "__main__":
     
     edge_constraints_map = {edge_idx: normal for edge_idx, normal in edge_constraints}
 
-    # plot and save debug gltf
-    if show_plot:
-        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull')
-        write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
-    
-    if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, edge_constraints, filename ='debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
 
  
     # Build polyline to edge and edge to polyline mappings
@@ -958,6 +998,15 @@ if __name__ == "__main__":
 
     unconstrained_polylines_indices = set(range(len(P))) - constrained_polyline_indices
 
+    # plot and save debug gltf
+    if show_plot:
+        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull')
+        write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
+    
+    if save_debug_gltf:
+        export_sketch_normal_gltf(V, E, P, edge_constraints, unconstrained_polylines_indices= unconstrained_polylines_indices, filename ='debug_normals_gltf/edge_normals/' + curve_name + '.gltf' )
+
+
 
     print('constrained_polyline_indices', constrained_polyline_indices)
     print('unconstrained_polylines_indices', unconstrained_polylines_indices)
@@ -972,7 +1021,7 @@ if __name__ == "__main__":
     estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances)
 
     if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, estimate_normals, filename = 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
+        export_sketch_normal_gltf(V, E, P, convert_edge_normals_to_array(estimate_normals, len(E)), unconstrained_polylines_indices , filename = 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
         write_normal_data(V, E, convert_edge_normals_to_array(estimate_normals, len(E)) , 'debug_normals_gltf/initial_estimate/' + curve_name + '.normal')
 
 

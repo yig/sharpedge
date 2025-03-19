@@ -691,6 +691,7 @@ save_gltf = args.save_gltf.lower() == 'true'
 V, E, N = load_normal_data(normal_file)
 points, normals = resample_for_points_normal(V, E, N, 0.01)
 
+
 print(len(points))
 print(len(normals))
 
@@ -706,6 +707,7 @@ ps.init()
 plot_normal_data(V, E, N)
 plot_points_normal(points, normals)
 
+ps.show()
 
 
 ## print the properties of the surfaces

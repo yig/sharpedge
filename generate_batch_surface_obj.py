@@ -42,8 +42,9 @@ def generate_all_surface_from_normal_files( normal_files, folder = 'surface' ):
     # get all the normal files
     for normal_file in normal_files:
         base_name = Path(normal_file).stem 
-        surface_file =  folder + '/' + base_name + '.obj'
-        subprocess.run(['python', 'marching_cube.py', str(normal_file), str(surface_file)])
+        surface_file =  folder + '/' + base_name + '.gltf'
+        # subprocess.run(['python', 'marching_cube.py', str(normal_file), str(surface_file)])
+        subprocess.run(['python', 'marching_cube.py', str(normal_file)])
 
 def generate_sketch_and_surface_gltf(normal_files, surface_folder = 'surface', gltf_folder = 'gltfs/surfaces/'):        
     ## export all the sketch_
@@ -90,9 +91,9 @@ def optimize_edge_normals( sketch_folder ):
 
 # optimize_edge_normals('sketches/flowrep')
 
-# normal_files = natural_sort( glob.glob('normal/onshape*.normal')  )
+normal_files = natural_sort( glob.glob('normal/onshape*.normal')  )
 # normal_files = natural_sort( glob.glob('normal/t2f*.normal')  )
-normal_files = natural_sort( glob.glob('normal/scaffolds3d*.normal')  )
+# normal_files = natural_sort( glob.glob('normal/scaffolds3d*.normal')  )
 # normal_files = natural_sort( glob.glob('normal/ils*.normal')  )
 # normal_files = natural_sort( glob.glob('normal/flowrep*.normal')  )
 # normal_files = natural_sort( glob.glob('normal/author*.normal')  )
@@ -103,9 +104,11 @@ print(normal_files)
 
 
 
-generate_all_surface_from_normal_files( normal_files , folder= 'convex_hull_area_surface')
-generate_sketch_and_surface_gltf(normal_files, surface_folder='convex_hull_area_surface', gltf_folder = 'gltfs/convex_hull_area_surface' )
-generate_sketch_and_surface_gltf(normal_files, surface_folder='convex_hull_voronoi_area', gltf_folder = 'gltfs/convex_hull_voronoi_area' )
+# generate_all_surface_from_normal_files( normal_files , folder= 'convex_hull_area_surface')
+generate_all_surface_from_normal_files( normal_files , folder= 'convex_hull_voronoi_area')
+
+# generate_sketch_and_surface_gltf(normal_files, surface_folder='convex_hull_area_surface', gltf_folder = 'gltfs/convex_hull_area_surface' )
+# generate_sketch_and_surface_gltf(normal_files, surface_folder='convex_hull_voronoi_area', gltf_folder = 'gltfs/convex_hull_voronoi_area' )
 
 # normal_gltf_files = glob.glob('normal/*.gltf')
 # copy_all_normal_gltfs(normal_gltf_files)
