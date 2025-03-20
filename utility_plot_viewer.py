@@ -74,14 +74,20 @@ def plot_convex_hull_with_normals(points, faces, normals, scale=0.03):
     plt.show()
 
 
-def plot_edge_constraints(V, E, P, constraints, scale=0.03, str=None, filename = None):
+def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices = None, scale=0.03, str=None, filename=None):
     """
+    Plot 3D visualization of polylines with edge normal constraints.
+    
     Args:
         V: (n,3) array of vertex coordinates
         E: (m,2) array of edge vertex pairs
-        P: list of lists, where each inner list contains vertex indices for a polyline with its color
-        constraints: dictionary mapping edge indices to normal vectors
+        P: list of lists, where each inner list contains vertex indices for a polyline
+        constraints: Either:
+                     1. [(index, normal)] list of tuples of index and normal constraint, or
+                     2. {index: normal} dictionary mapping edge indices to normal vectors
+        unconstrained_polylines_indices : a set/list of polyline indices
         scale: scaling factor for normal vectors (default: 0.03)
+        str: optional title string for the plot (default: None)
         filename: if provided, save plot to this filename (default: None)
     """
     # Create figure
@@ -89,18 +95,37 @@ def plot_edge_constraints(V, E, P, constraints, scale=0.03, str=None, filename =
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(vertical_axis='y', elev=30, azim=45)
     ax.set_aspect('equal')
-
+    
     # Plot polylines
-    for polyline in P:
-        polyline_points = [V[index] for index in polyline]
-        polyline_points = np.array(polyline_points)
-        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2])
-
+    for index, polyline in enumerate(P):
+        polyline_points = np.array([V[idx] for idx in polyline])
+        
+        # Default style for constrained polylines
+        style = {}
+        scatter_style = {'s': 5}
+        
+        # Check if we need to use the unconstrained style
+        if unconstrained_polylines_indices is not None and index in unconstrained_polylines_indices:
+            style = {'linestyle': '--', 'color': 'r'}
+            scatter_style['color'] = 'r'
+        
+        # Plot the polyline and points
+        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **style)
+        ax.scatter(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **scatter_style)
+        
+    
+    # Convert constraints to list of (edge_idx, normal) pairs if it's a dictionary
+    if isinstance(constraints, dict):
+        constraint_pairs = list(constraints.items())
+    else:
+        constraint_pairs = constraints
+    
     # Plot normal vectors for constrained edges
-    for edge_idx, normal in constraints:
+    for edge_idx, normal in constraint_pairs:
         e = E[edge_idx]
-        start = V[e[0]]
-        end = V[e[1]]
+        e0, e1 = e
+        start = V[e0]
+        end = V[e1]
         
         # Calculate midpoint of edge
         mid = (start + end) / 2
@@ -108,38 +133,36 @@ def plot_edge_constraints(V, E, P, constraints, scale=0.03, str=None, filename =
         # Plot normal vector
         ax.quiver(mid[0], mid[1], mid[2],
                 normal[0], normal[1], normal[2],
-                color='green', length=scale, normalize=True,
+                color= 'green', length=scale, normalize=True,
                 arrow_length_ratio=0.2)
         # ax.text(mid[0], mid[1], mid[2], edge_idx)
-
+    
     # Make axes equal and set labels
     plt.axis('off')
     plt.axis('equal')
-
-        # Add title if str is provided
+    
+    # Add title if str is provided
     if str is not None:
         ax.set_title(str)
-
-
+    
     # Save to file if filename is provided
     if filename:
         plt.savefig(filename, 
                     dpi=300,           # High resolution
-                    bbox_inches='tight',# Trim white space
+                    bbox_inches='tight', # Trim white space
                     pad_inches=0.1)     # Small padding
         plt.close()  # Close the figure to free memory
     else:
-        plt.show()
+        plt.show()  # Display the plot if not saving to file
 
-
-
-def plot_edge_frames(V, E, Us, Vs, scale=0.03):
+def plot_edge_frames(V, E, P, Us, Vs, scale=0.03):
     """
-    Plot polylines and their frame vectors with consistent styling.
+    Plot polylines with different colors and their frame vectors.
     
     Args:
         V: (n,3) array of vertex coordinates
         E: (m,2) array of edge vertex pairs
+        P: a list of arrays containing vertex indices for each polyline
         Us, Vs: lists of frame vectors for each edge (guaranteed to exist)
         scale: scaling factor for frame vectors (default: 0.03)
     """
@@ -147,25 +170,41 @@ def plot_edge_frames(V, E, Us, Vs, scale=0.03):
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(vertical_axis='y', elev=30, azim=45)
     ax.set_aspect('equal')
-
+    
     # Plot vertices
     ax.scatter(V[:, 0], V[:, 1], V[:, 2],
-              c='blue',            
-              s=3,                
-              alpha=0.6,           
-              marker='o',          
-              label='Vertices')    
-
-    # Plot edges and frames
-    for e, u, v in zip(E, Us, Vs):
+              c='blue', s=3, alpha=0.6, marker='o', label='Vertices')
+    
+    # Generate colors for each polyline
+    num_polylines = len(P)
+    colors = plt.cm.rainbow(np.linspace(0, 1, num_polylines))
+    
+    # Map from edge index to polyline color
+    edge_to_color = {}
+    
+    # First identify which edge belongs to which polyline
+    for poly_idx, polyline in enumerate(P):
+        # Extract edges from polyline
+        for i in range(len(polyline) - 1):
+            v1, v2 = polyline[i], polyline[i+1]
+            # Find this edge in the edge list
+            for e_idx, (e1, e2) in enumerate(E):
+                if (e1 == v1 and e2 == v2) or (e1 == v2 and e2 == v1):
+                    edge_to_color[e_idx] = colors[poly_idx]
+    
+    # Plot edges and frames with polyline colors
+    for e_idx, (e, u, v) in enumerate(zip(E, Us, Vs)):
         start = V[e[0]]
         end = V[e[1]]
+        
+        # Get color for this edge
+        color = edge_to_color.get(e_idx, 'gray')  # Default to gray if not in a polyline
         
         # Plot edge
         ax.plot([start[0], end[0]],
                 [start[1], end[1]],
                 [start[2], end[2]],
-                color='gray', linewidth=2)
+                color=color, linewidth=2)
         
         # Plot frame vectors at edge midpoint
         mid = (start + end) / 2
@@ -179,6 +218,7 @@ def plot_edge_frames(V, E, Us, Vs, scale=0.03):
     plt.axis('off')
     plt.axis('equal')
     plt.show()
+
 
 
 def plot_normal_data(V, E, N, scale=0.03):
@@ -223,12 +263,12 @@ def plot_normal_data(V, E, N, scale=0.03):
                  N[i,0], N[i,1], N[i,2],
                  color='green', length=scale, normalize=True,
                  arrow_length_ratio=0.2)
-    
+        # ax.text(mid[0], mid[1], mid[2], i)
+
     # Make axes equal and set labels
     plt.axis('off')
     plt.axis('equal')
     plt.show()
-
 
 
 def plot_polyline_best_constraints(V, E, P, polyline_normal, scale=0.03, str=None, filename=None):
@@ -348,3 +388,5 @@ def plot_polyline_normals(V, E, P, polyline_normals, scale=0.03, str=None, filen
         plt.close()  # Close the figure to free memory
     else:
         plt.show()
+
+        

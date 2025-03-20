@@ -50,41 +50,8 @@ def edge_distance_matrix(V, E):
     
     return distances
 
-def create_edge_weight_matrix(E, distances, epsilon=1):
-    """
-    Create a matrix for edges with weights based on segment distances.
-    The matrix is built in three steps:
-    1. Initialize diagonal elements to 0 (edge to itself)
-    2. When 2 edges are not in the same polyline,
-       compute weights for all edge pairs based on inverse segment distance. 
-    
-    Args:
-        V: (n,3) array of vertex coordinates
-        distances: array-like, shape (M, M)
-                   Matrix of minimum distances between all pairs of edges
-        epsilon: small value to avoid division by zero
-        
-    Returns:
-        numpy array: cost matrix where entry (i,j) is the weight between edges i and j
-    """
-    num_edges = len(E)
-    weight_matrix = np.zeros((num_edges, num_edges))
 
-    
-    for i in range(num_edges):
-        for j in range(i+1, num_edges):  
-            
-            # maybe a sigmod function here
-            weight = 1.0 / (distances[i, j] * 10 + epsilon)
-
-            weight_matrix[i,j] = weight     
-            weight_matrix[j,i] = weight 
-    
-    return weight_matrix
-
-
-# Still have questions on how to choose the edge pair to have weights
-# I haven't decide a good choice between which edge pairs to have weight and optimize smooth between them
+# Only extract the distance 0 edges. No thresholds.
 def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, distances, n = 3):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
@@ -635,8 +602,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
 
     assert len( polyline_normals.keys() ) == len(P), "Some polylines do not have normals"
-
-
+    
     if show_plot is True:
         plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.08, str= "initial estimate")
 
@@ -724,7 +690,7 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
     # Format: {polyline_idx: (edge_indices, is_edge_reversed)}
     polyline_edge_data = {}
     
-  # First pass: Find most perpendicular normal for each polyline
+   # First pass: Find most perpendicular normal for each polyline
     for polyline_idx, polyline in enumerate(P):
         # Store edge data for reuse
         edge_indices, is_edge_reversed = find_edge_indices_from_polyline(polyline, E)
@@ -805,7 +771,6 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
     edge_normal_list = [(i,edge_normals[i]) for i in range(len(E)) if i in edge_normals]
     print('edge_normal_list', edge_normal_list)
 
-    plot_edge_constraints(V, E, P, edge_normal_list, scale = 0.08)
     return edge_normal_list
 
 def normal_for_edge( theta, U, V ): return np.cos( theta ) * U + np.sin( theta ) * V
@@ -899,6 +864,39 @@ def convert_edge_dict_to_array(poly_line_edge_normal, num_edges, polyline_to_edg
                 
 
 
+## helper - never used
+def create_edge_weight_matrix(E, distances, epsilon=1):
+    """
+    Create a matrix for edges with weights based on segment distances.
+    The matrix is built in three steps:
+    1. Initialize diagonal elements to 0 (edge to itself)
+    2. When 2 edges are not in the same polyline,
+       compute weights for all edge pairs based on inverse segment distance. 
+    
+    Args:
+        V: (n,3) array of vertex coordinates
+        distances: array-like, shape (M, M)
+                   Matrix of minimum distances between all pairs of edges
+        epsilon: small value to avoid division by zero
+        
+    Returns:
+        numpy array: cost matrix where entry (i,j) is the weight between edges i and j
+    """
+    num_edges = len(E)
+    weight_matrix = np.zeros((num_edges, num_edges))
+
+    
+    for i in range(num_edges):
+        for j in range(i+1, num_edges):  
+            
+            # maybe a sigmod function here
+            weight = 1.0 / (distances[i, j] * 10 + epsilon)
+
+            weight_matrix[i,j] = weight     
+            weight_matrix[j,i] = weight 
+    
+    return weight_matrix
+
 
 
 if __name__ == "__main__":
@@ -907,6 +905,8 @@ if __name__ == "__main__":
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('normal_file', nargs='?', help='The curve sketch with optimized normal information.')
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
+    parser.add_argument('--normal_per_edge', type= str, choices=['one', 'two'], default='one',
+                        help='One normal or 2 normal per edge')
     parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='true',
@@ -916,6 +916,7 @@ if __name__ == "__main__":
 
     curve_file = args.curve_file
     normal_file = args.normal_file
+    NORMALS_PER_EDGE = args.normal_per_edge
     gltf_file = args.gltf_file
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
@@ -1041,101 +1042,212 @@ if __name__ == "__main__":
     #endregion
 
 
-    #region Optimization
-    #####################################
 
-
-
-
-
-    weight_matrix = create_edge_weight_matrix(E, distances)
+    # weight_matrix = create_edge_weight_matrix(E, distances)
     rotations = create_edge_rotation_map(V, E)
 
-    print('weight_matrix', weight_matrix)
+    # print('weight_matrix', weight_matrix)
     pairwise = extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines_indices, edge_constraints_map, distances)
+
+
+    #region Optimization one normal
+    #####################################
+
 
     
     # print('len(pairwise)', len(pairwise))
 
 
+    if NORMALS_PER_EDGE == 'one':
 
 
-    def E_total( thetas, Us, Vs, constraints, pairwise):
-        '''
-        Given a bag of edge data of the form:
-            thetas: An array of N real numbers, one per edge
-            tangents: An N-by-3 array of tangent vectors
-            Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
-            Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
-            constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
-            pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
-        Returns:
-            The total energy
-        '''    
-        # Calculate the constraint energy
-        E_constraint = 0.0
-        for edge_index, desired_normal_vector in constraints:
-            n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ] )
-            E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
-        # normalize
-        E_constraint /= len( constraints )
-        
-        E_pairwise = 0.0
-        W_pairwise = 0.0
-        for e1, e2, weight in pairwise:
-            n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1] )
-            n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2] )
+        def E_total( thetas, Us, Vs, constraints, pairwise):
+            '''
+            Given a bag of edge data of the form:
+                thetas: An array of N real numbers, one per edge
+                Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
+                Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
+                constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
+                pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
+            Returns:
+                The total energy
+            '''    
+            # Calculate the constraint energy
+            E_constraint = 0.0
+            for edge_index, desired_normal_vector in constraints:
+                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ] )
+                E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+            # normalize
+            E_constraint /= len( constraints )
             
-            ## Get the rotation matrix if it exists
-            if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
-            elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
+            E_pairwise = 0.0
+            W_pairwise = 0.0
+            for e1, e2, weight in pairwise:
+                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1] )
+                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2] )
+                
+                ## Get the rotation matrix if it exists
+                if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
+                elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-            E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
-            W_pairwise += weight
-        # Normalize by the total weight
-        E_pairwise /= W_pairwise
+                E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
+                W_pairwise += weight
+            # Normalize by the total weight
+            E_pairwise /= W_pairwise
+            
+            return 1e-2 * E_constraint +  1e4 * E_pairwise
+
+
+        # Showing the optimization process
+        # Initialize iteration counter
+        iteration_counter = [0]
+  
+        def callback(thetas_now):
+            iteration_counter[0] += 1
+            print(f"Iteration {iteration_counter[0]}")
+            
+            # Calculate normals
+            normals_now = recover_normal_from_thetas(thetas_now, Us, Vs)
+            
+            # Update the plot - specify block=False for non-blocking
+            plot_edge_constraints(V, E, P, normals_now, unconstrained_polylines_indices, 
+                                scale=0.08, 
+                                str=f"Optimization: Iteration {iteration_counter[0]}", 
+                                block=False)
+
+
+
+
+
+            
+        result = opt.minimize( E_total,
+            thetas0,  
+            args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
+            method = 'L-BFGS-B', 
+            tol = 0.0000001, 
+            options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
+            # callback=callback
+        )
+
+        thetas = result.x
+
+        # print(thetas)
         
-        return 1e-2 * E_constraint +  1e4 * E_pairwise
+        ##################################
+        #endregion
+
+        opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
 
 
-    result = opt.minimize( E_total,
-        thetas0,  
-        args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
-        method = 'L-BFGS-B', 
-        tol = 0.0000001, 
-        options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 } 
-    )
-
-    thetas = result.x
-
-    # print(thetas)
-    
-    ##################################
-    #endregion
-
-    opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
+        N = [normal for _,normal in opt_normals]
+        N_normalized = N / np.linalg.norm(N, axis=1)[:, np.newaxis]
 
 
-    N = [normal for _,normal in opt_normals]
-    N_normalized = N / np.linalg.norm(N, axis=1)[:, np.newaxis]
+        
+        if save_debug_gltf:
+            export_sketch_normal_gltf(V, E, P, N_normalized, unconstrained_polylines_indices, filename ='debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
+            write_normal_data(V, E, N_normalized , 'debug_normals_gltf/final_optimize/' + curve_name + '.normal')
 
+        if show_plot:
+            plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices, scale=0.08, str = "optimize result")
 
-    
-    if save_debug_gltf:
-        export_sketch_normal_gltf(V, E, P, N_normalized, unconstrained_polylines_indices, filename ='debug_normals_gltf/final_optimize/' + curve_name + '.gltf')
-        write_normal_data(V, E, N_normalized , 'debug_normals_gltf/final_optimize/' + curve_name + '.normal')
+        if gltf_file:
+            export_sketch_normal_gltf(V, E, P, N_normalized,  unconstrained_polylines_indices, filename = gltf_file)
 
-    if show_plot:
-        plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices, scale=0.08, str = "optimize result")
+        if normal_file:
+            write_normal_data(V, E, N_normalized , normal_file)
 
-    if gltf_file:
-        export_sketch_normal_gltf(V, E, P, N_normalized,  unconstrained_polylines_indices, filename = gltf_file)
+    elif NORMALS_PER_EDGE == 'two':
 
-    if normal_file:
-        write_normal_data(V, E, N_normalized , normal_file)
+        def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise ):
+            '''
+            Given a bag of edge data of the form:
+                thetas: An array of N real numbers, one per edge
+                Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
+                Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
+                constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
+                pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
+            Returns:
+                The total energy
+            '''    
+            # Calculate the constraint energy
+            # Constrain both edges
+            E_constraint = 0.0
+            for edge_index, desired_normal_vector in constraints:
+                for which_edge in (0,1):
+                    n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
+                    E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+            # normalize
+            E_constraint /= 2*len( constraints )
+            
+            E_pairwise = 0.0
+            W_pairwise = 0.0
+            for e1, e2, weight in pairwise:
+                costs = np.zeros( (2,2) )
+                for i in range(2):
+                    for j in range(2):
+                        n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] )
+                        n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] )
 
+                        ## Get the rotation matrix if it exists
+                        if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
+                        elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
+                        costs[i,j] = (1.0 - np.dot( n1, n2 ) )**2
+                
+                shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
+                
+                ## If this is a curve edge, we want to penalize the best match
+                if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
+                    if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
+                        E_pairwise += weight * (costs[0,0] + costs[1,1])
+                        W_pairwise += weight
+                    else:
+                        E_pairwise += weight * (costs[0,1] + costs[1,0])
+                        W_pairwise += weight
+                ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
+                ## lowest cost.
+                else:
+                    E_pairwise += weight * costs.min()
+                    W_pairwise += weight
+            
+            # Normalize by the total weight
+            E_pairwise /= W_pairwise
+            return 1e-2 * E_constraint +  1e4 * E_pairwise
+        
+        # Assuming thetas0 is already a 1D array with length equal to len(E)
+        # Create a flattened version with two copies for the optimizer
+        thetas0_flat = np.concatenate((thetas0, thetas0))
 
+        # Add this wrapper function that reshapes the 1D array to 2D for your function
+        def E_total_wrapper(thetas_flat, Us, Vs, constraints, pairwise):
+            # Reshape the 1D array to a 2D array
+            num_edges = len(Us)
+            thetas_2d = thetas_flat.reshape(num_edges, 2)  
+            return E_total_two_edges_per_normal(thetas_2d, Us, Vs, constraints, pairwise)
+
+        # Use the wrapper in your optimization
+        result = opt.minimize(E_total_wrapper,
+                            thetas0_flat,
+                            args=(Us, Vs, edge_constraints, pairwise),
+                            method='L-BFGS-B',
+                            tol=0.0000001,
+                            options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000}
+                            )
+
+        # Reshape the result back to 2D
+        thetas = result.x.reshape(len(E), 2)
+
+        thetas = result.x
+        assert len( thetas ) == 2*len(E)
+
+        print(thetas)
+
+        opt_normals1 = recover_normal_from_thetas(thetas[:len(E)], Us, Vs)
+        opt_normals2 = recover_normal_from_thetas(thetas[len(E):], Us, Vs)
+
+        plot_edge_constraints(V, E, P,  opt_normals1, scale=0.08, str= 'normal_1')
+        plot_edge_constraints(V, E, P,  opt_normals2, scale=0.08, str='normal_2')
 
 
 
