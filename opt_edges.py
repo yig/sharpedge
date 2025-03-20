@@ -603,7 +603,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
     assert len( polyline_normals.keys() ) == len(P), "Some polylines do not have normals"
     
-    if show_plot is True:
+    if show_plot:
         plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.08, str= "initial estimate")
 
     return edge_constraints_map_estimated
@@ -1001,7 +1001,7 @@ if __name__ == "__main__":
 
     # plot and save debug gltf
     if show_plot:
-        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull')
+        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull', filename= None, block= True)
         write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
     
     if save_debug_gltf:
@@ -1126,7 +1126,7 @@ if __name__ == "__main__":
             method = 'L-BFGS-B', 
             tol = 0.0000001, 
             options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
-            # callback=callback
+            callback=callback
         )
 
         thetas = result.x
