@@ -451,10 +451,21 @@ def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices=
         end = V[e1]
         # Calculate midpoint of edge
         mid = (start + end) / 2
+
+        color = 'green'
+
+        if unconstrained_polylines_indices is not None:
+            for index in unconstrained_polylines_indices:
+                polyline_vertex_indices = P[index]
+
+                if e0 in polyline_vertex_indices and e1 in polyline_vertex_indices:
+                    color = 'red'
+                    break
+
         # Plot normal vector
         ax.quiver(mid[0], mid[1], mid[2],
                  normal[0], normal[1], normal[2],
-                 color='green', length=scale, normalize=True,
+                 color=color , length=scale, normalize=True,
                  arrow_length_ratio=0.2)
     
     # Make axes equal and set labels
