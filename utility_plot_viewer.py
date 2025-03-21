@@ -37,6 +37,39 @@ def plot_sketch_data(V, P):
     plt.axis('equal')
     plt.show()
 
+def plot_edge_info(V, E):
+    '''
+    Given:
+        - V: nx3 array of vertex coordinates 
+        - E: mx2 array of edge vertex indices (no duplicates)
+    '''
+
+    fig = plt.figure(figsize=(8,8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+    
+    V = np.asarray(V)
+    for edge_index, edge in enumerate(E):
+        e0, e1 = edge
+        pts = np.asarray([V[e0], V[e1]])
+        xs = pts[:, 0]
+        ys = pts[:, 1]
+        zs = pts[:, 2]
+        
+        # Calculate midpoint for edge label
+        midx = (xs[0] + xs[1]) / 2
+        midy = (ys[0] + ys[1]) / 2
+        midz = (zs[0] + zs[1]) / 2
+        
+        ax.plot(xs, ys, zs)
+        ax.scatter(xs, ys, zs, s=5)
+        ax.text(midx, midy, midz, str(edge_index))
+    
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
 
 def plot_convex_hull_with_normals(points, faces, normals, scale=0.08):
     """
@@ -73,87 +106,6 @@ def plot_convex_hull_with_normals(points, faces, normals, scale=0.08):
     plt.tight_layout()
     plt.show()
 
-
-# def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices = None, scale=0.03, str=None, filename=None):
-#     """
-#     Plot 3D visualization of polylines with edge normal constraints.
-    
-#     Args:
-#         V: (n,3) array of vertex coordinates
-#         E: (m,2) array of edge vertex pairs
-#         P: list of lists, where each inner list contains vertex indices for a polyline
-#         constraints: Either:
-#                      1. [(index, normal)] list of tuples of index and normal constraint, or
-#                      2. {index: normal} dictionary mapping edge indices to normal vectors
-#         unconstrained_polylines_indices : a set/list of polyline indices
-#         scale: scaling factor for normal vectors (default: 0.03)
-#         str: optional title string for the plot (default: None)
-#         filename: if provided, save plot to this filename (default: None)
-#     """
-#     # Create figure
-#     fig = plt.figure(figsize=(8, 8))
-#     ax = fig.add_subplot(111, projection='3d')
-#     ax.view_init(vertical_axis='y', elev=30, azim=45)
-#     ax.set_aspect('equal')
-    
-#     # Plot polylines
-#     for index, polyline in enumerate(P):
-#         polyline_points = np.array([V[idx] for idx in polyline])
-        
-#         # Default style for constrained polylines
-#         style = {}
-#         scatter_style = {'s': 5}
-        
-#         # Check if we need to use the unconstrained style
-#         if unconstrained_polylines_indices is not None and index in unconstrained_polylines_indices:
-#             style = {'linestyle': '--', 'color': 'r'}
-#             scatter_style['color'] = 'r'
-        
-#         # Plot the polyline and points
-#         ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **style)
-#         ax.scatter(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **scatter_style)
-        
-    
-#     # Convert constraints to list of (edge_idx, normal) pairs if it's a dictionary
-#     if isinstance(constraints, dict):
-#         constraint_pairs = list(constraints.items())
-#     else:
-#         constraint_pairs = constraints
-    
-#     # Plot normal vectors for constrained edges
-#     for edge_idx, normal in constraint_pairs:
-#         e = E[edge_idx]
-#         e0, e1 = e
-#         start = V[e0]
-#         end = V[e1]
-        
-#         # Calculate midpoint of edge
-#         mid = (start + end) / 2
-        
-#         # Plot normal vector
-#         ax.quiver(mid[0], mid[1], mid[2],
-#                 normal[0], normal[1], normal[2],
-#                 color= 'green', length=scale, normalize=True,
-#                 arrow_length_ratio=0.2)
-#         # ax.text(mid[0], mid[1], mid[2], edge_idx)
-    
-#     # Make axes equal and set labels
-#     plt.axis('off')
-#     plt.axis('equal')
-    
-#     # Add title if str is provided
-#     if str is not None:
-#         ax.set_title(str)
-    
-#     # Save to file if filename is provided
-#     if filename:
-#         plt.savefig(filename, 
-#                     dpi=300,           # High resolution
-#                     bbox_inches='tight', # Trim white space
-#                     pad_inches=0.1)     # Small padding
-#         plt.close()  # Close the figure to free memory
-#     else:
-#         plt.show()  # Display the plot if not saving to file
 
 def plot_edge_frames(V, E, P, Us, Vs, scale=0.08):
     """
@@ -217,8 +169,8 @@ def plot_edge_frames(V, E, P, Us, Vs, scale=0.08):
     
     plt.axis('off')
     plt.axis('equal')
+    ax.set_title('U V Frame')
     plt.show()
-
 
 
 def plot_normal_data(V, E, N, scale=0.08):
@@ -393,6 +345,19 @@ def plot_polyline_normals(V, E, P, polyline_normals, scale=0.08, str=None, filen
 def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices=None, scale=0.08, str=None, filename=None, block=True):
     """
     Plot 3D visualization of polylines with edge normal constraints.
+    
+    Args:
+        V: (n,3) array of vertex coordinates
+        E: (m,2) array of edge vertex pairs
+        P: list of lists, where each inner list contains vertex indices for a polyline
+        constraints: Either:
+                     1. [(index, normal)] list of tuples of index and normal constraint, or
+                     2. {index: normal} dictionary mapping edge indices to normal vectors
+        unconstrained_polylines_indices : a set/list of polyline indices
+        scale: scaling factor for normal vectors (default: 0.03)
+        str: optional title string for the plot (default: None)
+        filename: if provided, save plot to this filename (default: None)
+    Plot 3D visualization of polylines with edge normal constraints.
     Added 'block' parameter to control whether plot blocks execution.
     """
     # Store the current interactive state
@@ -424,19 +389,32 @@ def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices=
     # [Your existing plotting code here]
     
     # Plot polylines
-    for index, polyline in enumerate(P):
-        polyline_points = np.array([V[idx] for idx in polyline])
-        # Default style for constrained polylines
-        style = {}
-        scatter_style = {'s': 5}
-        # Check if we need to use the unconstrained style
-        if unconstrained_polylines_indices is not None and index in unconstrained_polylines_indices:
-            style = {'linestyle': '--', 'color': 'r'}
-            scatter_style['color'] = 'r'
-        # Plot the polyline and points
-        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **style)
-        ax.scatter(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **scatter_style)
-    
+    if P is not None:
+        for index, polyline in enumerate(P):
+            polyline_points = np.array([V[idx] for idx in polyline])
+            # Default style for constrained polylines
+            style = {}
+            scatter_style = {'s': 5}
+            # Check if we need to use the unconstrained style
+            if unconstrained_polylines_indices is not None and index in unconstrained_polylines_indices:
+                style = {'linestyle': '--', 'color': 'r'}
+                scatter_style['color'] = 'r'
+            # Plot the polyline and points
+            ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **style)
+            ax.scatter(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **scatter_style)
+    elif P is None:
+        V = np.asarray(V)
+        for edge_index, edge in enumerate(E):
+            e0, e1 = edge
+            pts = np.asarray([V[e0], V[e1]])
+            xs = pts[:, 0]
+            ys = pts[:, 1]
+            zs = pts[:, 2]
+            ax.plot(xs, ys, zs)
+            ax.scatter(xs, ys, zs, s=5)
+
+            
+        
     # Convert constraints to list of (edge_idx, normal) pairs if it's a dictionary
     if isinstance(constraints, dict):
         constraint_pairs = list(constraints.items())
@@ -467,6 +445,7 @@ def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices=
                  normal[0], normal[1], normal[2],
                  color=color , length=scale, normalize=True,
                  arrow_length_ratio=0.2)
+        # ax.text(mid[0], mid[1], mid[2], edge_idx)
     
     # Make axes equal and set labels
     plt.axis('off')
@@ -497,5 +476,107 @@ def plot_edge_constraints(V, E, P, constraints, unconstrained_polylines_indices=
         plt.ion()
     else:
         plt.ioff()
+    
+    return fig, ax
+
+
+def plot_edge_constraints_two_normals(V, E, P, constraints, unconstrained_polylines_indices=None, scale=0.08, str=None, filename=None, block=False):
+    """
+    Plot 3D visualization of polylines with edge normal constraints.
+    Handles two normals per edge using tuple keys (edge_idx, which_normal).
+    """
+    # Setup figure (same as before)
+    plt.ion()
+    
+    if hasattr(plot_edge_constraints_two_normals, 'fig') and plt.fignum_exists(plot_edge_constraints_two_normals.fig.number):
+        plt.figure(plot_edge_constraints_two_normals.fig.number)
+        plt.clf()
+        fig = plot_edge_constraints_two_normals.fig
+        ax = fig.add_subplot(111, projection='3d')
+    else:
+        fig = plt.figure(figsize=(8, 8))
+        ax = fig.add_subplot(111, projection='3d')
+        plot_edge_constraints_two_normals.fig = fig
+    
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+    
+    # Plot polylines (same as before)
+    for index, polyline in enumerate(P):
+        polyline_points = np.array([V[idx] for idx in polyline])
+        style = {}
+        scatter_style = {'s': 5}
+        if unconstrained_polylines_indices is not None and index in unconstrained_polylines_indices:
+            style = {'linestyle': '--', 'color': 'r'}
+            scatter_style['color'] = 'r'
+        ax.plot(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **style)
+        ax.scatter(polyline_points[:,0], polyline_points[:,1], polyline_points[:,2], **scatter_style)
+    
+    # Convert constraints to list format if it's a dictionary
+    if isinstance(constraints, dict):
+        constraint_pairs = list(constraints.items())
+    else:
+        constraint_pairs = constraints
+    
+    # Plot normal vectors
+    for constraint_item in constraint_pairs:
+        # Parse the edge info - could be different formats
+        if isinstance(constraint_item[0], tuple):
+            # Format: ((edge_idx, which_edge), normal)
+            edge_key, normal = constraint_item
+            edge_idx, which_edge = edge_key
+        else:
+            # Handle other possible formats if needed
+            edge_idx, normal = constraint_item
+            which_edge = 0
+        
+        # Get the edge vertices
+        if edge_idx < len(E):  # Make sure edge_idx is valid
+            e = E[edge_idx]
+            e0, e1 = e
+            start = V[e0]
+            end = V[e1]
+            
+            # Calculate midpoint with offset
+            mid = (start + end) / 2
+            
+            # Add a small offset to separate the two normal vectors visually
+            offset = 0.01 * (which_edge - 0.5)
+            edge_dir = end - start
+            edge_dir_norm = edge_dir / np.linalg.norm(edge_dir)
+            # Offset perpendicular to both edge and normal
+            offset_dir = np.cross(edge_dir_norm, normal)
+            if np.linalg.norm(offset_dir) > 1e-6:  # Check if not zero
+                offset_dir = offset_dir / np.linalg.norm(offset_dir)
+                mid = mid + offset * offset_dir
+            
+            # Choose color based on which edge (0 or 1)
+            color = 'green' if which_edge == 0 else 'red'
+            
+            # Plot the normal vector
+            ax.quiver(mid[0], mid[1], mid[2],
+                     normal[0], normal[1], normal[2],
+                     color=color, length=scale, normalize=True,
+                     arrow_length_ratio=0.2)
+    
+    # Finalize plot (same as before)
+    plt.axis('off')
+    plt.axis('equal')
+    
+    if str is not None:
+        ax.set_title(str)
+    
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0.1)
+        plt.close()
+    else:
+        fig.canvas.draw()
+        # Fix: We should respect the block parameter here
+        if block:
+            plt.ioff()  # Turn off interactive mode when blocking
+            plt.show(block=True)  # Use plt.show with block=True
+        else:
+            plt.show(block=False)
+            plt.pause(0.001)  # Only pause if not blocking
     
     return fig, ax

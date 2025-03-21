@@ -1,7 +1,7 @@
 import numpy as np
 
 from utility_io import load_sketch_polyline_data, write_normal_data, write_string_to_file
-from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals
+from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals, plot_edge_constraints_two_normals
 from utility_segment_distance import segment_to_segment_distance
 
 from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf
@@ -52,20 +52,15 @@ def edge_distance_matrix(V, E):
 
 
 # Only extract the distance 0 edges. No thresholds.
-def extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines, edge_constraints_map, distances, n = 3):
+def extract_pairwise_weight(E, distances):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
     avoiding duplicates and ensuring each edge pair appears only once.
     
     Args:
-        V: Vertex coordinates, shape (num_vertices, dimension)
         E: Edges as vertex index pairs, shape (num_edges, 2)
-        edge_to_polyline_map: Mapping from edge index to its polyline index
-        unconstrained_polylines: Set of polyline indices that don't have edge normals set
-        edge_constraints_map: Edge normal constraints from convex hull, {edge_index: normal_vector}
         distances: NxN array where entry (i,j) is the weight between edges i and j
-        n: Number of highest weights to extract for each edge (default: 3)
 
     Returns:
         list of tuples: [(edge_idx1, edge_idx2, weight)] 
@@ -179,42 +174,6 @@ def find_edge_indices_from_polyline(polyline, E):
     
     return edge_indices, edge_reversed
 
-def random_normal_on_polylines(Us, Vs, polyline_edge_data, polyline_indices):
-    '''
-    From the best normal of the polyline, parallel transport it on both direction of the polyline.
-    Notice depend on the polyline_to_best_normal, this will transport on a subset of polyline.
-    Means not all polylines will get normals after this.
-
-    
-    Parameters:
-    -----------
-    Us : frame
-    Vs : frame
-    polyline_edge_data : dictionary, {polyline_idx: (edge_indices, is_edge_reversed)}
-                       : the polyline edge_indices and whether the edge is reversed
-
-    polyline_indices: set or list containing the polyline which we want random normal on them
-
-    Return :
-        polyline_normals: dictionary, {polyline_index: [normals]} 
-                          polyline_index as key and a list of normals corresponding to each edge in the polyline
-
-    '''
-    polyline_normals = {}
-
-    for polyline_idx in polyline_indices:
-        edge_indices, _ = polyline_edge_data[polyline_idx]
-            
-
-        normal_vectors = []
-        # Compute parallel transport
-        for edge_index in edge_indices:
-            n = normal_for_edge( np.random.uniform(0, 2 * np.pi)  , Us[ edge_index ], Vs[ edge_index ] )
-            normal_vectors.append(n)
-
-        polyline_normals[polyline_idx] = normal_vectors
-    
-    return polyline_normals
 
 def create_frames_for_each_polyline(V, E, P):
     '''
@@ -337,6 +296,14 @@ def assign_normals_to_unconstrained_polylines(V, E, polyline_edge_data, edge_nor
     
     for _, _, target_edge_idx, candidate_normal in best_candidates:
         edge_to_candidate_normal_map[target_edge_idx] = candidate_normal
+
+    
+    # TODO:
+    # This should not happen, but incase, I can just assign a random normal 
+
+
+
+
     
     # Find the best position and normal on the polyline using the candidate normals
     best_position, best_normal = find_best_perpendicular_normal_on_polyline(
@@ -618,8 +585,8 @@ def estimate_initial_thetas(Us, Vs, estimated_normals):
         First frame vector for each edge
     Vs : array-like
         Second frame vector for each edge
-    estimated_normals : list of tuple
-        Each tuple contains (edge_idx, normal_vector)
+    estimated_normals : dict
+        {edge_idx, normal_vector}
         
     Returns:
     --------
@@ -861,7 +828,13 @@ def convert_edge_dict_to_array(poly_line_edge_normal, num_edges, polyline_to_edg
 
     return normals
             
-                
+
+def random_normal_for_edge( U, V) :
+    '''
+    create a random normal for edge, given the frame U and V.
+    This normal will always be perpendicular to the edge
+    '''
+    return normal_for_edge( np.random.uniform(0, 2 * np.pi), U, V )                
 
 
 ## helper - never used
@@ -924,6 +897,8 @@ if __name__ == "__main__":
 
     if curve_file is None:
         curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
+        curve_file = 'made_examples/sketch/cylinder.obj'
+        NORMALS_PER_EDGE = 'two'
 
 
     curve_name = Path(curve_file).stem
@@ -1047,7 +1022,7 @@ if __name__ == "__main__":
     rotations = create_edge_rotation_map(V, E)
 
     # print('weight_matrix', weight_matrix)
-    pairwise = extract_pairwise_weight(V, E, edge_to_polyline_map, unconstrained_polylines_indices, edge_constraints_map, distances)
+    pairwise = extract_pairwise_weight(E, distances)
 
 
     #region Optimization one normal
@@ -1215,16 +1190,52 @@ if __name__ == "__main__":
             E_pairwise /= W_pairwise
             return 1e-2 * E_constraint +  1e4 * E_pairwise
         
-        # Assuming thetas0 is already a 1D array with length equal to len(E)
-        # Create a flattened version with two copies for the optimizer
-        thetas0_flat = np.concatenate((thetas0, thetas0))
+        # Assuming thetas0 is your 1D array with one value per edge
+        num_edges = len(thetas0)
+
+        # Create a 2D array where both columns are identical
+        thetas_2d = np.column_stack((thetas0, thetas0))  # shape: (num_edges, 2)
+
+        # Flatten this 2D array for the optimizer
+        thetas0_flat = thetas_2d.flatten()  # shape: (2*num_edges,)
 
         # Add this wrapper function that reshapes the 1D array to 2D for your function
         def E_total_wrapper(thetas_flat, Us, Vs, constraints, pairwise):
             # Reshape the 1D array to a 2D array
-            num_edges = len(Us)
+            num_edges = len(E)
             thetas_2d = thetas_flat.reshape(num_edges, 2)  
             return E_total_two_edges_per_normal(thetas_2d, Us, Vs, constraints, pairwise)
+
+        # Initialize iteration counter
+        iteration_counter = [0]
+
+        def callback(thetas_flat_now):
+            iteration_counter[0] += 1
+            print(f"Iteration {iteration_counter[0]}")
+            
+            # Reshape the flat thetas array to the 2D structure
+            num_edges = len(E)
+            thetas_2d_now = thetas_flat_now.reshape(num_edges, 2)
+            
+            # Calculate normals for both edges
+            normals_now = {}
+            # Calculate two normals per edge and format them for the plotting function
+            for edge_idx in range(num_edges):
+                for which_edge in (0, 1):
+                    # Calculate the normal for this edge and orientation
+                    normal = normal_for_edge(thetas_2d_now[edge_idx, which_edge], Us[edge_idx], Vs[edge_idx])
+                
+                    # Store in the normals dictionary with tuple key (edge_idx, which_edge)
+                    normals_now[(edge_idx, which_edge)] = normal
+
+                
+         
+            
+            # Update the plot - specify block=False for non-blocking
+            plot_edge_constraints_two_normals(V, E, P, normals_now, unconstrained_polylines_indices, 
+                                scale=0.08, 
+                                str=f"Two-Normal Optimization: Iteration {iteration_counter[0]}", 
+                                block=False)
 
         # Use the wrapper in your optimization
         result = opt.minimize(E_total_wrapper,
@@ -1232,22 +1243,44 @@ if __name__ == "__main__":
                             args=(Us, Vs, edge_constraints, pairwise),
                             method='L-BFGS-B',
                             tol=0.0000001,
-                            options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000}
+                            options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000},
+                            callback=callback
                             )
 
-        # Reshape the result back to 2D
-        thetas = result.x.reshape(len(E), 2)
 
-        thetas = result.x
-        assert len( thetas ) == 2*len(E)
 
-        print(thetas)
 
-        opt_normals1 = recover_normal_from_thetas(thetas[:len(E)], Us, Vs)
-        opt_normals2 = recover_normal_from_thetas(thetas[len(E):], Us, Vs)
 
-        plot_edge_constraints(V, E, P,  opt_normals1, scale=0.08, str= 'normal_1')
-        plot_edge_constraints(V, E, P,  opt_normals2, scale=0.08, str='normal_2')
+        # # Reshape the result back to 2D
+        # thetas = result.x.reshape(len(E), 2)
+
+        # thetas = result.x
+        # assert len( thetas ) == 2*len(E)
+
+        # print(thetas)
+
+        # opt_normals1 = recover_normal_from_thetas(thetas[:len(E)], Us, Vs)
+        # opt_normals2 = recover_normal_from_thetas(thetas[len(E):], Us, Vs)
+
+        thetas0_opt = result.x
+        thetas_2d_now = thetas0_opt.reshape(num_edges, 2)
+            
+        # Calculate normals for both edges
+        opt_normals = {}
+        # Calculate two normals per edge and format them for the plotting function
+        for edge_idx in range(num_edges):
+            for which_edge in (0, 1):
+                # Calculate the normal for this edge and orientation
+                normal = normal_for_edge(thetas_2d_now[edge_idx, which_edge], Us[edge_idx], Vs[edge_idx])
+            
+                # Store in the normals dictionary with tuple key (edge_idx, which_edge)
+                opt_normals[(edge_idx, which_edge)] = normal
+
+
+        plot_edge_constraints_two_normals(V, E, P, opt_normals, unconstrained_polylines_indices, 
+                                scale=0.08, 
+                                str="Two-Normal Optimization", 
+                                block=True)
 
 
 
