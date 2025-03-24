@@ -17,8 +17,8 @@ from collections import defaultdict
 import argparse
 
 
-# import jax.numpy as jnp
-# import jax
+import jax.numpy as jnp
+import jax
 
 def edge_distance_matrix(V, E):
     '''
@@ -740,7 +740,7 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
 
     return edge_normal_list
 
-def normal_for_edge( theta, U, V ): return np.cos( theta ) * U + np.sin( theta ) * V
+def normal_for_edge( theta, U, V ): return jnp.cos( theta ) * U + jnp.sin( theta ) * V
 
 def recover_normal_from_thetas(thetas, Us, Vs):
     '''
@@ -898,7 +898,7 @@ if __name__ == "__main__":
     if curve_file is None:
         curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
         curve_file = 'made_examples/sketch/cylinder.obj'
-        NORMALS_PER_EDGE = 'two'
+        NORMALS_PER_EDGE = 'one'
 
 
     curve_name = Path(curve_file).stem
@@ -1051,7 +1051,7 @@ if __name__ == "__main__":
             E_constraint = 0.0
             for edge_index, desired_normal_vector in constraints:
                 n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ] )
-                E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+                E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
             # normalize
             E_constraint /= len( constraints )
             
@@ -1065,7 +1065,7 @@ if __name__ == "__main__":
                 if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
                 elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-                E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
+                E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2     
                 W_pairwise += weight
             # Normalize by the total weight
             E_pairwise /= W_pairwise
@@ -1097,6 +1097,7 @@ if __name__ == "__main__":
             
         result = opt.minimize( E_total,
             thetas0,  
+            jac = jax.grad(E_total),
             args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
             method = 'L-BFGS-B', 
             tol = 0.0000001, 
@@ -1151,7 +1152,7 @@ if __name__ == "__main__":
             for edge_index, desired_normal_vector in constraints:
                 for which_edge in (0,1):
                     n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
-                    E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
             # normalize
             E_constraint /= 2*len( constraints )
             
@@ -1168,23 +1169,29 @@ if __name__ == "__main__":
                         if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
                         elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-                        costs[i,j] = (1.0 - np.dot( n1, n2 ) )**2
+                        costs[i,j] = (1.0 - jnp.dot( n1, n2 ) )**2
                 
+                E_pairwise += weight * costs.diagonal().sum() * .5
+                # E_pairwise += weight * costs.sum() * .25
+                W_pairwise += weight
+                
+                '''
                 shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
                 
                 ## If this is a curve edge, we want to penalize the best match
                 if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
                     if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
                         E_pairwise += weight * (costs[0,0] + costs[1,1])
-                        W_pairwise += weight
+                        W_pairwise += weight * 2
                     else:
                         E_pairwise += weight * (costs[0,1] + costs[1,0])
-                        W_pairwise += weight
+                        W_pairwise += weight * 2
                 ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
                 ## lowest cost.
                 else:
                     E_pairwise += weight * costs.min()
                     W_pairwise += weight
+                '''
             
             # Normalize by the total weight
             E_pairwise /= W_pairwise
