@@ -743,8 +743,6 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
 def normal_for_edge( theta, U, V, auto_grad = True): 
     if auto_grad == True:
         return  jnp.cos( theta ) * U + jnp.sin( theta ) * V
-    else:
-        return np.cos( theta ) * U + np.sin( theta ) * V
 
 
 
@@ -890,7 +888,7 @@ if __name__ == "__main__":
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='true',
                    help='Save the gltf files for debug (default: true)')    
-    parser.add_argument('--auto_grad', type=str, choices=['true', 'false'], default='true',
+    parser.add_argument('--auto_grad', type=str, choices=['true', 'false'], default='false',
                         help='use jnp grad or not.')
 
     args = parser.parse_args()
@@ -901,7 +899,7 @@ if __name__ == "__main__":
     gltf_file = args.gltf_file
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
-    auto_grad = args.auto_grad.lower == 'true'
+    auto_grad = args.auto_grad.lower() == 'true'
 
 
     if curve_file is None:

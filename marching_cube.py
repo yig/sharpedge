@@ -666,92 +666,93 @@ def export_sketch_normal_surface_gltf(vertices, edges, edge_normals, SV, SF, fil
 
 
 
-parser = argparse.ArgumentParser(description='Marching cube using normal file')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Marching cube using normal file')
 
-# Add arguments
-parser.add_argument('normal_file', nargs='?',
-                    help='Input file containing normal data (.obj)')
-parser.add_argument('--iterations', type=int, default=1,
-                    help='How many iterations to update the surface.')
-parser.add_argument('--box_division', type=int, default=100,
-                    help='Box division parameter (default: 100)')
-parser.add_argument('--save_gltf', type=str, choices=['true', 'false'], default='false',
-                   help='Save the gltf tile')    
+    # Add arguments
+    parser.add_argument('normal_file', nargs='?',
+                        help='Input file containing normal data (.normal)')
+    parser.add_argument('--iterations', type=int, default=1,
+                        help='How many iterations to update the surface.')
+    parser.add_argument('--box_division', type=int, default=100,
+                        help='Box division parameter (default: 100)')
+    parser.add_argument('--save_gltf', type=str, choices=['true', 'false'], default='false',
+                    help='Save the gltf tile')    
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-normal_file = args.normal_file
-box_division = args.box_division
-iterations = args.iterations
-save_gltf = args.save_gltf.lower() == 'true'
-
-
-
-
-V, E, N = load_normal_data(normal_file)
-points, normals = resample_for_points_normal(V, E, N, 0.01)
-
-
-print(len(points))
-print(len(normals))
-
-# scale larger
-# bbox_vertices = generate_bounding_box_points(V, scale_factor = 1.5)
-bbox_vertices = generate_bounding_box_points(V, scale_factor = 2)
-grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
-
-
-surfaces, points_areas = generate_surface_iterations(points, normals, grid_vertices, box_division, iterations)
-
-ps.init()
-plot_normal_data(V, E, N)
-plot_points_normal(points, normals)
-
-ps.show()
-
-
-## print the properties of the surfaces
-
-for i in range(len(surfaces)):
-    SV, SF = surfaces[i]
-    print('----------------')
-    print(f"{i}th surface")
-    mesh_genus = calculate_genus(SV, SF)
-    mesh_components = get_mesh_components(SV, SF)
-    mesh_surface =  sum(igl.doublearea(SV, SF)/2)
-    points_area_sum = np.sum(points_areas[i])
-    largest_sv, largest_sf = mesh_components[0]
-
-    print("genus", mesh_genus)
-    print('# components',len(mesh_components))
-    print('sum(surface_area)',mesh_surface)
-    print('np.sum(points_area)', points_area_sum)
-    print('sum(surface_area) - np.sum(points_area)', mesh_surface - points_area_sum)
-    print('largest component genus', calculate_genus(largest_sv, largest_sf))
-    print('largest component area', sum(igl.doublearea(largest_sv, largest_sf)/2))
-
-    ps_mesh = ps.register_surface_mesh(f"mesh {i}" , SV, SF)
-    # ps_mesh = ps.register_surface_mesh(f"mesh {i}" , largest_sv, largest_sf)
-
-    print()
-
-
-sv0,sf0 = surfaces[0]
-sv1,sf1 = surfaces[1]
-
-curve_name = Path(normal_file).stem
+    normal_file = args.normal_file
+    box_division = args.box_division
+    iterations = args.iterations
+    save_gltf = args.save_gltf.lower() == 'true'
 
 
 
-if save_gltf:
-    mesh_0_gltf_file = 'gltfs/convex_hull_area_surface/' + curve_name + '.gltf'
-    mesh_1_gltf_file = 'gltfs/convex_hull_voronoi_area/' + curve_name + '.gltf'
-    export_sketch_normal_surface_gltf(V, E, N, sv0, sf0, mesh_0_gltf_file)
-    export_sketch_normal_surface_gltf(V, E, N, sv1, sf1, mesh_1_gltf_file)
-    
+
+    V, E, N = load_normal_data(normal_file)
+    points, normals = resample_for_points_normal(V, E, N, 0.01)
 
 
-ps.show()
+    print(len(points))
+    print(len(normals))
+
+    # scale larger
+    # bbox_vertices = generate_bounding_box_points(V, scale_factor = 1.5)
+    bbox_vertices = generate_bounding_box_points(V, scale_factor = 2)
+    grid_vertices, faces = generate_matched_cube_mesh(box_division, bbox_vertices)
+
+
+    surfaces, points_areas = generate_surface_iterations(points, normals, grid_vertices, box_division, iterations)
+
+    ps.init()
+    plot_normal_data(V, E, N)
+    plot_points_normal(points, normals)
+
+    ps.show()
+
+
+    ## print the properties of the surfaces
+
+    for i in range(len(surfaces)):
+        SV, SF = surfaces[i]
+        print('----------------')
+        print(f"{i}th surface")
+        mesh_genus = calculate_genus(SV, SF)
+        mesh_components = get_mesh_components(SV, SF)
+        mesh_surface =  sum(igl.doublearea(SV, SF)/2)
+        points_area_sum = np.sum(points_areas[i])
+        largest_sv, largest_sf = mesh_components[0]
+
+        print("genus", mesh_genus)
+        print('# components',len(mesh_components))
+        print('sum(surface_area)',mesh_surface)
+        print('np.sum(points_area)', points_area_sum)
+        print('sum(surface_area) - np.sum(points_area)', mesh_surface - points_area_sum)
+        print('largest component genus', calculate_genus(largest_sv, largest_sf))
+        print('largest component area', sum(igl.doublearea(largest_sv, largest_sf)/2))
+
+        ps_mesh = ps.register_surface_mesh(f"mesh {i}" , SV, SF)
+        # ps_mesh = ps.register_surface_mesh(f"mesh {i}" , largest_sv, largest_sf)
+
+        print()
+
+
+    sv0,sf0 = surfaces[0]
+    sv1,sf1 = surfaces[1]
+
+    curve_name = Path(normal_file).stem
+
+
+
+    if save_gltf:
+        mesh_0_gltf_file = 'gltfs/convex_hull_area_surface/' + curve_name + '.gltf'
+        mesh_1_gltf_file = 'gltfs/convex_hull_voronoi_area/' + curve_name + '.gltf'
+        export_sketch_normal_surface_gltf(V, E, N, sv0, sf0, mesh_0_gltf_file)
+        export_sketch_normal_surface_gltf(V, E, N, sv1, sf1, mesh_1_gltf_file)
+        
+
+
+    ps.show()
 
 
 
