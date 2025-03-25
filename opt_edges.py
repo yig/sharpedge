@@ -740,7 +740,13 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
 
     return edge_normal_list
 
-def normal_for_edge( theta, U, V ): return jnp.cos( theta ) * U + jnp.sin( theta ) * V
+def normal_for_edge( theta, U, V, auto_grad = True): 
+    if auto_grad == True:
+        return  jnp.cos( theta ) * U + jnp.sin( theta ) * V
+    else:
+        return np.cos( theta ) * U + np.sin( theta ) * V
+
+
 
 def recover_normal_from_thetas(thetas, Us, Vs):
     '''
@@ -884,7 +890,9 @@ if __name__ == "__main__":
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='true',
                    help='Save the gltf files for debug (default: true)')    
-    
+    parser.add_argument('--auto_grad', type=str, choices=['true', 'false'], default='true',
+                        help='use jnp grad or not.')
+
     args = parser.parse_args()
 
     curve_file = args.curve_file
@@ -893,12 +901,15 @@ if __name__ == "__main__":
     gltf_file = args.gltf_file
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
+    auto_grad = args.auto_grad.lower == 'true'
 
 
     if curve_file is None:
         curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
         curve_file = 'made_examples/sketch/cylinder.obj'
         NORMALS_PER_EDGE = 'one'
+
+        print('auto_grad', auto_grad)
 
 
     curve_name = Path(curve_file).stem
@@ -1050,33 +1061,42 @@ if __name__ == "__main__":
             # Calculate the constraint energy
             E_constraint = 0.0
             for edge_index, desired_normal_vector in constraints:
-                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ] )
-                E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ], auto_grad )
+                if auto_grad:
+                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                else:
+                    E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+
             # normalize
             E_constraint /= len( constraints )
             
             E_pairwise = 0.0
             W_pairwise = 0.0
             for e1, e2, weight in pairwise:
-                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1] )
-                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2] )
+                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1], auto_grad  )
+                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2], auto_grad  )
                 
                 ## Get the rotation matrix if it exists
                 if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
                 elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-                E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2     
+                if auto_grad:
+                    E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2   
+                else:  
+                    E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
+
                 W_pairwise += weight
             # Normalize by the total weight
             E_pairwise /= W_pairwise
             
             return 1e-2 * E_constraint +  1e4 * E_pairwise
+    
 
 
         # Showing the optimization process
         # Initialize iteration counter
         iteration_counter = [0]
-  
+
         def callback(thetas_now):
             iteration_counter[0] += 1
             print(f"Iteration {iteration_counter[0]}")
@@ -1085,7 +1105,7 @@ if __name__ == "__main__":
             normals_now = recover_normal_from_thetas(thetas_now, Us, Vs)
             
             # Update the plot - specify block=False for non-blocking
-            plot_edge_constraints(V, E, P, normals_now, unconstrained_polylines_indices, 
+            plot_edge_constraints(V, E, P, normals_now, unconstrained_polylines_indices = None, 
                                 scale=0.08, 
                                 str=f"Optimization: Iteration {iteration_counter[0]}", 
                                 block=False)
@@ -1093,20 +1113,30 @@ if __name__ == "__main__":
 
 
 
-
-            
-        result = opt.minimize( E_total,
-            thetas0,  
-            jac = jax.grad(E_total),
-            args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
-            method = 'L-BFGS-B', 
-            tol = 0.0000001, 
-            options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
-            callback=callback
-        )
+        import time
+        start_time = time.time()
+        
+        if auto_grad:
+            result = opt.minimize( E_total,
+                thetas0,  
+                jac = jax.grad(E_total),
+                args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
+                method = 'L-BFGS-B', 
+                tol = 0.0000001, 
+                options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
+                callback=callback
+            )
+        else:
+            result = opt.minimize( E_total,
+                thetas0,  
+                args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
+                method = 'L-BFGS-B', 
+                tol = 0.0000001, 
+                options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
+                callback=callback
+            )
 
         thetas = result.x
-
         # print(thetas)
         
         ##################################

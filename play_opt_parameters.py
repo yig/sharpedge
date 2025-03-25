@@ -2,6 +2,19 @@ from opt_edges import *
 from utility_plot_viewer import plot_edge_info
 from collections import  deque
 
+
+def normal_for_edge( theta, U, V, auto_grad = True): 
+    if auto_grad == True:
+        return  jnp.cos( theta ) * U + jnp.sin( theta ) * V
+    else:
+        return np.cos( theta ) * U + np.sin( theta ) * V
+
+
+
+
+
+
+
 def make_cylinder_example_01():
     '''
     '''
@@ -55,7 +68,16 @@ def make_cylinder_example_01():
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
     # thetas0  = np.zeros(len(E))
 
-    optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='one')
+
+
+    # optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='one', auto_grad = False)
+
+    # optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='two', auto_grad = True)
+
+    optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='two', auto_grad = False)
+
+
+
 
 def generate_random_initial_guess(E, Us, Vs):
     '''
@@ -66,8 +88,9 @@ def generate_random_initial_guess(E, Us, Vs):
         estimate_normals[index] = random_normal_for_edge(Us[index], Vs[index])
     return estimate_normals
 
-def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE = 'one'):
+def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE = 'two', auto_grad = True):
     '''
+    auto_grad: use jax to autograd or not
     '''
 
     if NORMALS_PER_EDGE == 'one':
@@ -87,22 +110,30 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
             # Calculate the constraint energy
             E_constraint = 0.0
             for edge_index, desired_normal_vector in constraints:
-                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ] )
-                E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ], auto_grad )
+                if auto_grad:
+                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                else:
+                    E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+
             # normalize
             E_constraint /= len( constraints )
             
             E_pairwise = 0.0
             W_pairwise = 0.0
             for e1, e2, weight in pairwise:
-                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1] )
-                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2] )
+                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1], auto_grad  )
+                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2], auto_grad  )
                 
                 ## Get the rotation matrix if it exists
                 if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
                 elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-                E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2     
+                if auto_grad:
+                    E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2   
+                else:  
+                    E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
+
                 W_pairwise += weight
             # Normalize by the total weight
             E_pairwise /= W_pairwise
@@ -131,97 +162,46 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
 
 
 
-
-            
-        result = opt.minimize( E_total,
-            thetas0,  
-            jac = jax.grad(E_total),
-            args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
-            method = 'L-BFGS-B', 
-            tol = 0.0000001, 
-            options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
-            callback=callback
-        )
+        # import time
+        # start_time = time.time()
+        
+        if auto_grad:
+            result = opt.minimize( E_total,
+                thetas0,  
+                jac = jax.grad(E_total),
+                args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
+                method = 'L-BFGS-B', 
+                tol = 0.0000001, 
+                options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
+                callback=callback
+            )
+        else:
+            result = opt.minimize( E_total,
+                thetas0,  
+                args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
+                method = 'L-BFGS-B', 
+                tol = 0.0000001, 
+                options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
+                callback=callback
+            )
 
         thetas = result.x
 
+        
+        # end_time = time.time()
+        # # Calculate and print the execution time
+        # execution_time = end_time - start_time
+        # print(f"Execution time: {execution_time:.6f} seconds")
 
         opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
         plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices = None, scale=0.08, str = "optimize result")
 
     elif NORMALS_PER_EDGE == 'two':
 
-        def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise, one_normal ):
-            '''
-            Given a bag of edge data of the form:
-                thetas: An array of N real numbers, one per edge
-                Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
-                Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
-                constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
-                pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
-                one_normal: A sequence of edge indices that should only have one normal
-            Returns:
-                The total energy
-            '''    
-            # Calculate the constraint energy
-            # Constrain both edges
-            E_constraint = 0.0
-            for edge_index, desired_normal_vector in constraints:
-                for which_edge in (0,1):
-                    n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
-                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
-            # normalize with a 2 because we have two normals
-            E_constraint /= 2*len( constraints )
 
-            E_one_normal = 0.0
-            for edge_index in one_normal:
-                E_one_normal += ( thetas[ edge_index, 0 ] - thetas[ edge_index, 1 ] )**2
-            # normalize without a 2 because this is operating on edges
-            E_one_normal /= len( one_normal )
+        
+
             
-            E_pairwise = 0.0
-            W_pairwise = 0.0
-            for e1, e2, weight in pairwise:
-                costs = [ [None, None], [None, None] ]
-                for i in range(2):
-                    for j in range(2):
-                        n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] )
-                        n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] )
-
-                        ## Get the rotation matrix if it exists
-                        if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
-                        elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
-
-                        costs[i][j] = (1.0 - jnp.dot( n1, n2 ) )**2
-                
-                costs = jnp.array( costs )
-
-                # E_pairwise += weight * costs[0,1]
-                # E_pairwise += weight * costs.diagonal().sum() * .5
-                # E_pairwise += weight * costs.sum() * .25
-                # W_pairwise += weight
-
-                shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
-                
-                ## If this is a curve edge, we want to penalize the best match
-                if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
-                    if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
-                        E_pairwise += weight * (costs[0,0] + costs[1,1])
-                        W_pairwise += weight
-                    else:
-                        E_pairwise += weight * (costs[0,1] + costs[1,0])
-                        W_pairwise += weight
-                ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
-                ## lowest cost.
-                else:
-                    E_pairwise += weight * costs.min()
-                    W_pairwise += weight
-                
-            # Normalize by the total weight
-            E_pairwise /= W_pairwise
-
-            # Return the total energy
-            return 1e-2 * E_constraint  +  1e4 * E_pairwise  +  1e6 * E_one_normal
         
         # Assuming thetas0 is your 1D array with one value per edge
         num_edges = len(thetas0)
@@ -238,6 +218,7 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
 
         # Constrain any normals we wish to have a single normal
         one_normal = []
+        one_normal = [23, 58]
 
         # Add this wrapper function that reshapes the 1D array to 2D for your function
         def E_total_wrapper(thetas_flat, Us, Vs, constraints, pairwise, one_normal):
@@ -277,31 +258,171 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
                                 str=f"Two-Normal Optimization: Iteration {iteration_counter[0]}", 
                                 block=False)
 
-        # Use the wrapper in your optimization
-        result = opt.minimize(E_total_wrapper,
-                            thetas0_flat,
-                            jac = jax.grad( E_total_wrapper ),
-                            args=(Us, Vs, edge_constraints, pairwise, one_normal),
-                            method='L-BFGS-B',
-                            tol=0.0000001,
-                            options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 * 10},
-                            callback=callback
-                            )
+  
 
 
+        if auto_grad == True:
 
 
+            def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise, one_normal ):
+                '''
+                Given a bag of edge data of the form:
+                    thetas: An array of N real numbers, one per edge
+                    Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
+                    Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
+                    constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
+                    pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
+                    one_normal: A sequence of edge indices that should only have one normal
+                Returns:
+                    The total energy
+                '''    
+                # Calculate the constraint energy
+                # Constrain both edges
+                E_constraint = 0.0
+                for edge_index, desired_normal_vector in constraints:
+                    for which_edge in (0,1):
+                        n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
+                        E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                # normalize with a 2 because we have two normals
+                E_constraint /= 2*len( constraints )
 
-        # # Reshape the result back to 2D
-        # thetas = result.x.reshape(len(E), 2)
+                E_one_normal = 0.0
+                if len(one_normal) != 0:
+                    for edge_index in one_normal:
+                        E_one_normal += ( thetas[ edge_index, 0 ] - thetas[ edge_index, 1 ] )**2
+                    # normalize without a 2 because this is operating on edges
+                    E_one_normal /= len( one_normal )
+                
+                E_pairwise = 0.0
+                W_pairwise = 0.0
+                for e1, e2, weight in pairwise:
+                    costs = [ [None, None], [None, None] ]
+                    for i in range(2):
+                        for j in range(2):
+                            n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] )
+                            n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] )
 
-        # thetas = result.x
-        # assert len( thetas ) == 2*len(E)
+                            ## Get the rotation matrix if it exists
+                            if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
+                            elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-        # print(thetas)
+                            costs[i][j] = (1.0 - jnp.dot( n1, n2 ) )**2
+                    
+                    costs = jnp.array( costs )
 
-        # opt_normals1 = recover_normal_from_thetas(thetas[:len(E)], Us, Vs)
-        # opt_normals2 = recover_normal_from_thetas(thetas[len(E):], Us, Vs)
+                    # E_pairwise += weight * costs[0,1]
+                    # E_pairwise += weight * costs.diagonal().sum() * .5
+                    # E_pairwise += weight * costs.sum() * .25
+                    # W_pairwise += weight
+
+                    shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
+                    
+                    ## If this is a curve edge, we want to penalize the best match
+                    if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
+                        if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
+                            E_pairwise += weight * (costs[0,0] + costs[1,1])
+                            W_pairwise += weight
+                        else:
+                            E_pairwise += weight * (costs[0,1] + costs[1,0])
+                            W_pairwise += weight
+                    ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
+                    ## lowest cost.
+                    else:
+                        E_pairwise += weight * costs.min()
+                        W_pairwise += weight
+                    
+                # Normalize by the total weight
+                E_pairwise /= W_pairwise
+
+
+                # Return the total energy
+                return 1e-2 * E_constraint  +  1e4 * E_pairwise  +  1e6 * E_one_normal
+            
+
+            # Use the wrapper in your optimization
+            result = opt.minimize(E_total_wrapper,
+                                thetas0_flat,
+                                jac = jax.grad( E_total_wrapper ),
+                                args=(Us, Vs, edge_constraints, pairwise, one_normal),
+                                method='L-BFGS-B',
+                                tol=0.0000001,
+                                options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 * 10},
+                                callback=callback
+                                )
+        else:
+            def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise, one_normal ):
+                '''
+                Given a bag of edge data of the form:
+                    thetas: An array of N real numbers, one per edge
+                    Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
+                    Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
+                    constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
+                    pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
+                Returns:
+                    The total energy
+                '''    
+                # Calculate the constraint energy
+                # Constrain both edges
+                E_constraint = 0.0
+                for edge_index, desired_normal_vector in constraints:
+                    for which_edge in (0,1):
+                        n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] , auto_grad= False)
+                        E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+                # normalize
+                E_constraint /= 2*len( constraints )
+                
+                E_one_normal = 0.0
+                if len(one_normal) != 0:
+                    for edge_index in one_normal:
+                        E_one_normal += ( thetas[ edge_index, 0 ] - thetas[ edge_index, 1 ] )**2
+                    # normalize without a 2 because this is operating on edges
+                    E_one_normal /= len( one_normal )
+
+                E_pairwise = 0.0
+                W_pairwise = 0.0
+                for e1, e2, weight in pairwise:
+                    costs = np.zeros( (2,2) )
+                    for i in range(2):
+                        for j in range(2):
+                            n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] ,auto_grad= False)
+                            n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] ,auto_grad= False )
+
+                            ## Get the rotation matrix if it exists
+                            if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
+                            elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
+
+                            costs[i,j] = (1.0 - np.dot( n1, n2 ) )**2
+                    
+                    shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
+                    
+                    ## If this is a curve edge, we want to penalize the best match
+                    if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
+                        if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
+                            E_pairwise += weight * (costs[0,0] + costs[1,1])
+                            W_pairwise += weight
+                        else:
+                            E_pairwise += weight * (costs[0,1] + costs[1,0])
+                            W_pairwise += weight
+                    ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
+                    ## lowest cost.
+                    else:
+                        E_pairwise += weight * costs.min()
+                        W_pairwise += weight
+                
+                # Normalize by the total weight
+                E_pairwise /= W_pairwise
+                return 1e-2 * E_constraint +  1e4 * E_pairwise + 1e6 * E_one_normal
+            
+            # Use the wrapper in your optimization
+            result = opt.minimize(E_total_wrapper,
+                                thetas0_flat,
+                                args=(Us, Vs, edge_constraints, pairwise, one_normal),
+                                method='L-BFGS-B',
+                                tol=0.0000001,
+                                options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e10  }, #1000
+                                callback=callback
+                                )
+                
 
         thetas0_opt = result.x
         thetas_2d_now = thetas0_opt.reshape(num_edges, 2)
@@ -322,6 +443,7 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
                                 scale=0.08, 
                                 str="Two-Normal Optimization", 
                                 block=True)
+        
 
 
 
