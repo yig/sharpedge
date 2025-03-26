@@ -17,8 +17,11 @@ from collections import defaultdict
 import argparse
 
 
-import jax.numpy as jnp
-import jax
+import autograd.numpy as jnp
+import autograd as jax
+# import jax.numpy as jnp
+# import jax
+# jnp = np
 
 def edge_distance_matrix(V, E):
     '''
@@ -740,9 +743,7 @@ def propagate_edge_normals_along_polylines(V, E, P, edge_normal_constraints):
 
     return edge_normal_list
 
-def normal_for_edge( theta, U, V, auto_grad = True): 
-    if auto_grad == True:
-        return  jnp.cos( theta ) * U + jnp.sin( theta ) * V
+def normal_for_edge( theta, U, V):  return jnp.cos( theta ) * U + jnp.sin( theta ) * V
 
 
 
@@ -888,7 +889,7 @@ if __name__ == "__main__":
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='true',
                    help='Save the gltf files for debug (default: true)')    
-    parser.add_argument('--auto_grad', type=str, choices=['true', 'false'], default='false',
+    parser.add_argument('--auto_grad', type=str, choices=['true', 'false'], default='true',
                         help='use jnp grad or not.')
 
     args = parser.parse_args()
@@ -899,7 +900,12 @@ if __name__ == "__main__":
     gltf_file = args.gltf_file
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
-    auto_grad = args.auto_grad.lower() == 'true'
+    AUTO_GRAD = args.auto_grad.lower() == 'true'
+    print('AUTO_GRAD', AUTO_GRAD)
+
+    if not AUTO_GRAD:
+        import numpy as jnp
+    
 
 
     if curve_file is None:
@@ -907,7 +913,6 @@ if __name__ == "__main__":
         curve_file = 'made_examples/sketch/cylinder.obj'
         NORMALS_PER_EDGE = 'one'
 
-        print('auto_grad', auto_grad)
 
 
     curve_name = Path(curve_file).stem
@@ -1056,14 +1061,14 @@ if __name__ == "__main__":
             Returns:
                 The total energy
             '''    
+
+            normals = jnp.cos(thetas[:,np.newaxis]) * Us + jnp.sin(thetas[:,np.newaxis]) * Vs
+
             # Calculate the constraint energy
             E_constraint = 0.0
             for edge_index, desired_normal_vector in constraints:
-                n = normal_for_edge( thetas[ edge_index ], Us[ edge_index ], Vs[ edge_index ], auto_grad )
-                if auto_grad:
-                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
-                else:
-                    E_constraint += (1.0 - np.dot( n, desired_normal_vector ) )**2
+                n = normals[edge_index]
+                E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
 
             # normalize
             E_constraint /= len( constraints )
@@ -1071,17 +1076,16 @@ if __name__ == "__main__":
             E_pairwise = 0.0
             W_pairwise = 0.0
             for e1, e2, weight in pairwise:
-                n1 = normal_for_edge( thetas[e1], Us[e1], Vs[e1], auto_grad  )
-                n2 = normal_for_edge( thetas[e2], Us[e2], Vs[e2], auto_grad  )
+                n1 = normals[e1]
+                n2 = normals[e2]
+
                 
                 ## Get the rotation matrix if it exists
                 if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
                 elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
 
-                if auto_grad:
-                    E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2   
-                else:  
-                    E_pairwise += weight * (1.0 - np.dot( n1, n2 ) )**2     
+            
+                E_pairwise += weight * (1.0 - jnp.dot( n1, n2 ) )**2   
 
                 W_pairwise += weight
             # Normalize by the total weight
@@ -1111,28 +1115,32 @@ if __name__ == "__main__":
 
 
 
-        import time
-        start_time = time.time()
+        # import time
+        # start_time = time.time()
+
+
+        jac = None
+        if AUTO_GRAD:
+            jac = jax.grad(E_total)
+     
+            
         
-        if auto_grad:
-            result = opt.minimize( E_total,
+        
+        result = opt.minimize( E_total,
                 thetas0,  
-                jac = jax.grad(E_total),
+                jac = jac,
                 args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
                 method = 'L-BFGS-B', 
                 tol = 0.0000001, 
                 options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
                 callback=callback
             )
-        else:
-            result = opt.minimize( E_total,
-                thetas0,  
-                args=(Us, Vs, edge_constraints, pairwise),  # Pass additional arguments
-                method = 'L-BFGS-B', 
-                tol = 0.0000001, 
-                options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
-                callback=callback
-            )
+        
+        # # Record the end time and calculate duration
+        # end_time = time.time()
+        # duration = end_time - start_time
+
+        # print(f"Optimization took {duration:.6f} seconds")
 
         thetas = result.x
         # print(thetas)
@@ -1163,7 +1171,7 @@ if __name__ == "__main__":
 
     elif NORMALS_PER_EDGE == 'two':
 
-        def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise ):
+        def E_total_two_normal_per_edge( thetas, Us, Vs, constraints, pairwise ):
             '''
             Given a bag of edge data of the form:
                 thetas: An array of N real numbers, one per edge
@@ -1239,7 +1247,7 @@ if __name__ == "__main__":
             # Reshape the 1D array to a 2D array
             num_edges = len(E)
             thetas_2d = thetas_flat.reshape(num_edges, 2)  
-            return E_total_two_edges_per_normal(thetas_2d, Us, Vs, constraints, pairwise)
+            return E_total_two_normal_per_edge(thetas_2d, Us, Vs, constraints, pairwise)
 
         # Initialize iteration counter
         iteration_counter = [0]
