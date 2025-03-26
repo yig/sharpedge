@@ -204,7 +204,7 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
             # Reshape the 1D array to a 2D array
             num_edges = len(E)
             thetas_2d = thetas_flat.reshape(num_edges, 2)  
-            return E_total_two_edges_per_normal(thetas_2d, Us, Vs, constraints, pairwise, one_normal)
+            return E_total_two_normal_per_edge(thetas_2d, Us, Vs, constraints, pairwise, one_normal)
 
         # Initialize iteration counter
         iteration_counter = [0]
@@ -237,85 +237,151 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
                                 str=f"Two-Normal Optimization: Iteration {iteration_counter[0]}", 
                                 block=False)
 
-
-
-
-        def E_total_two_edges_per_normal( thetas, Us, Vs, constraints, pairwise, one_normal ):
+        
+        def E_total_two_normal_per_edge(thetas, Us, Vs, constraints, pairwise, one_normal):
             '''
-            Given a bag of edge data of the form:
-                thetas: An array of N real numbers, one per edge
-                Us: An N-by-3 array of vectors spanning the plane normal to each edge (along with Vs)
-                Vs: An N-by-3 array of vectors spanning the plane normal to each edge (along with Us)
-                constraints: A sequence of pairs ( edge index, desired normal vector ) such that edge "edge index" should have the normal "desired normal vector"
-                pairwise: A sequence of triplets ( edge index 1, edge index 2, weight ) such that the difference in normals between "edge index 1" and "edge index 2" should be penalized with the given weight
-                one_normal: A sequence of edge indices that should only have one normal
-            Returns:
-                The total energy
-            '''    
+            '''
+
+            # Pre-calculate all normals for both edges
+            normals0 = jnp.cos(thetas[:,0,np.newaxis]) * Us + jnp.sin(thetas[:,0,np.newaxis]) * Vs
+            normals1 = jnp.cos(thetas[:,1,np.newaxis]) * Us + jnp.sin(thetas[:,1,np.newaxis]) * Vs
+
             # Calculate the constraint energy
-            # Constrain both edges
             E_constraint = 0.0
             for edge_index, desired_normal_vector in constraints:
-                for which_edge in (0,1):
-                    n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
-                    E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+                # Use pre-calculated normals
+                n0 = normals0[edge_index]  # First normal
+                n1 = normals1[edge_index]  # Second normal
+                
+                # Calculate constraint energy for both normals
+                E_constraint += (1.0 - jnp.dot(n0, desired_normal_vector))**2
+                E_constraint += (1.0 - jnp.dot(n1, desired_normal_vector))**2
             # normalize with a 2 because we have two normals
-            E_constraint /= 2*len( constraints )
+            E_constraint /= 2*len(constraints)
 
+            # Calculate one_normal energy
             E_one_normal = 0.0
             if len(one_normal) != 0:
-                for edge_index in one_normal:
-                    E_one_normal += ( thetas[ edge_index, 0 ] - thetas[ edge_index, 1 ] )**2
-                # normalize without a 2 because this is operating on edges
-                E_one_normal /= len( one_normal )
-            
+                # This part can be vectorized if one_normal is a list/array of indices
+                one_normal_indices = jnp.array(one_normal)
+                if len(one_normal_indices) > 0:
+                    # Get the thetas for all one_normal edges
+                    theta_diffs = thetas[one_normal_indices, 0] - thetas[one_normal_indices, 1]
+                    E_one_normal = jnp.mean(theta_diffs**2)
+
+            # Calculate pairwise energy
             E_pairwise = 0.0
             W_pairwise = 0.0
             for e1, e2, weight in pairwise:
+                # Initialize cost matrix
                 costs = [ [None, None], [None, None] ]
+                
+                # Fill cost matrix
                 for i in range(2):
                     for j in range(2):
-                        n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] )
-                        n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] )
-
-                        ## Get the rotation matrix if it exists
-                        if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
-                        elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
-
+                        n1 = normals0[e1] if i == 0 else normals1[e1]
+                        n2 = normals0[e2] if j == 0 else normals1[e2]
+                        
+                        # Apply rotation if needed
+                        if (e1, e2) in rotations: 
+                            n1 = rotations[(e1, e2)] @ n1
+                        elif (e2, e1) in rotations: 
+                            n1 = rotations[(e2, e1)].T @ n1
+                            
                         costs[i][j] = (1.0 - jnp.dot( n1, n2 ) )**2
                 
                 costs = jnp.array( costs )
 
-                # E_pairwise += weight * costs[0,1]
-                # E_pairwise += weight * costs.diagonal().sum() * .5
-                # E_pairwise += weight * costs.sum() * .25
-                # W_pairwise += weight
-
-                shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
+                shared_vertex = tuple(frozenset(E[e1]) & frozenset(E[e2]))
                 
-                ## If this is a curve edge, we want to penalize the best match
-                if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
-                    if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
-                        E_pairwise += weight * (costs[0,0] + costs[1,1])
-                        W_pairwise += weight
-                    else:
-                        E_pairwise += weight * (costs[0,1] + costs[1,0])
-                        W_pairwise += weight
-                ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
-                ## lowest cost.
-                else:
-                    E_pairwise += weight * costs.min()
+                # If this is a curve edge, penalize the best match
+                if len(shared_vertex) == 1 and len(vertex_to_edges_map[shared_vertex[0]]) == 2:
+                    diagonal_sum = costs[0, 0] + costs[1, 1]
+                    antidiagonal_sum = costs[0, 1] + costs[1, 0]
+                    
+                    # Add the smaller sum to the energy
+                    min_sum = jnp.minimum(diagonal_sum, antidiagonal_sum)
+                    E_pairwise += weight * min_sum
                     W_pairwise += weight
+                # Otherwise, edges are disconnected or higher-valence
+                else:
+                    E_pairwise += weight * jnp.min(costs)
+                    W_pairwise += weight
+
+            # Normalize pairwise energy by total weight
+            if W_pairwise > 0:
+                E_pairwise /= W_pairwise
+
+            # Return the total energy with appropriate weights
+            return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
+
+
+        # def E_total_two_normal_per_edge(thetas, Us, Vs, constraints, pairwise, one_normal):
+        #     '''
+        #     Optimized version calculating energy for two normals per edge using Autograd.
+        #     '''
+        #     E_constraint = 0.0
+        #     for edge_index, desired_normal_vector in constraints:
+        #         for which_edge in (0,1):
+        #             n = normal_for_edge( thetas[ edge_index, which_edge ], Us[ edge_index ], Vs[ edge_index ] )
+        #             E_constraint += (1.0 - jnp.dot( n, desired_normal_vector ) )**2
+        #     # normalize with a 2 because we have two normals
+        #     E_constraint /= 2*len( constraints )
+
+        #     E_one_normal = 0.0
+        #     if len(one_normal) > 0:
+        #         for edge_index in one_normal:
+        #             E_one_normal += ( thetas[ edge_index, 0 ] - thetas[ edge_index, 1 ] )**2
+        #         # normalize without a 2 because this is operating on edges
+        #         E_one_normal /= len( one_normal )
+            
+        #     E_pairwise = 0.0
+        #     W_pairwise = 0.0
+        #     for e1, e2, weight in pairwise:
+        #         costs = [ [None, None], [None, None] ]
+        #         for i in range(2):
+        #             for j in range(2):
+        #                 n1 = normal_for_edge( thetas[e1,i], Us[e1], Vs[e1] )
+        #                 n2 = normal_for_edge( thetas[e2,j], Us[e2], Vs[e2] )
+
+        #                 ## Get the rotation matrix if it exists
+        #                 if (e1,e2) in rotations: n1 = rotations[(e1,e2)] @ n1
+        #                 elif (e2,e1) in rotations: n1 = rotations[(e2,e1)].T @ n1
+
+        #                 costs[i][j] = (1.0 - jnp.dot( n1, n2 ) )**2
                 
-            # Normalize by the total weight
-            E_pairwise /= W_pairwise
+        #         costs = jnp.array( costs )
 
+        #         # E_pairwise += weight * costs[0,1]
+        #         # E_pairwise += weight * costs.diagonal().sum() * .5
+        #         # E_pairwise += weight * costs.sum() * .25
+        #         # W_pairwise += weight
 
-            # Return the total energy
-            return 1e-2 * E_constraint  +  1e4 * E_pairwise  +  1e6 * E_one_normal
-        
+        #         shared_vertex = tuple(frozenset( E[e1] ) & frozenset( E[e2] ))
+                
+        #         ## If this is a curve edge, we want to penalize the best match
+        #         if len( shared_vertex ) == 1 and len(vertex_to_edges_map[ shared_vertex[0] ]) == 2:
+        #             if costs[0,0] + costs[1,1] < costs[0,1] + costs[1,0]:
+        #                 E_pairwise += weight * (costs[0,0] + costs[1,1])
+        #                 W_pairwise += weight
+        #             else:
+        #                 E_pairwise += weight * (costs[0,1] + costs[1,0])
+        #                 W_pairwise += weight
+        #         ## Otherwise, the edges are disconnected or higher-valence, in which case we just want the
+        #         ## lowest cost.
+        #         else:
+        #             E_pairwise += weight * costs.min()
+        #             W_pairwise += weight
+                
+        #     # Normalize by the total weight
+        #     E_pairwise /= W_pairwise
 
+        #     # Return the total energy
+        #     return 1e-2 * E_constraint  +  1e4 * E_pairwise  +  1e6 * E_one_normal
 
+            
+            
+            
         '''
         LITTLE_NEWTON = False
         STEP_SIZE = .00001
