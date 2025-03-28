@@ -150,8 +150,8 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
 
 
 
-        # import time
-        # start_time = time.time()
+        import time
+        start_time = time.time()
         jac = None
         if auto_grad:
             jac = jax.grad(E_total)
@@ -166,16 +166,16 @@ def optimize_noramals( V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rot
                 method = 'L-BFGS-B', 
                 tol = 0.0000001, 
                 options = { 'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 },
-                callback=callback
+                # callback=callback
             )
         
         thetas = result.x
 
         
-        # end_time = time.time()
-        # # Calculate and print the execution time
-        # execution_time = end_time - start_time
-        # print(f"Execution time: {execution_time:.6f} seconds")
+        end_time = time.time()
+        # Calculate and print the execution time
+        execution_time = end_time - start_time
+        print(f"Execution time: {execution_time:.6f} seconds")
 
         opt_normals = recover_normal_from_thetas(thetas, Us, Vs)
         plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices = None, scale=0.08, str = "optimize result")
