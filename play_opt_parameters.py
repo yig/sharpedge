@@ -71,7 +71,6 @@ def edge_to_edge_normal_transport(V, e0, e1, n0, tol=1e-10):
         
         return n1
     
-    
 def propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constraints, transport_normal_function):
     """
     Propagate normal vectors from constrained edges to as many other edges as possible.
@@ -129,20 +128,17 @@ def propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constrain
     # Convert the dictionary to a list of tuples in the requested format
     return [(edge_idx, normal) for edge_idx, normal in edge_normals.items()]
 
-
-def create_edge_rotation_map_jax_improved(V, E):
+def precompute_edge_rotation_map(V, E):
     '''
-    Create an optimized JAX-friendly edge rotation map.
-    
-    This version pre-computes rotation matrices for all edge pairs and returns
-    a structure optimized for the pairwise energy computation.
-    
+    Create an optimized edge rotation map with precomputed rotation matrices.
+    Designed for JAX-compatible operations and optimized for pairwise energy computation.
+
     Parameters:
-    - V: (n, 3) array of vertex coordinates
-    - E: (m, 2) array of edge vertex index pairs
-    
+    - V: (n, 3) array of vertex coordinates (JAX DeviceArray or NumPy array)
+    - E: (m, 2) array of edge vertex index pairs (JAX DeviceArray or NumPy array)
+
     Returns:
-    - Dictionary with rotation data in a format optimized for the pairwise energy computation
+    - Dictionary with JAX-compatible rotation data optimized for pairwise energy computation
     '''
     n_edges = len(E)
     
@@ -186,18 +182,19 @@ def create_edge_rotation_map_jax_improved(V, E):
         'has_rotation': has_rotation
     }
 
-def preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map):
+def preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map):
     """
-    Pre-process data structures for JAX optimization with improved rotation handling
-    
+    Preprocess geometric edge pair data into an optimized format for energy computation.
+    Produces JAX-compatible arrays specifically designed for efficient computation.
+
     Parameters:
     - E: List of edge vertex indices
     - pairwise: List of tuples (edge1, edge2, weight)
-    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
+    - rotations_data: Dictionary with rotation data between edge pairs
     - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
-    
+
     Returns:
-    - Dictionary with pre-processed data for JAX optimization
+    - Dictionary with JAX arrays containing pre-processed edge pair data ready for computation
     """
     # Convert E to numpy array if it isn't already
     E_array = np.array(E)
@@ -232,9 +229,9 @@ def preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data,
         'num_pairs': len(e1_indices)
     }
 
-def prepare_constraints_jax(edge_constraints):
+def prepare_edge_constraints(edge_constraints):
     """
-    Convert edge constraints to JAX-friendly format
+    Convert edge constraints to a computation-friendly format using JAX arrays.
     
     Parameters:
     - edge_constraints: List of tuples (edge_index, desired_normal_vector)
@@ -244,11 +241,11 @@ def prepare_constraints_jax(edge_constraints):
     """
     constraint_indices = []
     constraint_normals = []
-    
+
     for edge_idx, normal in edge_constraints:
         constraint_indices.append(edge_idx)
         constraint_normals.append(normal)
-    
+
     return {
         'indices': jnp.array(constraint_indices),
         'normals': jnp.array(constraint_normals)
@@ -256,8 +253,21 @@ def prepare_constraints_jax(edge_constraints):
 
 # Common energy computation functions
 @jit
-def compute_constraint_energy_jax(normals0, normals1, constraints):
-    """Compute constraint energy using JAX for two-normal case"""
+def compute_two_normal_constraint_energy(normals0, normals1, constraints):
+    """
+    Compute constraint energy for edges with two normal vectors per edge.
+    
+    Measures the alignment between computed normal vectors and desired normal vectors
+    by calculating the mean squared difference from perfect alignment.
+    
+    Parameters:
+    - normals0: First set of normal vectors for all edges
+    - normals1: Second set of normal vectors for all edges
+    - constraints: Dictionary with 'indices' and 'normals' keys
+    
+    Returns:
+    - Scalar energy value (lower means better constraint satisfaction)
+    """
     if len(constraints['indices']) == 0:
         return 0.0
     
@@ -279,8 +289,20 @@ def compute_constraint_energy_jax(normals0, normals1, constraints):
     return energy
 
 @jit
-def compute_one_normal_constraint_energy_jax(normals, constraints):
-    """Compute constraint energy for one-normal case using JAX"""
+def compute_one_normal_constraint_energy(normals, constraints):
+    """
+    Compute constraint energy for edges with one normal vector per edge.
+    
+    Measures the alignment between computed normal vectors and desired normal vectors
+    by calculating the mean squared difference from perfect alignment.
+    
+    Parameters:
+    - normals: Normal vectors for all edges
+    - constraints: Dictionary with 'indices' and 'normals' keys
+    
+    Returns:
+    - Scalar energy value (lower means better constraint satisfaction)
+    """
     if len(constraints['indices']) == 0:
         return 0.0
     
@@ -300,18 +322,55 @@ def compute_one_normal_constraint_energy_jax(normals, constraints):
     return energy
 
 @jit
-def compute_one_normal_energy_jax(thetas, one_normal):
-    """Compute one-normal energy using JAX for two-normal optimization"""
-    if one_normal.size == 0:
-        return 0.0
+def compute_two_normals_coherence_energy(thetas, shared_normal_indices):
+    """
+    Calculates the coherence energy for edges where two normals should be identical.
     
-    theta_diffs = thetas[one_normal, 0] - thetas[one_normal, 1]
+    For edges that should have the same normal on both sides (e.g., at planar junctions),
+    this function measures how well the two normal angles are coherent, penalizing
+    differences between them.
+    
+    Parameters:
+    -----------
+    thetas : jnp.ndarray
+        Array of shape (N, 2) containing angles for each of the two normals per edge.
+    shared_normal_indices : jnp.ndarray
+        Indices of edges where the two normals should be identical.
+        
+    Returns:
+    --------
+    float
+        Mean squared difference between angles for the two normals on selected edges.
+        A value of 0 indicates perfect coherence (identical normals).
+    """
+    if shared_normal_indices.size == 0:
+        return 0.0
+        
+    theta_diffs = thetas[shared_normal_indices, 0] - thetas[shared_normal_indices, 1]
     return jnp.mean(theta_diffs**2)
 
 @jit
-def compute_pairwise_energy_jax(normals0, normals1, data):
+def compute_two_normal_pairwise_energy(normals0, normals1, data):
     """
-    Compute pairwise energy using JAX for two-normal case
+    Compute pairwise alignment energy between edges with dual normals.
+    
+    This function evaluates how well normal vectors align across edge pairs when
+    each edge has two normal vectors. It handles special cases for curve edges
+    and applies rotations where necessary.
+    
+    Parameters:
+    -----------
+    normals0 : jnp.ndarray
+        First set of normal vectors for each edge.
+    normals1 : jnp.ndarray
+        Second set of normal vectors for each edge.
+    data : dict
+        Dictionary containing pair indices, weights, and geometric information.
+        
+    Returns:
+    --------
+    float
+        Normalized pairwise alignment energy. Lower values indicate better alignment.
     """
     # Initialize accumulators
     energy_sum = 0.0
@@ -383,9 +442,24 @@ def compute_pairwise_energy_jax(normals0, normals1, data):
     return jnp.where(weight_sum > 0, energy_sum / weight_sum, 0.0)
 
 @jit
-def compute_one_normal_pairwise_energy_jax(normals, data):
+def compute_one_normal_pairwise_energy(normals, data):
     """
-    Compute pairwise energy for one-normal case using JAX
+    Compute pairwise alignment energy between edges with single normals.
+    
+    This function evaluates how well normal vectors align across edge pairs when
+    each edge has only one normal vector. It applies rotations where necessary.
+    
+    Parameters:
+    -----------
+    normals : jnp.ndarray
+        Normal vectors for each edge.
+    data : dict
+        Dictionary containing pair indices, weights, and geometric information.
+        
+    Returns:
+    --------
+    float
+        Normalized pairwise alignment energy. Lower values indicate better alignment.
     """
     # Initialize accumulators
     energy_sum = 0.0
@@ -439,22 +513,46 @@ def compute_one_normal_pairwise_energy_jax(normals, data):
 
 # Energy functions for optimization
 @jit
-def energy_two_normal_jax(thetas, Us, Vs, constraints, data, one_normal):
+def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_normal):
     """
-    JAX-optimized energy function for two normals per edge
+    Calculate total energy for the two-normal-per-edge optimization.
+    
+    This function computes the weighted sum of constraint satisfaction energy,
+    normal coherence energy, and pairwise alignment energy for a mesh with
+    two normals per edge.
+    
+    Parameters:
+    -----------
+    thetas : jnp.ndarray
+        Array of shape (N, 2) containing angle parameters for each edge.
+    Us : jnp.ndarray
+        First basis vectors for normal construction.
+    Vs : jnp.ndarray
+        Second basis vectors for normal construction.
+    constraints : dict
+        Constraint information for normal vectors.
+    data : dict
+        Pairwise relation data for evaluating alignment.
+    one_normal : jnp.ndarray
+        Indices of edges where both normals should be identical.
+        
+    Returns:
+    --------
+    float
+        Total weighted energy combining all energy components.
     """
     # Pre-calculate all normals for both orientations
     normals0 = jnp.cos(thetas[:, 0, jnp.newaxis]) * Us + jnp.sin(thetas[:, 0, jnp.newaxis]) * Vs
     normals1 = jnp.cos(thetas[:, 1, jnp.newaxis]) * Us + jnp.sin(thetas[:, 1, jnp.newaxis]) * Vs
     
     # ===== Constraint Energy =====
-    E_constraint = compute_constraint_energy_jax(normals0, normals1, constraints)
+    E_constraint = compute_two_normal_constraint_energy(normals0, normals1, constraints)
     
     # ===== One Normal Energy =====
-    E_one_normal = compute_one_normal_energy_jax(thetas, one_normal)
+    E_one_normal = compute_two_normals_coherence_energy(thetas, one_normal)
     
     # ===== Pairwise Energy =====
-    E_pairwise = compute_pairwise_energy_jax(
+    E_pairwise = compute_two_normal_pairwise_energy(
         normals0, 
         normals1, 
         data
@@ -464,18 +562,39 @@ def energy_two_normal_jax(thetas, Us, Vs, constraints, data, one_normal):
     return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
 
 @jit
-def energy_one_normal_jax(thetas, Us, Vs, constraints, data):
+def compute_one_normal_total_energy(thetas, Us, Vs, constraints, data):
     """
-    JAX-optimized energy function for one normal per edge
+    Calculate total energy for the one-normal-per-edge optimization.
+    
+    This function computes the weighted sum of constraint satisfaction energy
+    and pairwise alignment energy for a mesh with one normal per edge.
+    
+    Parameters:
+    -----------
+    thetas : jnp.ndarray
+        Angle parameters for each edge.
+    Us : jnp.ndarray
+        First basis vectors for normal construction.
+    Vs : jnp.ndarray
+        Second basis vectors for normal construction.
+    constraints : dict
+        Constraint information for normal vectors.
+    data : dict
+        Pairwise relation data for evaluating alignment.
+        
+    Returns:
+    --------
+    float
+        Total weighted energy combining constraint and pairwise components.
     """
     # Calculate all normals
     normals = jnp.cos(thetas[:, jnp.newaxis]) * Us + jnp.sin(thetas[:, jnp.newaxis]) * Vs
     
     # ===== Constraint Energy =====
-    E_constraint = compute_one_normal_constraint_energy_jax(normals, constraints)
+    E_constraint = compute_one_normal_constraint_energy(normals, constraints)
     
     # ===== Pairwise Energy =====
-    E_pairwise = compute_one_normal_pairwise_energy_jax(normals, data)
+    E_pairwise = compute_one_normal_pairwise_energy(normals, data)
     
     # Return weighted sum of energies
     return 1e-2 * E_constraint + 1e4 * E_pairwise
@@ -568,7 +687,7 @@ def create_callback(Us, Vs, E, P, V, mode='two'):
     return callback
 
 # Unified functions to recover normals from optimization results
-def recover_normals(result, Us, Vs, E=None, mode='two'):
+def recover_normals(result, Us, Vs, mode='two'):
     """
     Unified function to recover normals from optimization results
     
@@ -588,9 +707,8 @@ def recover_normals(result, Us, Vs, E=None, mode='two'):
             normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
             normal = normal / np.linalg.norm(normal)
             normals[edge_idx] = normal
-    else:  # two-normal mode
-        assert E is not None, "Edge data (E) is required for two-normal mode"
-        num_edges = len(E)
+    else:  
+        num_edges = len(Us)
         thetas_2d = result.x.reshape(num_edges, 2)
         
         normals = {}
@@ -604,7 +722,7 @@ def recover_normals(result, Us, Vs, E=None, mode='two'):
     return normals
 
 # Unified optimization function with different behavior for one/two normals
-def optimize_with_jax(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, 
+def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, 
                       mode='two', one_normal=None, callback_fn=None):
     """
     Unified JAX-based optimization function for both one-normal and two-normal cases
@@ -631,19 +749,19 @@ def optimize_with_jax(thetas0, Us, Vs, edge_constraints, pairwise, rotations_dat
     Vs_jax = jnp.array(Vs)
     
     # Convert edge_constraints to JAX-friendly format
-    constraints_jax = prepare_constraints_jax(edge_constraints)
+    constraints_jax = prepare_edge_constraints(edge_constraints)
     
     # Pre-process data for faster computation using improved rotations
-    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
+    data = preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map)
     
     if mode == 'one':
         # One normal per edge
-        energy_jax_jit = jit(energy_one_normal_jax)
+        energy_jax_jit = jit(compute_one_normal_total_energy)
         
         def energy_wrapper(thetas):
             return energy_jax_jit(thetas, Us_jax, Vs_jax, constraints_jax, data).item()
         
-        grad_fn = grad(energy_one_normal_jax, argnums=0)
+        grad_fn = grad(compute_one_normal_total_energy, argnums=0)
         grad_jit = jit(grad_fn)
         
         def grad_wrapper(thetas):
@@ -663,13 +781,13 @@ def optimize_with_jax(thetas0, Us, Vs, edge_constraints, pairwise, rotations_dat
             one_normal = []
         one_normal_jax = jnp.array(one_normal)
         
-        energy_jax_jit = jit(energy_two_normal_jax)
+        energy_jax_jit = jit(compute_two_normal_total_energy)
         
         def energy_wrapper(thetas_flat):
             thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
             return energy_jax_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax).item()
         
-        grad_fn = grad(energy_two_normal_jax, argnums=0)
+        grad_fn = grad(compute_two_normal_total_energy, argnums=0)
         grad_jit = jit(grad_fn)
         
         def grad_wrapper(thetas_flat):
@@ -719,7 +837,7 @@ def make_cylinder_example_jax_with_options(normals_per_edge='two'):
     pairwise = extract_pairwise_weight(E, distances)
     
     # Create JAX-friendly edge rotation map
-    rotations_data = create_edge_rotation_map_jax_improved(V, E)
+    rotations_data = precompute_edge_rotation_map(V, E)
     
     # Create vertex to edges map
     vertex_to_edges_map = build_vertex_to_edges_map(E)
@@ -737,13 +855,13 @@ def make_cylinder_example_jax_with_options(normals_per_edge='two'):
     one_normal = [23, 58] if normals_per_edge == 'two' else None
     
     # Run the unified optimization function with appropriate mode
-    result = optimize_with_jax(
+    result = optimize_normal_angles(
         thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
         mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
     )
     
     # Recover normals using the unified function
-    normals = recover_normals(result, Us, Vs, E, mode=normals_per_edge)
+    normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
     
     # Visualize results
     if normals_per_edge == 'one':
@@ -786,7 +904,7 @@ def make_cube_example_01(normals_per_edge = 'two'):
     pairwise = extract_pairwise_weight(E, distances)
     
     # Create JAX-friendly edge rotation map
-    rotations_data = create_edge_rotation_map_jax_improved(V, E)
+    rotations_data = precompute_edge_rotation_map(V, E)
     
     # Create vertex to edges map
     vertex_to_edges_map = build_vertex_to_edges_map(E)
@@ -807,13 +925,13 @@ def make_cube_example_01(normals_per_edge = 'two'):
     one_normal = []
     
     # Run the unified optimization function with appropriate mode
-    result = optimize_with_jax(
+    result = optimize_normal_angles(
         thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
         mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
     )
     
     # Recover normals using the unified function
-    normals = recover_normals(result, Us, Vs, E, mode=normals_per_edge)
+    normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
     
     # Visualize results
     if normals_per_edge == 'one':
@@ -833,10 +951,10 @@ if __name__ == "__main__":
     # Uncomment the mode you want to run
     
     # # For one normal per edge:
-    # result, normals = make_cylinder_example_jax_with_options(normals_per_edge='one')
+    result, normals = make_cylinder_example_jax_with_options(normals_per_edge='one')
     
     # # For two normals per edge:
-    # result, normals = make_cylinder_example_jax_with_options(normals_per_edge='two')
+    result, normals = make_cylinder_example_jax_with_options(normals_per_edge='two')
 
     result, normals = make_cube_example_01(normals_per_edge='one')
     result, normals = make_cube_example_01(normals_per_edge='two')
