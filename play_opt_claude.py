@@ -13,17 +13,6 @@ from collections import deque
 from utility_rotate_vector import rotation_matrix_from
 from play_opt_parameters import propagate_normals_from_constraints, edge_to_edge_normal_transport
 
-
-
-import jax
-import jax.numpy as jnp
-from jax import grad, jit, vmap
-from functools import partial
-import time
-import numpy as np
-import scipy.optimize as opt
-
-
 def create_edge_rotation_map_jax_improved(V, E):
     '''
     Create an optimized JAX-friendly edge rotation map.
@@ -80,214 +69,6 @@ def create_edge_rotation_map_jax_improved(V, E):
         'has_rotation': has_rotation
     }
 
-def create_callback_two_normals(Us, Vs, E, P, V):
-    """
-    Create a faster callback function for visualization during optimization
-    """
-    iteration_counter = [0]
-    # Set a visualization frequency (e.g., every 10 iterations)
-    viz_frequency = 10
-    
-    def callback(thetas_flat_now):
-        iteration_counter[0] += 1
-        current_iter = iteration_counter[0]
-        print(f"Iteration {current_iter}")
-        
-        # Only visualize every viz_frequency iterations
-        # and for the first few iterations to see initial progress
-        if current_iter % viz_frequency != 0 and current_iter > 5:
-            return False
-        
-        # Reshape the flat thetas array to the 2D structure
-        num_edges = len(E)
-        thetas_2d_now = thetas_flat_now.reshape(num_edges, 2)
-        
-        # Use vectorized operations for normal calculation
-        # Create mesh grid of edge indices and which_edge (0 or 1)
-        edge_indices = np.arange(num_edges)
-        which_edges = np.array([0, 1])
-        
-        # Use numpy's vectorized operations to compute all normals at once
-        thetas = thetas_2d_now.reshape(-1)  # Flatten to 1D array of all thetas
-        
-        # Pre-allocate the normals dictionary
-        normals_now = {}
-        
-        # Vectorized computation for cos(theta) and sin(theta)
-        cos_theta = np.cos(thetas)
-        sin_theta = np.sin(thetas)
-        
-        # Compute all normals in a single loop (still faster than nested loops)
-        for i, edge_idx in enumerate(edge_indices):
-            for j, which_edge in enumerate(which_edges):
-                flat_idx = edge_idx * 2 + which_edge
-                normal = cos_theta[flat_idx] * Us[edge_idx] + sin_theta[flat_idx] * Vs[edge_idx]
-                # Quick normalization (avoid repeated calls to np.linalg.norm)
-                norm = np.sqrt(np.sum(normal * normal))
-                normal = normal / norm
-                normals_now[(edge_idx, which_edge)] = normal
-        
-        # Update the plot
-        plot_edge_constraints_two_normals(
-            V, E, P, normals_now, 
-            unconstrained_polylines_indices=None,
-            scale=0.08,
-            str=f"Two-Normal Optimization: Iteration {current_iter}",
-            block=False
-        )
-        
-        return False  # Continue optimization
-    
-    return callback
-
-
-def optimize_with_jax_two_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, one_normal=None, callback_fn = None):
-    """
-    JAX-based implementation of the two-normal per edge optimization
-    
-    Parameters:
-    - thetas0: Initial theta values for each edge
-    - Us, Vs: Frame vectors for each edge
-    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
-    - pairwise: List of tuples (edge1, edge2, weight)
-    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
-    - E: List of edge vertex indices
-    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
-    - one_normal: List of edge indices that should have only one normal
-    
-    Returns:
-    - Optimization result
-    """
-    start_time = time.time()
-    
-    # Convert inputs to JAX arrays
-    Us_jax = jnp.array(Us)
-    Vs_jax = jnp.array(Vs)
-    
-    # Convert edge_constraints to JAX-friendly format
-    constraint_indices = []
-    constraint_normals = []
-    for edge_idx, normal in edge_constraints:
-        constraint_indices.append(edge_idx)
-        constraint_normals.append(normal)
-    
-    constraints_jax = {
-        'indices': jnp.array(constraint_indices),
-        'normals': jnp.array(constraint_normals)
-    }
-    
-    # Pre-process data for faster computation using improved rotations
-    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
-    
-    # Create initial 2D array of thetas
-    num_edges = len(thetas0)
-    thetas_2d = np.column_stack((thetas0, thetas0))
-    thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
-    thetas0_flat = thetas_2d.flatten()
-    
-    if one_normal is None:
-        one_normal = []
-    one_normal_jax = jnp.array(one_normal)
-    
-    # Create jitted energy function
-    energy_jax_jit = jit(energy_two_normal_jax)
-    
-    def energy_wrapper(thetas_flat):
-        thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
-        return energy_jax_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax).item()
-    
-    # Create jitted gradient function
-    grad_fn = grad(energy_two_normal_jax, argnums=0)
-    grad_jit = jit(grad_fn)
-    
-    def grad_wrapper(thetas_flat):
-        thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
-        grad_val = grad_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax)
-        return np.array(grad_val.reshape(-1))
-    
-    # Run optimization using scipy (L-BFGS-B works well with JAX gradients)
-    result = opt.minimize(
-        energy_wrapper,
-        thetas0_flat,
-        jac=grad_wrapper,
-        method='L-BFGS-B',
-        tol=0.0000001,
-        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e5}, 
-        callback= callback_fn
-    )
-    
-    end_time = time.time()
-    print(f"JAX optimization took {end_time - start_time:.6f} seconds")
-    
-    return result
-
-def optimize_with_jax_one_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, callback_fn=None):
-    """
-    JAX-based implementation of the single-normal per edge optimization
-    
-    Parameters:
-    - thetas0: Initial theta values for each edge
-    - Us, Vs: Frame vectors for each edge
-    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
-    - pairwise: List of tuples (edge1, edge2, weight)
-    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
-    - E: List of edge vertex indices
-    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
-    - callback_fn: Optional callback function for visualization
-    
-    Returns:
-    - Optimization result
-    """
-    start_time = time.time()
-    
-    # Convert inputs to JAX arrays
-    Us_jax = jnp.array(Us)
-    Vs_jax = jnp.array(Vs)
-    
-    # Convert edge_constraints to JAX-friendly format
-    constraint_indices = []
-    constraint_normals = []
-    for edge_idx, normal in edge_constraints:
-        constraint_indices.append(edge_idx)
-        constraint_normals.append(normal)
-    
-    constraints_jax = {
-        'indices': jnp.array(constraint_indices),
-        'normals': jnp.array(constraint_normals)
-    }
-    
-    # Pre-process data for faster computation using improved rotations
-    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
-    
-    # Create jitted energy function
-    energy_jax_jit = jit(energy_one_normal_jax)
-    
-    def energy_wrapper(thetas):
-        return energy_jax_jit(thetas, Us_jax, Vs_jax, constraints_jax, data).item()
-    
-    # Create jitted gradient function
-    grad_fn = grad(energy_one_normal_jax, argnums=0)
-    grad_jit = jit(grad_fn)
-    
-    def grad_wrapper(thetas):
-        return np.array(grad_jit(thetas, Us_jax, Vs_jax, constraints_jax, data))
-    
-    # Run optimization using scipy
-    result = opt.minimize(
-        energy_wrapper,
-        thetas0,
-        jac=grad_wrapper,
-        method='L-BFGS-B',
-        tol=0.0000001,
-        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e5},
-        callback=callback_fn
-    )
-    
-    end_time = time.time()
-    print(f"JAX one-normal optimization took {end_time - start_time:.6f} seconds")
-    
-    return result
-
 def preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map):
     """
     Pre-process data structures for JAX optimization with improved rotation handling
@@ -334,9 +115,32 @@ def preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data,
         'num_pairs': len(e1_indices)
     }
 
+def prepare_constraints_jax(edge_constraints):
+    """
+    Convert edge constraints to JAX-friendly format
+    
+    Parameters:
+    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
+    
+    Returns:
+    - Dictionary with constraint indices and normals as JAX arrays
+    """
+    constraint_indices = []
+    constraint_normals = []
+    
+    for edge_idx, normal in edge_constraints:
+        constraint_indices.append(edge_idx)
+        constraint_normals.append(normal)
+    
+    return {
+        'indices': jnp.array(constraint_indices),
+        'normals': jnp.array(constraint_normals)
+    }
+
+# Common energy computation functions
 @jit
 def compute_constraint_energy_jax(normals0, normals1, constraints):
-    """Compute constraint energy using JAX"""
+    """Compute constraint energy using JAX for two-normal case"""
     if len(constraints['indices']) == 0:
         return 0.0
     
@@ -358,8 +162,29 @@ def compute_constraint_energy_jax(normals0, normals1, constraints):
     return energy
 
 @jit
+def compute_one_normal_constraint_energy_jax(normals, constraints):
+    """Compute constraint energy for one-normal case using JAX"""
+    if len(constraints['indices']) == 0:
+        return 0.0
+    
+    # Extract constraint data
+    edge_indices = constraints['indices']
+    desired_normals = constraints['normals']
+    
+    # Get constrained normals
+    n = normals[edge_indices]
+    
+    # Compute dot products (batch operation)
+    dots = jnp.sum(n * desired_normals, axis=1)
+    
+    # Calculate constraint energy
+    energy = jnp.mean((1.0 - dots)**2)
+    
+    return energy
+
+@jit
 def compute_one_normal_energy_jax(thetas, one_normal):
-    """Compute one-normal energy using JAX"""
+    """Compute one-normal energy using JAX for two-normal optimization"""
     if one_normal.size == 0:
         return 0.0
     
@@ -369,7 +194,7 @@ def compute_one_normal_energy_jax(thetas, one_normal):
 @jit
 def compute_pairwise_energy_jax(normals0, normals1, data):
     """
-    Compute pairwise energy using JAX in a way that's compatible with tracing
+    Compute pairwise energy using JAX for two-normal case
     """
     # Initialize accumulators
     energy_sum = 0.0
@@ -384,7 +209,6 @@ def compute_pairwise_energy_jax(normals0, normals1, data):
     has_rotation = data['has_rotation']
     
     # Process all pairs with a manual loop instead of scan
-    # This avoids the need for arange with a traced length
     def body_fun(i, accum):
         energy_sum, weight_sum = accum
         
@@ -428,9 +252,7 @@ def compute_pairwise_energy_jax(normals0, normals1, data):
         
         return energy_sum + pair_energy, weight_sum + weight
     
-    # We need to use a fori_loop with static bounds
     # Get a static upper bound for the number of pairs
-    # This will be the compile-time maximum number of pairs
     max_pairs = e1_indices.shape[0]
     
     # Use fori_loop for iteration
@@ -442,71 +264,6 @@ def compute_pairwise_energy_jax(normals0, normals1, data):
     
     # Normalize
     return jnp.where(weight_sum > 0, energy_sum / weight_sum, 0.0)
-
-
-
-@jit
-def energy_two_normal_jax(thetas, Us, Vs, constraints, data, one_normal):
-    """
-    JAX-optimized energy function for two normals per edge
-    """
-    # Pre-calculate all normals for both orientations
-    normals0 = jnp.cos(thetas[:, 0, jnp.newaxis]) * Us + jnp.sin(thetas[:, 0, jnp.newaxis]) * Vs
-    normals1 = jnp.cos(thetas[:, 1, jnp.newaxis]) * Us + jnp.sin(thetas[:, 1, jnp.newaxis]) * Vs
-    
-    # ===== Constraint Energy =====
-    E_constraint = compute_constraint_energy_jax(normals0, normals1, constraints)
-    
-    # ===== One Normal Energy =====
-    E_one_normal = compute_one_normal_energy_jax(thetas, one_normal)
-    
-    # ===== Pairwise Energy =====
-    E_pairwise = compute_pairwise_energy_jax(
-        normals0, 
-        normals1, 
-        data
-    )
-    
-    # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
-
-@jit
-def energy_one_normal_jax(thetas, Us, Vs, constraints, data):
-    """
-    JAX-optimized energy function for one normal per edge
-    """
-    # Calculate all normals
-    normals = jnp.cos(thetas[:, jnp.newaxis]) * Us + jnp.sin(thetas[:, jnp.newaxis]) * Vs
-    
-    # ===== Constraint Energy =====
-    E_constraint = compute_one_normal_constraint_energy_jax(normals, constraints)
-    
-    # ===== Pairwise Energy =====
-    E_pairwise = compute_one_normal_pairwise_energy_jax(normals, data)
-    
-    # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise
-
-@jit
-def compute_one_normal_constraint_energy_jax(normals, constraints):
-    """Compute constraint energy for one-normal case using JAX"""
-    if len(constraints['indices']) == 0:
-        return 0.0
-    
-    # Extract constraint data
-    edge_indices = constraints['indices']
-    desired_normals = constraints['normals']
-    
-    # Get constrained normals
-    n = normals[edge_indices]
-    
-    # Compute dot products (batch operation)
-    dots = jnp.sum(n * desired_normals, axis=1)
-    
-    # Calculate constraint energy
-    energy = jnp.mean((1.0 - dots)**2)
-    
-    return energy
 
 @jit
 def compute_one_normal_pairwise_energy_jax(normals, data):
@@ -563,133 +320,261 @@ def compute_one_normal_pairwise_energy_jax(normals, data):
     # Normalize
     return jnp.where(weight_sum > 0, energy_sum / weight_sum, 0.0)
 
-def recover_normals_from_jax_result(result, Us, Vs, E):
+# Energy functions for optimization
+@jit
+def energy_two_normal_jax(thetas, Us, Vs, constraints, data, one_normal):
     """
-    Recover normal vectors from JAX optimization result
+    JAX-optimized energy function for two normals per edge
     """
-    num_edges = len(E)
-    thetas_2d = result.x.reshape(num_edges, 2)
+    # Pre-calculate all normals for both orientations
+    normals0 = jnp.cos(thetas[:, 0, jnp.newaxis]) * Us + jnp.sin(thetas[:, 0, jnp.newaxis]) * Vs
+    normals1 = jnp.cos(thetas[:, 1, jnp.newaxis]) * Us + jnp.sin(thetas[:, 1, jnp.newaxis]) * Vs
     
-    # Calculate normals for both orientations
-    normals = {}
-    for edge_idx in range(num_edges):
-        for which_edge in (0, 1):
-            # Calculate the normal for this edge and orientation
-            theta = thetas_2d[edge_idx, which_edge]
-            normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
-            normal = normal / np.linalg.norm(normal)  # Ensure normalized
-            
-            # Store in the normals dictionary with tuple key (edge_idx, which_edge)
-            normals[(edge_idx, which_edge)] = normal
+    # ===== Constraint Energy =====
+    E_constraint = compute_constraint_energy_jax(normals0, normals1, constraints)
     
-    return normals
+    # ===== One Normal Energy =====
+    E_one_normal = compute_one_normal_energy_jax(thetas, one_normal)
+    
+    # ===== Pairwise Energy =====
+    E_pairwise = compute_pairwise_energy_jax(
+        normals0, 
+        normals1, 
+        data
+    )
+    
+    # Return weighted sum of energies
+    return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
 
-
-def recover_normals_from_one_normal_result(result, Us, Vs):
+@jit
+def energy_one_normal_jax(thetas, Us, Vs, constraints, data):
     """
-    Recover normal vectors from JAX one-normal optimization result
+    JAX-optimized energy function for one normal per edge
     """
-    thetas = result.x
+    # Calculate all normals
+    normals = jnp.cos(thetas[:, jnp.newaxis]) * Us + jnp.sin(thetas[:, jnp.newaxis]) * Vs
     
-    # Calculate normals
-    normals = {}
-    for edge_idx, theta in enumerate(thetas):
-        normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
-        normal = normal / np.linalg.norm(normal)  # Ensure normalized
-        normals[edge_idx] = normal
+    # ===== Constraint Energy =====
+    E_constraint = compute_one_normal_constraint_energy_jax(normals, constraints)
     
-    return normals
+    # ===== Pairwise Energy =====
+    E_pairwise = compute_one_normal_pairwise_energy_jax(normals, data)
+    
+    # Return weighted sum of energies
+    return 1e-2 * E_constraint + 1e4 * E_pairwise
 
-def create_callback_one_normal(Us, Vs, E, P, V):
+# Unified callback creation function with different behavior for one/two normals
+def create_callback(Us, Vs, E, P, V, mode='two'):
     """
-    Create a callback function for visualization during one-normal optimization
+    Create a callback function for visualization during optimization
+    
+    Parameters:
+    - Us, Vs: Frame vectors for each edge
+    - E: List of edge vertex indices
+    - P: Polyline data
+    - V: Vertex coordinates
+    - mode: 'one' for one-normal, 'two' for two-normal optimization
+    
+    Returns:
+    - Callback function for visualization
     """
     iteration_counter = [0]
     viz_frequency = 10
     
-    def callback(thetas_now):
-        iteration_counter[0] += 1
-        current_iter = iteration_counter[0]
-        print(f"Iteration {current_iter}")
-        
-        # Only visualize every viz_frequency iterations
-        # and for the first few iterations to see initial progress
-        if current_iter % viz_frequency != 0 and current_iter > 5:
+    if mode == 'one':
+        def callback(thetas_now):
+            iteration_counter[0] += 1
+            current_iter = iteration_counter[0]
+            print(f"Iteration {current_iter}")
+            
+            if current_iter % viz_frequency != 0 and current_iter > 5:
+                return False
+            
+            # Calculate normals for one-normal case
+            normals_now = {}
+            for edge_idx, theta in enumerate(thetas_now):
+                normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+                normal = normal / np.linalg.norm(normal)
+                normals_now[edge_idx] = normal
+            
+            # Update the plot for one-normal case
+            plot_edge_constraints(
+                V, E, P, normals_now, 
+                unconstrained_polylines_indices=None,
+                scale=0.08,
+                str=f"One-Normal Optimization: Iteration {current_iter}",
+                block=False
+            )
+            
             return False
-        
-        # Calculate normals
-        normals_now = {}
-        for edge_idx, theta in enumerate(thetas_now):
-            normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
-            normal = normal / np.linalg.norm(normal)
-            normals_now[edge_idx] = normal
-        
-        # Update the plot
-        plot_edge_constraints(
-            V, E, P, normals_now, 
-            unconstrained_polylines_indices=None,
-            scale=0.08,
-            str=f"One-Normal Optimization: Iteration {current_iter}",
-            block=False
-        )
-        
-        return False  # Continue optimization
+    else:  # two-normal case
+        def callback(thetas_flat_now):
+            iteration_counter[0] += 1
+            current_iter = iteration_counter[0]
+            print(f"Iteration {current_iter}")
+            
+            if current_iter % viz_frequency != 0 and current_iter > 5:
+                return False
+            
+            # Reshape and calculate normals for two-normal case
+            num_edges = len(E)
+            thetas_2d_now = thetas_flat_now.reshape(num_edges, 2)
+            
+            edge_indices = np.arange(num_edges)
+            which_edges = np.array([0, 1])
+            
+            thetas = thetas_2d_now.reshape(-1)
+            
+            normals_now = {}
+            cos_theta = np.cos(thetas)
+            sin_theta = np.sin(thetas)
+            
+            for i, edge_idx in enumerate(edge_indices):
+                for j, which_edge in enumerate(which_edges):
+                    flat_idx = edge_idx * 2 + which_edge
+                    normal = cos_theta[flat_idx] * Us[edge_idx] + sin_theta[flat_idx] * Vs[edge_idx]
+                    norm = np.sqrt(np.sum(normal * normal))
+                    normal = normal / norm
+                    normals_now[(edge_idx, which_edge)] = normal
+            
+            # Update the plot for two-normal case
+            plot_edge_constraints_two_normals(
+                V, E, P, normals_now, 
+                unconstrained_polylines_indices=None,
+                scale=0.08,
+                str=f"Two-Normal Optimization: Iteration {current_iter}",
+                block=False
+            )
+            
+            return False
     
     return callback
 
-def make_cylinder_example_jax_one_normal():
-    '''
-    Example of using JAX-based optimization with one normal per edge on a cylinder example
-    '''
-    V, E, P = load_sketch_polyline_data('made_examples/sketch/cylinder.obj')
-
-    # Create constraints by hand 
-    edge_constraints = [(0, np.array([0, 1, 0])),
-                        (1, np.array([0, -1, 0]))]
-
-    # Compute local coordinate frames for edges
-    Us, Vs = create_frames_for_each_polyline(V, E, P)
-
-    # Compute edge distances
-    distances = edge_distance_matrix(V, E)
-    pairwise = extract_pairwise_weight(E, distances)
+# Unified functions to recover normals from optimization results
+def recover_normals(result, Us, Vs, E=None, mode='two'):
+    """
+    Unified function to recover normals from optimization results
     
-    # Create JAX-friendly edge rotation map
-    rotations_data = create_edge_rotation_map_jax_improved(V, E)
+    Parameters:
+    - result: Optimization result
+    - Us, Vs: Frame vectors for each edge
+    - E: Edge data (required for two-normal mode)
+    - mode: 'one' for one-normal, 'two' for two-normal optimization
     
-    # Create vertex to edges map
-    vertex_to_edges_map = build_vertex_to_edges_map(E)
+    Returns:
+    - Dictionary of normals
+    """
+    if mode == 'one':
+        thetas = result.x
+        normals = {}
+        for edge_idx, theta in enumerate(thetas):
+            normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+            normal = normal / np.linalg.norm(normal)
+            normals[edge_idx] = normal
+    else:  # two-normal mode
+        assert E is not None, "Edge data (E) is required for two-normal mode"
+        num_edges = len(E)
+        thetas_2d = result.x.reshape(num_edges, 2)
+        
+        normals = {}
+        for edge_idx in range(num_edges):
+            for which_edge in (0, 1):
+                theta = thetas_2d[edge_idx, which_edge]
+                normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+                normal = normal / np.linalg.norm(normal)
+                normals[(edge_idx, which_edge)] = normal
+    
+    return normals
 
-    # Propagate normals as initial guess
-    estimate_normals = propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constraints, edge_to_edge_normal_transport)
+# Unified optimization function with different behavior for one/two normals
+def optimize_with_jax(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, 
+                      mode='two', one_normal=None, callback_fn=None):
+    """
+    Unified JAX-based optimization function for both one-normal and two-normal cases
     
-    # Get initial thetas
-    thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
-
-    callback_fn = create_callback_one_normal(Us, Vs, E, P, V)
+    Parameters:
+    - thetas0: Initial theta values for each edge
+    - Us, Vs: Frame vectors for each edge
+    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
+    - pairwise: List of tuples (edge1, edge2, weight)
+    - rotations_data: Dictionary with rotation data
+    - E: List of edge vertex indices
+    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+    - mode: 'one' for one-normal, 'two' for two-normal optimization
+    - one_normal: List of edge indices that should have only one normal (for two-normal mode)
+    - callback_fn: Optional callback function for visualization
     
-    # Run JAX-based optimization
-    result = optimize_with_jax_one_normal(
-        thetas0,
-        Us,
-        Vs,
-        edge_constraints,
-        pairwise,
-        rotations_data,
-        E,
-        vertex_to_edges_map,
-        callback_fn
+    Returns:
+    - Optimization result
+    """
+    start_time = time.time()
+    
+    # Convert inputs to JAX arrays
+    Us_jax = jnp.array(Us)
+    Vs_jax = jnp.array(Vs)
+    
+    # Convert edge_constraints to JAX-friendly format
+    constraints_jax = prepare_constraints_jax(edge_constraints)
+    
+    # Pre-process data for faster computation using improved rotations
+    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
+    
+    if mode == 'one':
+        # One normal per edge
+        energy_jax_jit = jit(energy_one_normal_jax)
+        
+        def energy_wrapper(thetas):
+            return energy_jax_jit(thetas, Us_jax, Vs_jax, constraints_jax, data).item()
+        
+        grad_fn = grad(energy_one_normal_jax, argnums=0)
+        grad_jit = jit(grad_fn)
+        
+        def grad_wrapper(thetas):
+            return np.array(grad_jit(thetas, Us_jax, Vs_jax, constraints_jax, data))
+        
+        # Use thetas0 directly for one-normal case
+        initial_thetas = thetas0
+        
+    else:  # Two normals per edge
+        # Create initial 2D array of thetas
+        num_edges = len(thetas0)
+        thetas_2d = np.column_stack((thetas0, thetas0))
+        thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
+        initial_thetas = thetas_2d.flatten()
+        
+        if one_normal is None:
+            one_normal = []
+        one_normal_jax = jnp.array(one_normal)
+        
+        energy_jax_jit = jit(energy_two_normal_jax)
+        
+        def energy_wrapper(thetas_flat):
+            thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
+            return energy_jax_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax).item()
+        
+        grad_fn = grad(energy_two_normal_jax, argnums=0)
+        grad_jit = jit(grad_fn)
+        
+        def grad_wrapper(thetas_flat):
+            thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
+            grad_val = grad_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax)
+            return np.array(grad_val.reshape(-1))
+    
+    # Run optimization using scipy
+    result = opt.minimize(
+        energy_wrapper,
+        initial_thetas,
+        jac=grad_wrapper,
+        method='L-BFGS-B',
+        tol=0.0000001,
+        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e5},
+        callback=callback_fn
     )
     
-    # Recover normals from result
-    normals = recover_normals_from_one_normal_result(result, Us, Vs)
+    end_time = time.time()
+    print(f"JAX {mode}-normal optimization took {end_time - start_time:.6f} seconds")
     
-    # Visualize results
-    plot_edge_constraints(V, E, P, normals, unconstrained_polylines_indices=None, 
-                         scale=0.08, 
-                         str="One-Normal Optimization Result", 
-                         block=True)
-    return result, normals
+    return result
 
 # Main function with option to choose optimization method
 def make_cylinder_example_jax_with_options(normals_per_edge='two'):
@@ -728,52 +613,40 @@ def make_cylinder_example_jax_with_options(normals_per_edge='two'):
     # Get initial thetas
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
     
+    # Create a callback function for the appropriate mode
+    callback_fn = create_callback(Us, Vs, E, P, V, mode=normals_per_edge)
+    
+    # Set specific edges for one-normal constraint in two-normal mode
+    one_normal = [23, 58] if normals_per_edge == 'two' else None
+    
+    # Run the unified optimization function with appropriate mode
+    result = optimize_with_jax(
+        thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
+        mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+    )
+    
+    # Recover normals using the unified function
+    normals = recover_normals(result, Us, Vs, E, mode=normals_per_edge)
+    
+    # Visualize results
     if normals_per_edge == 'one':
-        # One normal per edge
-        callback_fn = create_callback_one_normal(Us, Vs, E, P, V)
-        result = optimize_with_jax_one_normal(
-            thetas0,
-            Us,
-            Vs,
-            edge_constraints,
-            pairwise,
-            rotations_data,
-            E,
-            vertex_to_edges_map,
-            callback_fn
+        plot_edge_constraints(
+            V, E, P, normals, unconstrained_polylines_indices=None, 
+            scale=0.08, str="One-Normal Optimization Result", block=True
         )
-        normals = recover_normals_from_one_normal_result(result, Us, Vs)
-        plot_edge_constraints(V, E, P, normals, unconstrained_polylines_indices=None, 
-                              scale=0.08, 
-                              str="One-Normal Optimization Result", 
-                              block=True)
     else:
-        # Two normals per edge (default)
-        one_normal = [23, 58]  # Specify which edges should have one normal
-        callback_fn = create_callback_two_normals(Us, Vs, E, P, V)
-        result = optimize_with_jax_two_normal(
-            thetas0,
-            Us,
-            Vs,
-            edge_constraints,
-            pairwise,
-            rotations_data,
-            E,
-            vertex_to_edges_map,
-            one_normal,
-            callback_fn
+        plot_edge_constraints_two_normals(
+            V, E, P, normals, unconstrained_polylines_indices=None, 
+            scale=0.08, str="Two-Normal Optimization Result", block=True
         )
-        normals = recover_normals_from_jax_result(result, Us, Vs, E)
-        plot_edge_constraints_two_normals(V, E, P, normals, unconstrained_polylines_indices=None, 
-                                          scale=0.08, 
-                                          str="Two-Normal Optimization Result", 
-                                          block=True)
     
     return result, normals
 
 if __name__ == "__main__":
-    # To run with one normal per edge:
+    # Uncomment the mode you want to run
+    
+    # For one normal per edge:
     result, normals = make_cylinder_example_jax_with_options(normals_per_edge='one')
     
-    # To run with two normals per edge (default):
+    # For two normals per edge:
     # result, normals = make_cylinder_example_jax_with_options(normals_per_edge='two')
