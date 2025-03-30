@@ -1,258 +1,305 @@
-from collections import  deque
-from utility_io import load_sketch_polyline_data
-from utility_plot_viewer import plot_edge_info, plot_edge_constraints
-from opt_edges import create_frames_for_each_polyline, edge_distance_matrix, extract_pairwise_weight, create_edge_rotation_map, build_vertex_to_edges_map, estimate_initial_thetas
-
-
-
-
-import autograd.numpy as anp
-import autograd
+import jax
+import jax.numpy as jnp
+from jax import grad, jit, vmap
+from functools import partial
+import time
 import numpy as np
 import scipy.optimize as opt
+
+from utility_io import load_sketch_polyline_data
+from utility_plot_viewer import plot_edge_info, plot_edge_constraints, plot_edge_constraints_two_normals
+from opt_edges import create_frames_for_each_polyline, edge_distance_matrix, extract_pairwise_weight, build_vertex_to_edges_map, estimate_initial_thetas
+from collections import deque
+from utility_rotate_vector import rotation_matrix_from
+from play_opt_parameters import propagate_normals_from_constraints, edge_to_edge_normal_transport
+
+
+
+import jax
+import jax.numpy as jnp
+from jax import grad, jit, vmap
+from functools import partial
 import time
+import numpy as np
+import scipy.optimize as opt
 
 
-def optimize_with_single_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, vertex_to_edges_map, callback_fn = None):
-    """
-    Optimized version of single-normal per edge optimization using autograd
-    """
-    start_time = time.time()
+def create_edge_rotation_map_jax_improved(V, E):
+    '''
+    Create an optimized JAX-friendly edge rotation map.
     
-    # Convert inputs to autograd numpy arrays
-    Us = anp.array(Us)
-    Vs = anp.array(Vs)
-    
-    # Pre-process data for faster computation
-    data = preprocess_data_for_single_normal(pairwise, rotations)
-    
-    # Define wrapper for optimization
-    def E_total_wrapper(thetas, Us, Vs, constraints, pairwise_data):
-        return E_total_single_normal_optimized(thetas, Us, Vs, constraints, pairwise_data)
-    
-
-
-    # Run optimization
-    result = opt.minimize(
-        E_total_wrapper,
-        thetas0,
-        jac=autograd.grad(E_total_wrapper),
-        args=(Us, Vs, edge_constraints, data),
-        method='L-BFGS-B',
-        tol=0.0000001,
-        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000},
-        callback= callback_fn
-    )
-    
-    end_time = time.time()
-    print(f"Optimized single-normal optimization took {end_time - start_time:.6f} seconds")
-    
-    return result
-
-def preprocess_data_for_single_normal(pairwise, rotations):
-    """
-    Pre-process data structures for faster single-normal optimization
-    """
-    # Extract pairwise data
-    e1_indices = [p[0] for p in pairwise]
-    e2_indices = [p[1] for p in pairwise]
-    weights = [p[2] for p in pairwise]
-    
-    # Convert to arrays for faster indexing
-    e1_indices = np.array(e1_indices)
-    e2_indices = np.array(e2_indices)
-    weights = np.array(weights)
-    
-    return {
-        'e1_indices': e1_indices,
-        'e2_indices': e2_indices,
-        'weights': weights,
-        'rotations': rotations
-    }
-
-def E_total_single_normal_optimized(thetas, Us, Vs, constraints, pairwise_data):
-    """
-    Optimized energy function for a single normal per edge
+    This version pre-computes rotation matrices for all edge pairs and returns
+    a structure optimized for the pairwise energy computation.
     
     Parameters:
-    - thetas: An array of N real numbers, one per edge
-    - Us: An N-by-3 array of vectors spanning the plane normal to each edge
-    - Vs: An N-by-3 array of vectors spanning the plane normal to each edge
-    - constraints: A sequence of pairs (edge_index, desired_normal_vector)
-    - pairwise_data: Pre-processed pairwise data structure
+    - V: (n, 3) array of vertex coordinates
+    - E: (m, 2) array of edge vertex index pairs
     
     Returns:
-    - The total energy
-    """
-    # Calculate all normals at once
-    normals = anp.cos(thetas[:, anp.newaxis]) * Us + anp.sin(thetas[:, anp.newaxis]) * Vs
+    - Dictionary with rotation data in a format optimized for the pairwise energy computation
+    '''
+    n_edges = len(E)
     
-    # ===== Constraint Energy =====
-    E_constraint = 0.0
-    if constraints:
-        constraint_sum = 0.0
-        # This could be vectorized, but loop is often faster for smaller datasets with autograd
-        for edge_index, desired_normal_vector in constraints:
-            n = normals[edge_index]
-            constraint_sum += (1.0 - anp.dot(n, desired_normal_vector))**2
-        
-        E_constraint = constraint_sum / len(constraints)
+    # Pre-allocate arrays for all possible edge pairs
+    rotation_matrices = np.zeros((n_edges, n_edges, 3, 3))
+    has_rotation = np.zeros((n_edges, n_edges), dtype=bool)
     
-    # ===== Pairwise Energy =====
-    E_pairwise = 0.0
-    W_pairwise = 0.0
+    # Compute rotations for all pairs
+    for i in range(n_edges):
+        for j in range(n_edges):
+            if i == j:
+                continue
+                
+            ei = E[i]
+            ej = E[j]
+            
+            # Check if they share an endpoint
+            shared_indices = set(ei) & set(ej)
+            if len(shared_indices) != 0:
+                assert len(shared_indices) == 1
+                
+                # Get the shared index
+                shared_index = next(iter(shared_indices))
+                
+                # Get the non-shared index from ei
+                ei_other_index = next(iter(set(ei) - shared_indices))
+                
+                # Get the non-shared index from ej
+                ej_other_index = next(iter(set(ej) - shared_indices))
+                
+                # Compute vectors
+                vector_ei = V[shared_index] - V[ei_other_index]
+                vector_ej = V[ej_other_index] - V[shared_index]
+                
+                # Compute rotation matrix
+                rotation_matrices[i, j] = rotation_matrix_from(vector_ei, vector_ej)
+                has_rotation[i, j] = True
     
-    # Extract pre-processed data
-    e1_indices = pairwise_data['e1_indices']
-    e2_indices = pairwise_data['e2_indices']
-    weights = pairwise_data['weights']
-    rotations = pairwise_data['rotations']
-    
-    # Process each pairwise constraint
-    for i in range(len(e1_indices)):
-        e1 = e1_indices[i]
-        e2 = e2_indices[i]
-        weight = weights[i]
-        
-        # Get normals for the two edges
-        n1 = normals[e1]
-        n2 = normals[e2]
-        
-        # Apply rotation if needed
-        # Autograd-friendly rotation application
-        if (e1, e2) in rotations:
-            n1 = anp.dot(rotations[(e1, e2)], n1)
-        elif (e2, e1) in rotations:
-            n1 = anp.dot(anp.transpose(rotations[(e2, e1)]), n1)
-        
-        # Calculate pairwise energy contribution
-        dot_product = anp.dot(n1, n2)
-        E_pairwise += weight * (1.0 - dot_product)**2
-        W_pairwise += weight
-    
-    # Normalize pairwise energy
-    if W_pairwise > 0:
-        E_pairwise /= W_pairwise
-    
-    # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise
+    return {
+        'matrices': rotation_matrices,
+        'has_rotation': has_rotation
+    }
 
-# Version with more vectorization - may be faster for large datasets
-def E_total_single_normal_vectorized(thetas, Us, Vs, constraints, pairwise_data):
+def create_callback_two_normals(Us, Vs, E, P, V):
     """
-    Vectorized energy function for a single normal per edge
-    This version attempts to vectorize more operations for potentially better performance
+    Create a faster callback function for visualization during optimization
     """
-    # Calculate all normals at once
-    normals = anp.cos(thetas[:, anp.newaxis]) * Us + anp.sin(thetas[:, anp.newaxis]) * Vs
+    iteration_counter = [0]
+    # Set a visualization frequency (e.g., every 10 iterations)
+    viz_frequency = 10
     
-    # ===== Constraint Energy =====
-    if constraints:
-        # Extract constraint indices and normals for vectorization
-        constraint_indices = anp.array([c[0] for c in constraints])
-        constraint_normals = anp.array([c[1] for c in constraints])
+    def callback(thetas_flat_now):
+        iteration_counter[0] += 1
+        current_iter = iteration_counter[0]
+        print(f"Iteration {current_iter}")
         
-        # Calculate dot products vectorized
-        constrained_normals = normals[constraint_indices]
-        dots = anp.sum(constrained_normals * constraint_normals, axis=1)
+        # Only visualize every viz_frequency iterations
+        # and for the first few iterations to see initial progress
+        if current_iter % viz_frequency != 0 and current_iter > 5:
+            return False
         
-        # Calculate constraint energy
-        E_constraint = anp.mean((1.0 - dots)**2)
-    else:
-        E_constraint = 0.0
-    
-    # ===== Pairwise Energy =====
-    # The pairwise energy is harder to vectorize due to the rotation lookups
-    # We'll use the same approach as in the optimized function
-    E_pairwise = 0.0
-    W_pairwise = 0.0
-    
-    # Extract pre-processed data
-    e1_indices = pairwise_data['e1_indices']
-    e2_indices = pairwise_data['e2_indices']
-    weights = pairwise_data['weights']
-    rotations = pairwise_data['rotations']
-    
-    # Process each pairwise constraint
-    for i in range(len(e1_indices)):
-        e1 = e1_indices[i]
-        e2 = e2_indices[i]
-        weight = weights[i]
+        # Reshape the flat thetas array to the 2D structure
+        num_edges = len(E)
+        thetas_2d_now = thetas_flat_now.reshape(num_edges, 2)
         
-        # Get normals for the two edges
-        n1 = normals[e1]
-        n2 = normals[e2]
+        # Use vectorized operations for normal calculation
+        # Create mesh grid of edge indices and which_edge (0 or 1)
+        edge_indices = np.arange(num_edges)
+        which_edges = np.array([0, 1])
         
-        # Apply rotation if needed
-        # Autograd-friendly rotation application
-        if (e1, e2) in rotations:
-            n1 = anp.dot(rotations[(e1, e2)], n1)
-        elif (e2, e1) in rotations:
-            n1 = anp.dot(anp.transpose(rotations[(e2, e1)]), n1)
+        # Use numpy's vectorized operations to compute all normals at once
+        thetas = thetas_2d_now.reshape(-1)  # Flatten to 1D array of all thetas
         
-        # Calculate pairwise energy contribution
-        dot_product = anp.dot(n1, n2)
-        E_pairwise += weight * (1.0 - dot_product)**2
-        W_pairwise += weight
+        # Pre-allocate the normals dictionary
+        normals_now = {}
+        
+        # Vectorized computation for cos(theta) and sin(theta)
+        cos_theta = np.cos(thetas)
+        sin_theta = np.sin(thetas)
+        
+        # Compute all normals in a single loop (still faster than nested loops)
+        for i, edge_idx in enumerate(edge_indices):
+            for j, which_edge in enumerate(which_edges):
+                flat_idx = edge_idx * 2 + which_edge
+                normal = cos_theta[flat_idx] * Us[edge_idx] + sin_theta[flat_idx] * Vs[edge_idx]
+                # Quick normalization (avoid repeated calls to np.linalg.norm)
+                norm = np.sqrt(np.sum(normal * normal))
+                normal = normal / norm
+                normals_now[(edge_idx, which_edge)] = normal
+        
+        # Update the plot
+        plot_edge_constraints_two_normals(
+            V, E, P, normals_now, 
+            unconstrained_polylines_indices=None,
+            scale=0.08,
+            str=f"Two-Normal Optimization: Iteration {current_iter}",
+            block=False
+        )
+        
+        return False  # Continue optimization
     
-    # Normalize pairwise energy
-    if W_pairwise > 0:
-        E_pairwise /= W_pairwise
-    
-    # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise
+    return callback
 
 
-
-def optimize_with_optimized_autograd(thetas0, Us, Vs, edge_constraints, pairwise, rotations, 
-                                    E, vertex_to_edges_map, one_normal=None):
+def optimize_with_jax_two_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, one_normal=None, callback_fn = None):
     """
-    Optimized version of the two-normal per edge optimization using autograd
+    JAX-based implementation of the two-normal per edge optimization
+    
+    Parameters:
+    - thetas0: Initial theta values for each edge
+    - Us, Vs: Frame vectors for each edge
+    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
+    - pairwise: List of tuples (edge1, edge2, weight)
+    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
+    - E: List of edge vertex indices
+    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+    - one_normal: List of edge indices that should have only one normal
+    
+    Returns:
+    - Optimization result
     """
     start_time = time.time()
     
-    # Convert inputs to autograd numpy arrays
-    Us = anp.array(Us)
-    Vs = anp.array(Vs)
+    # Convert inputs to JAX arrays
+    Us_jax = jnp.array(Us)
+    Vs_jax = jnp.array(Vs)
     
-    # Pre-process data for faster computation
-    data = preprocess_data_for_optimization(E, pairwise, rotations, vertex_to_edges_map)
+    # Convert edge_constraints to JAX-friendly format
+    constraint_indices = []
+    constraint_normals = []
+    for edge_idx, normal in edge_constraints:
+        constraint_indices.append(edge_idx)
+        constraint_normals.append(normal)
+    
+    constraints_jax = {
+        'indices': jnp.array(constraint_indices),
+        'normals': jnp.array(constraint_normals)
+    }
+    
+    # Pre-process data for faster computation using improved rotations
+    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
     
     # Create initial 2D array of thetas
     num_edges = len(thetas0)
     thetas_2d = np.column_stack((thetas0, thetas0))
-    thetas_2d[:, 1] += 1e-3
+    thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
     thetas0_flat = thetas_2d.flatten()
     
     if one_normal is None:
         one_normal = []
+    one_normal_jax = jnp.array(one_normal)
     
-    # Define wrapper that uses our optimized function
-    def E_total_wrapper(thetas_flat, Us, Vs, constraints, pairwise_data, one_normal):
-        num_edges = len(E)
-        thetas_2d = thetas_flat.reshape(num_edges, 2)
-        # return E_total_two_normal_optimized(thetas_2d, Us, Vs, constraints, pairwise_data, one_normal)
-        return E_total_two_normal_vectorized(thetas_2d, Us, Vs, constraints, pairwise_data, one_normal)
+    # Create jitted energy function
+    energy_jax_jit = jit(energy_two_normal_jax)
     
-    # Run optimization
+    def energy_wrapper(thetas_flat):
+        thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
+        return energy_jax_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax).item()
+    
+    # Create jitted gradient function
+    grad_fn = grad(energy_two_normal_jax, argnums=0)
+    grad_jit = jit(grad_fn)
+    
+    def grad_wrapper(thetas_flat):
+        thetas_2d = jnp.array(thetas_flat).reshape(num_edges, 2)
+        grad_val = grad_jit(thetas_2d, Us_jax, Vs_jax, constraints_jax, data, one_normal_jax)
+        return np.array(grad_val.reshape(-1))
+    
+    # Run optimization using scipy (L-BFGS-B works well with JAX gradients)
     result = opt.minimize(
-        E_total_wrapper,
+        energy_wrapper,
         thetas0_flat,
-        jac=autograd.grad(E_total_wrapper),
-        args=(Us, Vs, edge_constraints, data, one_normal),
+        jac=grad_wrapper,
         method='L-BFGS-B',
         tol=0.0000001,
-        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1000 * 10}
+        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e5}, 
+        callback= callback_fn
     )
     
     end_time = time.time()
-    print(f"Optimized autograd optimization took {end_time - start_time:.6f} seconds")
+    print(f"JAX optimization took {end_time - start_time:.6f} seconds")
     
     return result
 
-def preprocess_data_for_optimization(E, pairwise, rotations, vertex_to_edges_map):
+def optimize_with_jax_one_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, callback_fn=None):
     """
-    Pre-process data structures for faster optimization
+    JAX-based implementation of the single-normal per edge optimization
+    
+    Parameters:
+    - thetas0: Initial theta values for each edge
+    - Us, Vs: Frame vectors for each edge
+    - edge_constraints: List of tuples (edge_index, desired_normal_vector)
+    - pairwise: List of tuples (edge1, edge2, weight)
+    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
+    - E: List of edge vertex indices
+    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+    - callback_fn: Optional callback function for visualization
+    
+    Returns:
+    - Optimization result
+    """
+    start_time = time.time()
+    
+    # Convert inputs to JAX arrays
+    Us_jax = jnp.array(Us)
+    Vs_jax = jnp.array(Vs)
+    
+    # Convert edge_constraints to JAX-friendly format
+    constraint_indices = []
+    constraint_normals = []
+    for edge_idx, normal in edge_constraints:
+        constraint_indices.append(edge_idx)
+        constraint_normals.append(normal)
+    
+    constraints_jax = {
+        'indices': jnp.array(constraint_indices),
+        'normals': jnp.array(constraint_normals)
+    }
+    
+    # Pre-process data for faster computation using improved rotations
+    data = preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map)
+    
+    # Create jitted energy function
+    energy_jax_jit = jit(energy_one_normal_jax)
+    
+    def energy_wrapper(thetas):
+        return energy_jax_jit(thetas, Us_jax, Vs_jax, constraints_jax, data).item()
+    
+    # Create jitted gradient function
+    grad_fn = grad(energy_one_normal_jax, argnums=0)
+    grad_jit = jit(grad_fn)
+    
+    def grad_wrapper(thetas):
+        return np.array(grad_jit(thetas, Us_jax, Vs_jax, constraints_jax, data))
+    
+    # Run optimization using scipy
+    result = opt.minimize(
+        energy_wrapper,
+        thetas0,
+        jac=grad_wrapper,
+        method='L-BFGS-B',
+        tol=0.0000001,
+        options={'disp': True, 'gtol': 0.0000001, 'maxiter': 1e5},
+        callback=callback_fn
+    )
+    
+    end_time = time.time()
+    print(f"JAX one-normal optimization took {end_time - start_time:.6f} seconds")
+    
+    return result
+
+def preprocess_data_for_jax_with_improved_rotations(E, pairwise, rotations_data, vertex_to_edges_map):
+    """
+    Pre-process data structures for JAX optimization with improved rotation handling
+    
+    Parameters:
+    - E: List of edge vertex indices
+    - pairwise: List of tuples (edge1, edge2, weight)
+    - rotations_data: Dictionary with rotation data from create_edge_rotation_map_jax_improved
+    - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+    
+    Returns:
+    - Dictionary with pre-processed data for JAX optimization
     """
     # Convert E to numpy array if it isn't already
     E_array = np.array(E)
@@ -272,541 +319,461 @@ def preprocess_data_for_optimization(E, pairwise, rotations, vertex_to_edges_map
             if len(vertex_to_edges_map[vertex]) == 2:
                 curve_edges[i] = True
     
+    # Extract rotation data for the specific edge pairs in pairwise
+    has_rotation = np.array([rotations_data['has_rotation'][e1, e2] for e1, e2 in zip(e1_indices, e2_indices)])
+    rotation_matrices = np.array([rotations_data['matrices'][e1, e2] for e1, e2 in zip(e1_indices, e2_indices)])
+    
     return {
-        'E': E_array,
-        'e1_indices': e1_indices,
-        'e2_indices': e2_indices,
-        'weights': weights,
-        'curve_edges': curve_edges,
-        'rotations': rotations
+        'E': jnp.array(E_array),
+        'e1_indices': jnp.array(e1_indices),
+        'e2_indices': jnp.array(e2_indices),
+        'weights': jnp.array(weights),
+        'curve_edges': jnp.array(curve_edges),
+        'rotation_matrices': jnp.array(rotation_matrices),
+        'has_rotation': jnp.array(has_rotation),
+        'num_pairs': len(e1_indices)
     }
 
-def E_total_two_normal_optimized(thetas, Us, Vs, constraints, pairwise_data, one_normal):
+@jit
+def compute_constraint_energy_jax(normals0, normals1, constraints):
+    """Compute constraint energy using JAX"""
+    if len(constraints['indices']) == 0:
+        return 0.0
+    
+    # Extract constraint data
+    edge_indices = constraints['indices']
+    desired_normals = constraints['normals']
+    
+    # Get constrained normals
+    n0 = normals0[edge_indices]
+    n1 = normals1[edge_indices]
+    
+    # Compute dot products (batch operation)
+    dots0 = jnp.sum(n0 * desired_normals, axis=1)
+    dots1 = jnp.sum(n1 * desired_normals, axis=1)
+    
+    # Calculate constraint energy
+    energy = jnp.mean((1.0 - dots0)**2 + (1.0 - dots1)**2) / 2
+    
+    return energy
+
+@jit
+def compute_one_normal_energy_jax(thetas, one_normal):
+    """Compute one-normal energy using JAX"""
+    if one_normal.size == 0:
+        return 0.0
+    
+    theta_diffs = thetas[one_normal, 0] - thetas[one_normal, 1]
+    return jnp.mean(theta_diffs**2)
+
+@jit
+def compute_pairwise_energy_jax(normals0, normals1, data):
     """
-    Optimized energy function for two normals per edge
+    Compute pairwise energy using JAX in a way that's compatible with tracing
     """
-    # Pre-calculate all normals for both orientations
-    normals0 = anp.cos(thetas[:, 0, anp.newaxis]) * Us + anp.sin(thetas[:, 0, anp.newaxis]) * Vs
-    normals1 = anp.cos(thetas[:, 1, anp.newaxis]) * Us + anp.sin(thetas[:, 1, anp.newaxis]) * Vs
+    # Initialize accumulators
+    energy_sum = 0.0
+    weight_sum = 0.0
     
-    # ===== Constraint Energy =====
-    E_constraint = 0.0
-    if constraints:
-        constraint_sum = 0.0
-        for edge_index, desired_normal_vector in constraints:
-            n0 = normals0[edge_index]
-            n1 = normals1[edge_index]
-            constraint_sum += (1.0 - anp.dot(n0, desired_normal_vector))**2
-            constraint_sum += (1.0 - anp.dot(n1, desired_normal_vector))**2
-        E_constraint = constraint_sum / (2 * len(constraints))
+    # Get data for easier access
+    e1_indices = data['e1_indices']
+    e2_indices = data['e2_indices']
+    weights = data['weights']
+    curve_edges = data['curve_edges']
+    rotation_matrices = data['rotation_matrices']
+    has_rotation = data['has_rotation']
     
-    # ===== One Normal Energy =====
-    E_one_normal = 0.0
-    if one_normal and len(one_normal) > 0:
-        one_normal_indices = anp.array(one_normal)
-        theta_diffs = thetas[one_normal_indices, 0] - thetas[one_normal_indices, 1]
-        E_one_normal = anp.mean(theta_diffs**2)
-    
-    # ===== Pairwise Energy =====
-    E_pairwise = 0.0
-    W_pairwise = 0.0
-    
-    # Get pairwise data
-    e1_indices = pairwise_data['e1_indices']
-    e2_indices = pairwise_data['e2_indices']
-    weights = pairwise_data['weights']
-    curve_edges = pairwise_data['curve_edges']
-    rotations = pairwise_data['rotations']
-    
-    # For each pairwise constraint
-    for i in range(len(e1_indices)):
+    # Process all pairs with a manual loop instead of scan
+    # This avoids the need for arange with a traced length
+    def body_fun(i, accum):
+        energy_sum, weight_sum = accum
+        
+        # Get indices and data for this pair
         e1 = e1_indices[i]
         e2 = e2_indices[i]
         weight = weights[i]
         is_curve = curve_edges[i]
+        has_rot = has_rotation[i]
+        rot_matrix = rotation_matrices[i]
         
-        # Initialize cost matrix - use Python list for manual updates
-        costs = [[0.0, 0.0], [0.0, 0.0]]
+        # Get normals for both edges
+        n1_0 = normals0[e1]
+        n1_1 = normals1[e1]
+        n2_0 = normals0[e2]
+        n2_1 = normals1[e2]
         
-        # Calculate costs for all combinations
-        for i_n1 in range(2):
-            for i_n2 in range(2):
-                n1 = normals0[e1] if i_n1 == 0 else normals1[e1]
-                n2 = normals0[e2] if i_n2 == 0 else normals1[e2]
-                
-                # Apply rotation if needed
-                if (e1, e2) in rotations:
-                    n1 = anp.dot(rotations[(e1, e2)], n1)
-                elif (e2, e1) in rotations:
-                    n1 = anp.dot(anp.transpose(rotations[(e2, e1)]), n1)
-                
-                # Calculate dot product and cost, store in our cost matrix
-                dot_val = anp.dot(n1, n2)
-                costs[i_n1][i_n2] = (1.0 - dot_val)**2
+        # Apply rotation if needed (using JAX's where for conditional)
+        n1_0_rot = jnp.where(has_rot, jnp.dot(rot_matrix, n1_0), n1_0)
+        n1_1_rot = jnp.where(has_rot, jnp.dot(rot_matrix, n1_1), n1_1)
         
-        # Calculate energy based on edge type
-        if is_curve:
-            diagonal_sum = costs[0][0] + costs[1][1]
-            antidiagonal_sum = costs[0][1] + costs[1][0]
-            min_sum = anp.minimum(diagonal_sum, antidiagonal_sum)
-            E_pairwise += weight * min_sum
-        else:
-            # Find minimum cost manually
-            min_cost = anp.min(anp.array([[costs[0][0], costs[0][1]], [costs[1][0], costs[1][1]]]))
-            E_pairwise += weight * min_cost
+        # Compute costs for all combinations
+        cost_00 = (1.0 - jnp.dot(n1_0_rot, n2_0))**2
+        cost_01 = (1.0 - jnp.dot(n1_0_rot, n2_1))**2
+        cost_10 = (1.0 - jnp.dot(n1_1_rot, n2_0))**2
+        cost_11 = (1.0 - jnp.dot(n1_1_rot, n2_1))**2
         
-        W_pairwise += weight
+        costs = jnp.array([[cost_00, cost_01], [cost_10, cost_11]])
+        
+        # Calculate pair energy based on edge type
+        diagonal_sum = cost_00 + cost_11
+        antidiagonal_sum = cost_01 + cost_10
+        
+        # Curve edges: use min of diagonal/antidiagonal sum
+        # Non-curve edges: use global minimum
+        pair_energy = jnp.where(
+            is_curve,
+            weight * jnp.minimum(diagonal_sum, antidiagonal_sum),
+            weight * jnp.min(costs)
+        )
+        
+        return energy_sum + pair_energy, weight_sum + weight
     
-    # Normalize pairwise energy
-    if W_pairwise > 0:
-        E_pairwise /= W_pairwise
+    # We need to use a fori_loop with static bounds
+    # Get a static upper bound for the number of pairs
+    # This will be the compile-time maximum number of pairs
+    max_pairs = e1_indices.shape[0]
+    
+    # Use fori_loop for iteration
+    energy_sum, weight_sum = jax.lax.fori_loop(
+        0, max_pairs, 
+        lambda i, accum: body_fun(i, accum), 
+        (energy_sum, weight_sum)
+    )
+    
+    # Normalize
+    return jnp.where(weight_sum > 0, energy_sum / weight_sum, 0.0)
+
+
+
+@jit
+def energy_two_normal_jax(thetas, Us, Vs, constraints, data, one_normal):
+    """
+    JAX-optimized energy function for two normals per edge
+    """
+    # Pre-calculate all normals for both orientations
+    normals0 = jnp.cos(thetas[:, 0, jnp.newaxis]) * Us + jnp.sin(thetas[:, 0, jnp.newaxis]) * Vs
+    normals1 = jnp.cos(thetas[:, 1, jnp.newaxis]) * Us + jnp.sin(thetas[:, 1, jnp.newaxis]) * Vs
+    
+    # ===== Constraint Energy =====
+    E_constraint = compute_constraint_energy_jax(normals0, normals1, constraints)
+    
+    # ===== One Normal Energy =====
+    E_one_normal = compute_one_normal_energy_jax(thetas, one_normal)
+    
+    # ===== Pairwise Energy =====
+    E_pairwise = compute_pairwise_energy_jax(
+        normals0, 
+        normals1, 
+        data
+    )
     
     # Return weighted sum of energies
     return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
 
-# Alternative implementation with more vectorization
-def E_total_two_normal_vectorized(thetas, Us, Vs, constraints, pairwise_data, one_normal):
+@jit
+def energy_one_normal_jax(thetas, Us, Vs, constraints, data):
     """
-    Alternative implementation with more vectorization
-    Note: This might or might not be faster depending on your data size
+    JAX-optimized energy function for one normal per edge
     """
-    # Pre-calculate all normals for both orientations
-    normals0 = anp.cos(thetas[:, 0, anp.newaxis]) * Us + anp.sin(thetas[:, 0, anp.newaxis]) * Vs
-    normals1 = anp.cos(thetas[:, 1, anp.newaxis]) * Us + anp.sin(thetas[:, 1, anp.newaxis]) * Vs
+    # Calculate all normals
+    normals = jnp.cos(thetas[:, jnp.newaxis]) * Us + jnp.sin(thetas[:, jnp.newaxis]) * Vs
     
     # ===== Constraint Energy =====
-    if constraints:
-        # Extract constraint indices and normals
-        constraint_indices = anp.array([c[0] for c in constraints])
-        constraint_normals = anp.array([c[1] for c in constraints])
-        
-        # Compute dot products for both normals
-        n0_dots = anp.sum(normals0[constraint_indices] * constraint_normals, axis=1)
-        n1_dots = anp.sum(normals1[constraint_indices] * constraint_normals, axis=1)
-        
-        # Calculate constraint energy
-        E_constraint = anp.mean((1.0 - n0_dots)**2 + (1.0 - n1_dots)**2) / 2
-    else:
-        E_constraint = 0.0
-    
-    # ===== One Normal Energy =====
-    if one_normal and len(one_normal) > 0:
-        one_normal_indices = anp.array(one_normal)
-        theta_diffs = thetas[one_normal_indices, 0] - thetas[one_normal_indices, 1]
-        E_one_normal = anp.mean(theta_diffs**2)
-    else:
-        E_one_normal = 0.0
+    E_constraint = compute_one_normal_constraint_energy_jax(normals, constraints)
     
     # ===== Pairwise Energy =====
-    # For pairwise energy, we need to process each pair individually
-    # This is harder to vectorize due to the rotations and curve edge logic
-    E_pairwise = 0.0
-    W_pairwise = 0.0
+    E_pairwise = compute_one_normal_pairwise_energy_jax(normals, data)
     
-    # Get pairwise data
-    e1_indices = pairwise_data['e1_indices']
-    e2_indices = pairwise_data['e2_indices']
-    weights = pairwise_data['weights']
-    curve_edges = pairwise_data['curve_edges']
-    rotations = pairwise_data['rotations']
+    # Return weighted sum of energies
+    return 1e-2 * E_constraint + 1e4 * E_pairwise
+
+@jit
+def compute_one_normal_constraint_energy_jax(normals, constraints):
+    """Compute constraint energy for one-normal case using JAX"""
+    if len(constraints['indices']) == 0:
+        return 0.0
     
-    # For each pairwise constraint
-    for i in range(len(e1_indices)):
+    # Extract constraint data
+    edge_indices = constraints['indices']
+    desired_normals = constraints['normals']
+    
+    # Get constrained normals
+    n = normals[edge_indices]
+    
+    # Compute dot products (batch operation)
+    dots = jnp.sum(n * desired_normals, axis=1)
+    
+    # Calculate constraint energy
+    energy = jnp.mean((1.0 - dots)**2)
+    
+    return energy
+
+@jit
+def compute_one_normal_pairwise_energy_jax(normals, data):
+    """
+    Compute pairwise energy for one-normal case using JAX
+    """
+    # Initialize accumulators
+    energy_sum = 0.0
+    weight_sum = 0.0
+    
+    # Get data for easier access
+    e1_indices = data['e1_indices']
+    e2_indices = data['e2_indices']
+    weights = data['weights']
+    rotation_matrices = data['rotation_matrices']
+    has_rotation = data['has_rotation']
+    
+    # Process all pairs with a manual loop instead of scan
+    def body_fun(i, accum):
+        energy_sum, weight_sum = accum
+        
+        # Get indices and data for this pair
         e1 = e1_indices[i]
         e2 = e2_indices[i]
         weight = weights[i]
-        is_curve = curve_edges[i]
+        has_rot = has_rotation[i]
+        rot_matrix = rotation_matrices[i]
         
-        # Initialize cost matrix using a Python list for better control
-        costs = [[0.0, 0.0], [0.0, 0.0]]
+        # Get normals for both edges
+        n1 = normals[e1]
+        n2 = normals[e2]
         
-        # Calculate costs for all combinations
-        for i_n1 in range(2):
-            for i_n2 in range(2):
-                n1 = normals0[e1] if i_n1 == 0 else normals1[e1]
-                n2 = normals0[e2] if i_n2 == 0 else normals1[e2]
-                
-                # Apply rotation if needed
-                if (e1, e2) in rotations:
-                    n1 = anp.dot(rotations[(e1, e2)], n1)
-                elif (e2, e1) in rotations:
-                    n1 = anp.dot(anp.transpose(rotations[(e2, e1)]), n1)
-                
-                # Calculate dot product and store in cost matrix
-                dot_val = anp.dot(n1, n2)
-                costs[i_n1][i_n2] = (1.0 - dot_val)**2
+        # Apply rotation if needed (using JAX's where for conditional)
+        n1_rot = jnp.where(has_rot, jnp.dot(rot_matrix, n1), n1)
         
-        # Calculate energy based on edge type
-        if is_curve:
-            diagonal_sum = costs[0][0] + costs[1][1]
-            antidiagonal_sum = costs[0][1] + costs[1][0]
-            min_sum = anp.minimum(diagonal_sum, antidiagonal_sum)
-            E_pairwise += weight * min_sum
-        else:
-            # Find the minimum cost by converting to array
-            costs_array = anp.array([[costs[0][0], costs[0][1]], [costs[1][0], costs[1][1]]])
-            E_pairwise += weight * anp.min(costs_array)
+        # Compute cost
+        cost = (1.0 - jnp.dot(n1_rot, n2))**2
         
-        W_pairwise += weight
+        # Calculate pair energy
+        pair_energy = weight * cost
+        
+        return energy_sum + pair_energy, weight_sum + weight
     
-    # Normalize pairwise energy
-    if W_pairwise > 0:
-        E_pairwise /= W_pairwise
+    # Get a static upper bound for the number of pairs
+    max_pairs = e1_indices.shape[0]
     
-    # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
+    # Use fori_loop for iteration
+    energy_sum, weight_sum = jax.lax.fori_loop(
+        0, max_pairs, 
+        lambda i, accum: body_fun(i, accum), 
+        (energy_sum, weight_sum)
+    )
+    
+    # Normalize
+    return jnp.where(weight_sum > 0, energy_sum / weight_sum, 0.0)
 
-# Helper function to convert optimized results back to normals
-def recover_normals_from_result(result, Us, Vs, E):
+def recover_normals_from_jax_result(result, Us, Vs, E):
     """
-    Recover normal vectors from optimization result
+    Recover normal vectors from JAX optimization result
     """
     num_edges = len(E)
     thetas_2d = result.x.reshape(num_edges, 2)
     
-    # Calculate normals for both edges
+    # Calculate normals for both orientations
     normals = {}
     for edge_idx in range(num_edges):
         for which_edge in (0, 1):
             # Calculate the normal for this edge and orientation
             theta = thetas_2d[edge_idx, which_edge]
             normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+            normal = normal / np.linalg.norm(normal)  # Ensure normalized
             
             # Store in the normals dictionary with tuple key (edge_idx, which_edge)
             normals[(edge_idx, which_edge)] = normal
     
     return normals
 
-def create_callback(Us, Vs, E, P, V):
+
+def recover_normals_from_one_normal_result(result, Us, Vs):
     """
-    Create a callback function for visualization during optimization
+    Recover normal vectors from JAX one-normal optimization result
+    """
+    thetas = result.x
+    
+    # Calculate normals
+    normals = {}
+    for edge_idx, theta in enumerate(thetas):
+        normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+        normal = normal / np.linalg.norm(normal)  # Ensure normalized
+        normals[edge_idx] = normal
+    
+    return normals
+
+def create_callback_one_normal(Us, Vs, E, P, V):
+    """
+    Create a callback function for visualization during one-normal optimization
     """
     iteration_counter = [0]
+    viz_frequency = 10
     
     def callback(thetas_now):
         iteration_counter[0] += 1
-        print(f"Iteration {iteration_counter[0]}")
+        current_iter = iteration_counter[0]
+        print(f"Iteration {current_iter}")
+        
+        # Only visualize every viz_frequency iterations
+        # and for the first few iterations to see initial progress
+        if current_iter % viz_frequency != 0 and current_iter > 5:
+            return False
         
         # Calculate normals
         normals_now = {}
-        for edge_idx in range(len(thetas_now)):
-            theta = thetas_now[edge_idx]
+        for edge_idx, theta in enumerate(thetas_now):
             normal = np.cos(theta) * Us[edge_idx] + np.sin(theta) * Vs[edge_idx]
+            normal = normal / np.linalg.norm(normal)
             normals_now[edge_idx] = normal
         
-        # Update plot - this assumes the plot_edge_constraints function exists
-        # Uncomment if you have this function
-        # plot_edge_constraints(V, E, P, normals_now, 
-        #                     unconstrained_polylines_indices=None, 
-        #                     scale=0.08, 
-        #                     str=f"Optimization: Iteration {iteration_counter[0]}", 
-        #                     block=False)
+        # Update the plot
+        plot_edge_constraints(
+            V, E, P, normals_now, 
+            unconstrained_polylines_indices=None,
+            scale=0.08,
+            str=f"One-Normal Optimization: Iteration {current_iter}",
+            block=False
+        )
         
         return False  # Continue optimization
     
     return callback
 
-# Example usage:
-# result = optimize_with_jax_jit(thetas0, Us, Vs, edge_constraints, pairwise, rotations)
-
-# Usage example:
-# result = optimize_with_jax_single_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map)
-# Or for two normals:
-# result = optimize_with_jax_two_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map, one_normal)
-
-
-def edge_to_edge_normal_transport(V, e0, e1, n0, tol=1e-10):
+def make_cylinder_example_jax_one_normal():
     '''
-    Parallel transport a normal vector n0 from edge e0 to edge e1.
-    The edges must share a vertex.
-    
-    Parameters:
-    - V: array of vertex coordinates, shape (num_vertices, 3)
-    - e0: first edge as tuple/list of vertex indices (e0_v_idx0, e0_v_idx1)
-    - e1: second edge as tuple/list of vertex indices (e1_v_idx0, e1_v_idx1)
-    - n0: normal vector for edge e0, shape (3,)
-    - tol: tolerance for floating point comparisons (default 1e-10)
-    
-    Returns:
-    - n1: transported normal vector for edge e1, shape (3,)
-    '''
-    
-    # Ensure the edges share a vertex
-    shared_indices = set(e0) & set(e1)
-    assert len(shared_indices) != 0, "Edges must share at least one vertex"
-    
-     ## Get the shared index
-    shared_index = next(iter(shared_indices))
-    ## Get the non-shared index from e0
-    e0_other_index = next( iter( set(e0) - shared_indices ))
-    ## Get the non-shared index from e1
-    e1_other_index = next( iter( set(e1) - shared_indices ))
-
-    t0 = V[shared_index] - V[e0_other_index]
-    t1 = V[e1_other_index] - V[shared_index]
-    
-    # Normalize tangent vectors
-    t0 = t0 / np.linalg.norm(t0)
-    t1 = t1 / np.linalg.norm(t1)
-    
-    # Normalize input normal
-    n0 = n0 / np.linalg.norm(n0)
-    
-    # Compute the rotation axis (perpendicular to the plane containing t0 and t1)
-    B = np.cross(t0, t1)
-    B_norm = np.linalg.norm(B)
-    
-    if B_norm < tol:
-        # The tangent vectors are parallel (or anti-parallel)
-        # In this case, parallel transport preserves the normal vector
-        return n0
-    else:
-        # Normalize the rotation axis
-        B_hat = B / B_norm
-        
-        # Compute the angle between the tangent vectors
-        cos_theta = np.clip(np.dot(t0, t1), -1.0, 1.0)
-        theta = np.arccos(cos_theta)
-        
-        # Rotate the normal vector
-        # Implementation of Rodrigues' rotation formula
-        n1 = n0 * np.cos(theta) + np.cross(B_hat, n0) * np.sin(theta) + B_hat * np.dot(B_hat, n0) * (1 - np.cos(theta))
-        
-        return n1
-
-
-def propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constraints, transport_normal_function):
-    """
-    Propagate normal vectors from constrained edges to as many other edges as possible.
-    
-    Parameters:
-    - V: array of vertex coordinates, shape (num_vertices, 3)
-    - E: array of edge vertex indices, shape (num_edges, 2)
-    - vertex_to_edges_map: dictionary mapping vertex indices to lists of edge indices
-    - edge_constraints: list of tuples (edge_index, normal_vector)
-    - transport_normal_function: function to transport normal from one edge to another
-    
-    Returns:
-    - list of tuples (edge_index, normal_vector) for all edges with computed normals
-    """
-    # Initialize edge normals dictionary with constraints
-    edge_normals = {edge_idx: normal.copy() for edge_idx, normal in edge_constraints}
-    
-    # Keep track of edges we've already processed
-    processed_edges = set(edge_normals.keys())
-    
-    # Queue for breadth-first traversal
-    queue = deque(processed_edges)
-    
-    while queue:
-        current_edge = queue.popleft()
-        current_normal = edge_normals[current_edge]
-        
-        # Get the two vertices of the current edge
-        v1, v2 = E[current_edge]
-        
-        # For each vertex of the current edge
-        for vertex in [v1, v2]:
-            # Get all edges connected to this vertex
-            connected_edges = vertex_to_edges_map[vertex]
-            
-            # Process each connected edge that hasn't been processed yet
-            for next_edge in connected_edges:
-                if next_edge != current_edge and next_edge not in processed_edges:
-                    # Transport the normal from current_edge to next_edge
-                    transported_normal = transport_normal_function(
-                        V, 
-                        E[current_edge], 
-                        E[next_edge], 
-                        current_normal
-                    )
-                    
-                    # Store the transported normal
-                    edge_normals[next_edge] = transported_normal
-                    
-                    # plot_edge_constraints(V, E, None, edge_normals, unconstrained_polylines_indices=None, str = f'{current_edge} - {next_edge}', block=False)
-                    # Mark as processed and add to queue for further propagation
-                    processed_edges.add(next_edge)
-                    queue.append(next_edge)
-    
-    # Convert the dictionary to a list of tuples in the requested format
-    return [(edge_idx, normal) for edge_idx, normal in edge_normals.items()]
-
-
-def propagate_normals_from_constraints_and_average(V, E, vertex_to_edges_map, edge_constraints, transport_normal_function):
-    """
-    Propagate normal vectors from constrained edges to as many other edges as possible.
-    When an edge receives normals from multiple sources, they are averaged.
-    
-    Parameters:
-    - V: array of vertex coordinates, shape (num_vertices, 3)
-    - E: array of edge vertex indices, shape (num_edges, 2)
-    - vertex_to_edges_map: dictionary mapping vertex indices to lists of edge indices
-    - edge_constraints: list of tuples (edge_index, normal_vector)
-    - transport_normal_function: function to transport normal from one edge to another
-    
-    Returns:
-    - list of tuples (edge_index, normal_vector) for all edges with computed normals
-    """
-    # Initialize dictionaries to keep track of normal vectors and their counts
-    edge_normal_sums = defaultdict(lambda: np.zeros(3))
-    edge_normal_counts = defaultdict(int)
-    
-    # Initialize with constraints
-    for edge_idx, normal in edge_constraints:
-        normal_normalized = normal / np.linalg.norm(normal)
-        edge_normal_sums[edge_idx] = normal_normalized
-        edge_normal_counts[edge_idx] = 1
-    
-    # Keep track of edges to process
-    # We'll use a set for edges that have been added to the queue at least once
-    queued_edges = set(edge_idx for edge_idx, _ in edge_constraints)
-    # And a deque for the actual processing queue
-    queue = deque(queued_edges)
-    
-    # Keep track of which edges have contributed to which other edges
-    # This avoids processing the same (source, target) edge pair multiple times
-    processed_pairs = set()
-    
-    while queue:
-        current_edge = queue.popleft()
-        
-        # Calculate the average normal for the current edge
-        if edge_normal_counts[current_edge] > 0:
-            current_normal = edge_normal_sums[current_edge] / edge_normal_counts[current_edge]
-            current_normal = current_normal / np.linalg.norm(current_normal)
-        else:
-            continue  # Skip if no valid normal
-        
-        # Get the two vertices of the current edge
-        v1, v2 = E[current_edge]
-        
-        # For each vertex of the current edge
-        for vertex in [v1, v2]:
-            # Get all edges connected to this vertex
-            connected_edges = vertex_to_edges_map[vertex]
-            
-            # Process each connected edge
-            for next_edge in connected_edges:
-                if next_edge == current_edge:
-                    continue
-                
-                # Check if this specific propagation path has been processed before
-                pair_key = (current_edge, next_edge)
-                if pair_key in processed_pairs:
-                    continue
-                
-                processed_pairs.add(pair_key)
-                
-                # Transport the normal from current_edge to next_edge
-                transported_normal = transport_normal_function(
-                    V, 
-                    E[current_edge], 
-                    E[next_edge], 
-                    current_normal
-                )
-                
-                # Normalize the transported normal
-                transported_normal = transported_normal / np.linalg.norm(transported_normal)
-                
-                # Update the normal sum and count for the next edge
-                edge_normal_sums[next_edge] += transported_normal
-                edge_normal_counts[next_edge] += 1
-                
-                # Add to queue if not already queued
-                if next_edge not in queued_edges:
-                    queued_edges.add(next_edge)
-                    queue.append(next_edge)
-    
-    # Calculate final averaged normals
-    result = []
-    for edge_idx, normal_sum in edge_normal_sums.items():
-        if edge_normal_counts[edge_idx] > 0:
-            avg_normal = normal_sum / edge_normal_counts[edge_idx]
-            # Ensure the normal is normalized
-            avg_normal = avg_normal / np.linalg.norm(avg_normal)
-            result.append((edge_idx, avg_normal))
-    
-    return result
-    
-
-
-def make_cylinder_example_01():
-    '''
+    Example of using JAX-based optimization with one normal per edge on a cylinder example
     '''
     V, E, P = load_sketch_polyline_data('made_examples/sketch/cylinder.obj')
 
-    plot_edge_info(V, E)
-
-
-    # create constraints by hand 
-    edge_constraints_dict = {0 :  np.array([0, 1, 0]),
-                             1 :  np.array([0, -1, 0])}
+    # Create constraints by hand 
     edge_constraints = [(0, np.array([0, 1, 0])),
                         (1, np.array([0, -1, 0]))]
 
-    plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'manually created edge constraints', filename= None, block= True)
+    # Compute local coordinate frames for edges
+    Us, Vs = create_frames_for_each_polyline(V, E, P)
 
-
-
-
-    # computes local coordinate frames for edges by generating parallel transport 
-    # frames along polylines and mapping them to the global edge indices
-    Us, Vs = create_frames_for_each_polyline( V, E, P )
-
-
-    # plot_edge_frames(V, E, P, Us, Vs, scale=0.08)
-
-
-
-
-
+    # Compute edge distances
     distances = edge_distance_matrix(V, E)
-
     pairwise = extract_pairwise_weight(E, distances)
+    
+    # Create JAX-friendly edge rotation map
+    rotations_data = create_edge_rotation_map_jax_improved(V, E)
+    
+    # Create vertex to edges map
+    vertex_to_edges_map = build_vertex_to_edges_map(E)
 
-    rotations = create_edge_rotation_map(V, E)
-
-    vertex_to_edges_map = build_vertex_to_edges_map( E )
-
-
-    # how about just random the normal for the edges who don't have normals 
-    # estimate_normals = generate_random_initial_guess(E, Us, Vs)
-    # plot_edge_constraints(V, E, P, estimate_normals, scale=0.08, str = 'random normal', filename= None, block= True)
-
-    # propagate normal as much as possible
+    # Propagate normals as initial guess
     estimate_normals = propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constraints, edge_to_edge_normal_transport)
-    plot_edge_constraints(V, E, P, estimate_normals, scale=0.08, str = 'trying to propagate normal', filename= None, block= True)
-
-
-    # turns out pure random cannot go correctly 
-    # we must have 
+    
+    # Get initial thetas
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
-    # thetas0  = np.zeros(len(E))
 
-    callback_fn = create_callback(Us, Vs, E, P, V)
-    # result = optimize_with_jax_single_normal_simpler(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map)
-    optimize_with_single_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, vertex_to_edges_map, callback_fn)
+    callback_fn = create_callback_one_normal(Us, Vs, E, P, V)
+    
+    # Run JAX-based optimization
+    result = optimize_with_jax_one_normal(
+        thetas0,
+        Us,
+        Vs,
+        edge_constraints,
+        pairwise,
+        rotations_data,
+        E,
+        vertex_to_edges_map,
+        callback_fn
+    )
+    
+    # Recover normals from result
+    normals = recover_normals_from_one_normal_result(result, Us, Vs)
+    
+    # Visualize results
+    plot_edge_constraints(V, E, P, normals, unconstrained_polylines_indices=None, 
+                         scale=0.08, 
+                         str="One-Normal Optimization Result", 
+                         block=True)
+    return result, normals
 
-    one_normal = []
-    one_normal = [23, 58]
+# Main function with option to choose optimization method
+def make_cylinder_example_jax_with_options(normals_per_edge='two'):
+    '''
+    Example of using JAX-based optimization on a cylinder example with option to choose
+    between one or two normals per edge
+    
+    Parameters:
+    - normals_per_edge: 'one' or 'two' to specify the optimization method
+    
+    Returns:
+    - Optimization result and computed normals
+    '''
+    V, E, P = load_sketch_polyline_data('made_examples/sketch/cylinder.obj')
 
-    optimize_with_optimized_autograd(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map, one_normal)
+    # Create constraints by hand 
+    edge_constraints = [(0, np.array([0, 1, 0])),
+                        (1, np.array([0, -1, 0]))]
 
+    # Compute local coordinate frames for edges
+    Us, Vs = create_frames_for_each_polyline(V, E, P)
 
+    # Compute edge distances
+    distances = edge_distance_matrix(V, E)
+    pairwise = extract_pairwise_weight(E, distances)
+    
+    # Create JAX-friendly edge rotation map
+    rotations_data = create_edge_rotation_map_jax_improved(V, E)
+    
+    # Create vertex to edges map
+    vertex_to_edges_map = build_vertex_to_edges_map(E)
 
-    # optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='one')
-
-    # optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='two', auto_grad = True)
-
-    # optimize_noramals(V, E, P, Us, Vs, edge_constraints, thetas0, pairwise, rotations, vertex_to_edges_map, NORMALS_PER_EDGE='two', auto_grad = False)
-
-# Usage example:
-# result = optimize_with_jax_single_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map)
-# Or for two normals:
-# result = optimize_with_jax_two_normal(thetas0, Us, Vs, edge_constraints, pairwise, rotations, E, vertex_to_edges_map, one_normal)
-
+    # Propagate normals as initial guess
+    estimate_normals = propagate_normals_from_constraints(V, E, vertex_to_edges_map, edge_constraints, edge_to_edge_normal_transport)
+    
+    # Get initial thetas
+    thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
+    
+    if normals_per_edge == 'one':
+        # One normal per edge
+        callback_fn = create_callback_one_normal(Us, Vs, E, P, V)
+        result = optimize_with_jax_one_normal(
+            thetas0,
+            Us,
+            Vs,
+            edge_constraints,
+            pairwise,
+            rotations_data,
+            E,
+            vertex_to_edges_map,
+            callback_fn
+        )
+        normals = recover_normals_from_one_normal_result(result, Us, Vs)
+        plot_edge_constraints(V, E, P, normals, unconstrained_polylines_indices=None, 
+                              scale=0.08, 
+                              str="One-Normal Optimization Result", 
+                              block=True)
+    else:
+        # Two normals per edge (default)
+        one_normal = [23, 58]  # Specify which edges should have one normal
+        callback_fn = create_callback_two_normals(Us, Vs, E, P, V)
+        result = optimize_with_jax_two_normal(
+            thetas0,
+            Us,
+            Vs,
+            edge_constraints,
+            pairwise,
+            rotations_data,
+            E,
+            vertex_to_edges_map,
+            one_normal,
+            callback_fn
+        )
+        normals = recover_normals_from_jax_result(result, Us, Vs, E)
+        plot_edge_constraints_two_normals(V, E, P, normals, unconstrained_polylines_indices=None, 
+                                          scale=0.08, 
+                                          str="Two-Normal Optimization Result", 
+                                          block=True)
+    
+    return result, normals
 
 if __name__ == "__main__":
-
-    make_cylinder_example_01()
+    # To run with one normal per edge:
+    result, normals = make_cylinder_example_jax_with_options(normals_per_edge='one')
+    
+    # To run with two normals per edge (default):
+    # result, normals = make_cylinder_example_jax_with_options(normals_per_edge='two')
