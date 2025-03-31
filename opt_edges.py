@@ -1,10 +1,10 @@
 import numpy as np
 
 from utility_io import load_sketch_polyline_data, write_normal_data, write_string_to_file
-from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals, plot_edge_constraints_two_normals
+from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals, plot_edge_constraints_two_normals, plot_edge_info
 from utility_segment_distance import segment_to_segment_distance
 
-from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf
+from utility_convex_hull import get_sketch_edge_constraints, export_sketch_normal_gltf, export_sketch_two_normal_gltf
 from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
@@ -1356,6 +1356,7 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
         # Create initial 2D array of thetas
         num_edges = len(thetas0)
         thetas_2d = np.column_stack((thetas0, thetas0))
+        # thetas_2d[:, 0] -= 1e-3  # Small perturbation for first normal
         thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
         initial_thetas = thetas_2d.flatten()
         
@@ -1516,6 +1517,38 @@ def create_edge_weight_matrix(E, distances, epsilon=1):
     return weight_matrix
 
 
+def collect_edge_indices_from_strokes(stroke_indices, polylines_edge_data):
+    """
+    Collects all edge indices from specified strokes/polylines.
+    
+    This function gathers all edge indices that make up the specified strokes.
+    
+    Parameters
+    ----------
+    stroke_indices : list of int
+        Indices of strokes/polylines to extract edge information from.
+    
+    polyline_to_edge_map : dict {polyline_idx: (edge_indices, is_edge_reversed)}
+        Mapping from polyline indices to the edges that compose them and whether
+        each edge direction is reversed in the polyline.
+    
+    Returns
+    -------
+    list of int
+        A flattened list of all edge indices that make up the specified strokes.
+        May contain duplicates if edges are shared between strokes.
+
+    """
+    all_edge_indices = []
+    
+    for stroke_index in stroke_indices:
+        if stroke_index in polyline_to_edge_map:
+            edge_indices, _ = polylines_edge_data[stroke_index]
+            all_edge_indices.extend(edge_indices)
+    
+    return all_edge_indices
+    
+
 
 if __name__ == "__main__":
     
@@ -1584,6 +1617,7 @@ if __name__ == "__main__":
     # same polyline, same color
     if show_plot:
         plot_sketch_data(V, P)
+        # plot_edge_info(V, E)
 
     #####################################
     #endregion
@@ -1680,7 +1714,15 @@ if __name__ == "__main__":
 
     callback_fn = create_callback(Us, Vs, E, P, V, mode=normals_per_edge)
 
-    one_normal = []
+    # one_normal = [23, 58]
+    
+    # for sketches/onshape/onshape_simple_mouse.obj
+    one_normal = collect_edge_indices_from_strokes([0, 2, 4], polyline_to_edge_map)
+    
+    # for sketches/onshape/onshape_simple_shape.obj
+    one_normal = collect_edge_indices_from_strokes([0], polyline_to_edge_map)
+
+    print('one_normal', one_normal)
 
     result = optimize_normal_angles(
         thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
@@ -1699,6 +1741,8 @@ if __name__ == "__main__":
             V, E, P, normals, unconstrained_polylines_indices=None, 
             scale=0.08, str="Two-Normal Optimization Result", block=True
         )
+
+        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
 
 
         # if save_debug_gltf:

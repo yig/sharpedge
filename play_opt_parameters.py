@@ -853,7 +853,8 @@ def make_cylinder_example_jax_with_options(normals_per_edge='two'):
     
     # Set specific edges for one-normal constraint in two-normal mode
     one_normal = [23, 58] if normals_per_edge == 'two' else None
-    
+    # one_normal = []
+
     # Run the unified optimization function with appropriate mode
     result = optimize_normal_angles(
         thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
