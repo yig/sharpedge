@@ -1560,7 +1560,7 @@ if __name__ == "__main__":
                     help='Number of normals per edge (1 or 2)')
     parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
-    parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='true',
+    parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
                    help='Save the gltf files for debug (default: true)')    
 
     args = parser.parse_args()
@@ -1742,7 +1742,8 @@ if __name__ == "__main__":
             scale=0.08, str="Two-Normal Optimization Result", block=True
         )
 
-        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
+        if save_debug_gltf:
+            export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
 
 
         # if save_debug_gltf:
