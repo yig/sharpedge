@@ -764,7 +764,7 @@ def precompute_edge_rotation_map(V, E):
         'has_rotation': has_rotation
     }
 
-def preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map):
+def preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map):
     """
     Preprocess geometric edge pair data into an optimized format for energy computation.
     Produces JAX-compatible arrays specifically designed for efficient computation.
@@ -778,8 +778,7 @@ def preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map):
     Returns:
     - Dictionary with JAX arrays containing pre-processed edge pair data ready for computation
     """
-    # Convert E to numpy array if it isn't already
-    E_array = np.array(E)
+
     
     # Extract pairwise data
     e1_indices = np.array([p[0] for p in pairwise])
@@ -801,7 +800,6 @@ def preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map):
     rotation_matrices = np.array([rotations_data['matrices'][e1, e2] for e1, e2 in zip(e1_indices, e2_indices)])
     
     return {
-        'E': jnp.array(E_array),
         'e1_indices': jnp.array(e1_indices),
         'e2_indices': jnp.array(e2_indices),
         'weights': jnp.array(weights),
@@ -1304,7 +1302,7 @@ def recover_normals(result, Us, Vs, mode='two'):
     return normals
 
 # Unified optimization function with different behavior for one/two normals
-def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map, 
+def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map, 
                       mode='two', one_normal=None, callback_fn=None):
     """
     Unified JAX-based optimization function for both one-normal and two-normal cases
@@ -1334,7 +1332,7 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
     constraints_jax = prepare_edge_constraints(edge_constraints)
     
     # Pre-process data for faster computation using improved rotations
-    data = preprocess_edge_pair_data(E, pairwise, rotations_data, vertex_to_edges_map)
+    data = preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map)
     
     if mode == 'one':
         # One normal per edge
@@ -1715,19 +1713,26 @@ if __name__ == "__main__":
     callback_fn = create_callback(Us, Vs, E, P, V, mode=normals_per_edge)
 
     # one_normal = [23, 58]
+    one_normal = []
     
     # for sketches/onshape/onshape_simple_mouse.obj
-    one_normal = collect_edge_indices_from_strokes([0, 2, 4], polyline_to_edge_map)
+    # one_normal = collect_edge_indices_from_strokes([0, 2, 4, 5], polyline_to_edge_map)
     
-    # for sketches/onshape/onshape_simple_shape.obj
-    one_normal = collect_edge_indices_from_strokes([0], polyline_to_edge_map)
+    # # for sketches/onshape/onshape_simple_shape.obj
+    # one_normal = collect_edge_indices_from_strokes([0], polyline_to_edge_map)
 
     print('one_normal', one_normal)
 
     result = optimize_normal_angles(
-        thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, E, vertex_to_edges_map,
+        thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
         mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
     )
+
+    # result = optimize_normal_angles(
+    #     thetas0, Us, Vs, {}, pairwise, rotations_data, vertex_to_edges_map,
+    #     mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+    # )
+
 
     normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
 
@@ -1736,14 +1741,21 @@ if __name__ == "__main__":
             V, E, P, normals, unconstrained_polylines_indices=None, 
             scale=0.08, str="One-Normal Optimization Result", block=True
         )
+
+        if gltf_file:
+            export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
+
     else:
         plot_edge_constraints_two_normals(
             V, E, P, normals, unconstrained_polylines_indices=None, 
             scale=0.08, str="Two-Normal Optimization Result", block=True
         )
 
-        if save_debug_gltf:
-            export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
+        if gltf_file:
+            export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, gltf_file)
+
+        # if save_debug_gltf:
+        #     export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
 
 
         # if save_debug_gltf:
@@ -1753,12 +1765,9 @@ if __name__ == "__main__":
         # if show_plot:
         #     plot_edge_constraints(V, E, P,  opt_normals, unconstrained_polylines_indices, scale=0.08, str = "optimize result")
 
-        # if gltf_file:
-        #     export_sketch_normal_gltf(V, E, P, N_normalized,  unconstrained_polylines_indices, filename = gltf_file)
-
-        # if normal_file:
-        #     write_normal_data(V, E, N_normalized , normal_file)
-
     #####################################
     #endregion
-  
+    
+
+    if normal_file:
+        write_normal_data(V, E, normals , normal_file)
