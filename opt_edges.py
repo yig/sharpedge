@@ -1,6 +1,6 @@
 import numpy as np
 
-from utility_io import load_sketch_polyline_data, write_normal_data, write_string_to_file
+from utility_io import load_sketch_polyline_data, write_normal_data, write_string_to_file, write_two_normal
 from utility_plot_viewer import plot_sketch_data, plot_edge_constraints, plot_edge_frames, plot_polyline_best_constraints, plot_polyline_normals, plot_edge_constraints_two_normals, plot_edge_info
 from utility_segment_distance import segment_to_segment_distance
 
@@ -1556,6 +1556,8 @@ if __name__ == "__main__":
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
     parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=1,
                     help='Number of normals per edge (1 or 2)')
+    parser.add_argument('-c', '--constraints', choices=['t', 'f'], default='t', 
+                    help='Use constraints: t (true) or f (false) (default: t)')
     parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
@@ -1566,6 +1568,7 @@ if __name__ == "__main__":
     curve_file = args.curve_file
     normal_file = args.normal_file
     gltf_file = args.gltf_file
+    use_constraints = args.constraints.lower() == 't'
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
     mode_map = {1: 'one', 2: 'two'}
@@ -1723,27 +1726,43 @@ if __name__ == "__main__":
 
     print('one_normal', one_normal)
 
-    result = optimize_normal_angles(
-        thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
-        mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
-    )
+    if use_constraints:
+        result = optimize_normal_angles(
+            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+        )
+    else:
+        result = optimize_normal_angles(
+            thetas0, Us, Vs, {}, pairwise, rotations_data, vertex_to_edges_map,
+            mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+        )
 
-    # result = optimize_normal_angles(
-    #     thetas0, Us, Vs, {}, pairwise, rotations_data, vertex_to_edges_map,
-    #     mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
-    # )
 
 
     normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
+
+
+    constraints_str = "c" if args.constraints == 't' else "nc"  # constrained/not constrained
+    normals_str = f"{args.normal_per_edge}n"  # 1n or 2n for normals
+
+    filename = f"{curve_name}_{constraints_str}_{normals_str}"
+    # Create filename
+    filename = f"{curve_name}_{constraints_str}_{normals_str}"
+
+    if not gltf_file:
+        gltf_file = 'debug_normals/' + filename + '.gltf'
+    if not normal_file:
+        normal_file = 'debug_normals/' + filename + '.normal'
+
+
 
     if normals_per_edge == 'one':
         plot_edge_constraints(
             V, E, P, normals, unconstrained_polylines_indices=None, 
             scale=0.08, str="One-Normal Optimization Result", block=True
         )
-
-        if gltf_file:
-            export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
+        
+        export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
 
     else:
         plot_edge_constraints_two_normals(
@@ -1751,8 +1770,9 @@ if __name__ == "__main__":
             scale=0.08, str="Two-Normal Optimization Result", block=True
         )
 
-        if gltf_file:
-            export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, gltf_file)
+        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, gltf_file)
+    
+    write_two_normal(V, E, normals , normal_file)
 
         # if save_debug_gltf:
         #     export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')
@@ -1769,5 +1789,3 @@ if __name__ == "__main__":
     #endregion
     
 
-    if normal_file:
-        write_normal_data(V, E, normals , normal_file)
