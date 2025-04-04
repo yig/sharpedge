@@ -1126,8 +1126,11 @@ def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_norma
     normals1 = jnp.cos(thetas[:, 1, jnp.newaxis]) * Us + jnp.sin(thetas[:, 1, jnp.newaxis]) * Vs
     
     # ===== Constraint Energy =====
-    E_constraint = compute_two_normal_constraint_energy(normals0, normals1, constraints)
-    
+    # E_constraint = compute_two_normal_constraint_energy(normals0, normals1, constraints)
+    E_constraint = compute_one_normal_constraint_energy(normals0, constraints) * 0.5
+    E_constraint += compute_one_normal_constraint_energy(normals1, constraints) * 0.5
+
+
     # ===== One Normal Energy =====
     E_one_normal = compute_two_normals_coherence_energy(thetas, one_normal)
     
@@ -1354,7 +1357,6 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
         # Create initial 2D array of thetas
         num_edges = len(thetas0)
         thetas_2d = np.column_stack((thetas0, thetas0))
-        # thetas_2d[:, 0] -= 1e-3  # Small perturbation for first normal
         thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
         initial_thetas = thetas_2d.flatten()
         
@@ -1712,8 +1714,10 @@ if __name__ == "__main__":
     #region Optimization 
     #####################################
 
-
-    callback_fn = create_callback(Us, Vs, E, P, V, mode=normals_per_edge)
+    if show_plot:
+        callback_fn = create_callback(Us, Vs, E, P, V, mode=normals_per_edge)
+    else:
+        callback_fn = None
 
     # one_normal = [23, 58]
     one_normal = []
@@ -1754,25 +1758,29 @@ if __name__ == "__main__":
     if not normal_file:
         normal_file = 'debug_normals/' + filename + '.normal'
 
-
+    
+    
 
     if normals_per_edge == 'one':
-        plot_edge_constraints(
-            V, E, P, normals, unconstrained_polylines_indices=None, 
-            scale=0.08, str="One-Normal Optimization Result", block=True
-        )
+        if show_plot:
+            plot_edge_constraints(
+                V, E, P, normals, unconstrained_polylines_indices=None, 
+                scale=0.08, str="One-Normal Optimization Result", block=True
+            )
         
         export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
+        write_normal_data(V, E, normals, normal_file)
 
     else:
-        plot_edge_constraints_two_normals(
-            V, E, P, normals, unconstrained_polylines_indices=None, 
-            scale=0.08, str="Two-Normal Optimization Result", block=True
-        )
+        if show_plot:
+            plot_edge_constraints_two_normals(
+                V, E, P, normals, unconstrained_polylines_indices=None, 
+                scale=0.08, str="Two-Normal Optimization Result", block=True
+            )
 
         export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, gltf_file)
     
-    write_two_normal(V, E, normals , normal_file)
+        write_two_normal(V, E, normals , normal_file)
 
         # if save_debug_gltf:
         #     export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals_gltf/final_optimize_two_normals/' + curve_name + '.gltf')

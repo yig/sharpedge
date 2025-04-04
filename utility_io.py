@@ -156,7 +156,9 @@ def write_normal_data(V, E, N, filename):
     Args:
         V (ndarray): nx3 array of vertex coordinates (x, y, z)
         E (ndarray): mx2 array of edge vertex pairs (0-based indices)
-        N (ndarray): mx3 array of normal vectors for edges (nx, ny, nz)
+        N (ndarray or dict): 
+            - If ndarray: mx3 array of normal vectors for edges (nx, ny, nz)
+            - If dict: Dictionary with edge indices as keys and normal vectors as values
         filename (str): Path to output OBJ file
         
     File format:
@@ -175,18 +177,80 @@ def write_normal_data(V, E, N, filename):
             f.write(f"v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n")
             
         # Write edges, converting from 0-based to 1-based indexing
-        for e in E:
+        for i, e in enumerate(E):
             f.write(f"l {e[0]+1} {e[1]+1}\n")
-            
-        # Write normal vectors with 6 decimal precision
-        for n in N:
-            f.write(f"vn {n[0]:.6f} {n[1]:.6f} {n[2]:.6f}\n")
+        
+        # Handle normal vectors based on type
+        normal_count = 0
+        if isinstance(N, dict):
+            # If N is a dictionary, write normals by their keys
+            for idx, normal in N.items():
+                f.write(f"vn {normal[0]:.6f} {normal[1]:.6f} {normal[2]:.6f}\n")
+                normal_count += 1
+        else:
+            # If N is an array, write normals in order
+            for normal in N:
+                f.write(f"vn {normal[0]:.6f} {normal[1]:.6f} {normal[2]:.6f}\n")
+                normal_count += 1
     
     # Print summary of written data
     print(f"Wrote to {filename}:")
     print(f"- {len(V)} vertices")
     print(f"- {len(E)} edges")
-    print(f"- {len(N)} normal vectors")
+    print(f"- {normal_count} normal vectors")
+
+def write_two_normal(V, E, normals, filename):
+    """
+    Write vertices, edges, and dual normal data to an OBJ file.
+    Each edge has exactly two normal vectors.
+    
+    Args:
+        V (ndarray): nx3 array of vertex coordinates (x, y, z)
+        E (ndarray): mx2 array of edge vertex pairs (0-based indices)
+        normals (dict): Dictionary with keys (edge_idx, which_edge) where:
+                        - edge_idx is the edge index
+                        - which_edge is 0 or 1 for the first or second normal
+                        Values are 3D normal vectors (nx, ny, nz)
+        filename (str): Path to output OBJ file
+        
+    File format:
+        v x y z     # vertex coordinates
+        l i j       # edge between vertices i and j (1-based indices)
+        vn nx ny nz # normal vector for edge
+        
+    Note:
+        Edge indices are automatically converted from 0-based (input)
+        to 1-based (OBJ file format) during writing.
+        For each edge, both normal vectors are written consecutively.
+    """
+    # Write data to file
+    with open(filename, 'w') as f:
+        # Write vertices with 6 decimal precision
+        for v in V:
+            f.write(f"v {v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n")
+            
+        # Write edges, converting from 0-based to 1-based indexing
+        for i, e in enumerate(E):
+            f.write(f"l {e[0]+1} {e[1]+1}\n")
+        
+        # Get all unique edge indices in sorted order
+        edge_indices = sorted(set(edge_idx for edge_idx, _ in normals.keys()))
+        
+        # Write both normals for each edge
+        for edge_idx in edge_indices:
+            # Write first normal (0)
+            normal = normals[(edge_idx, 0)]
+            f.write(f"vn {normal[0]:.6f} {normal[1]:.6f} {normal[2]:.6f}\n")
+            
+            # Write second normal (1)
+            normal = normals[(edge_idx, 1)]
+            f.write(f"vn {normal[0]:.6f} {normal[1]:.6f} {normal[2]:.6f}\n")
+    
+    # Print summary of written data
+    print(f"Wrote to {filename}:")
+    print(f"- {len(V)} vertices")
+    print(f"- {len(E)} edges")
+    print(f"- {len(edge_indices) * 2} normal vectors (2 per edge)")
 
 def load_mesh(filename):
     """
