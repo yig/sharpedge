@@ -1127,9 +1127,10 @@ def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_norma
     
     # ===== Constraint Energy =====
     # E_constraint = compute_two_normal_constraint_energy(normals0, normals1, constraints)
-    E_constraint = compute_one_normal_constraint_energy(normals0, constraints) * 0.5
-    E_constraint += compute_one_normal_constraint_energy(normals1, constraints) * 0.5
-
+    # E_constraint = compute_one_normal_constraint_energy(normals0, constraints) * 0.5
+    # E_constraint += compute_one_normal_constraint_energy(normals1, constraints) * 0.5
+    E_constraint = compute_one_normal_constraint_energy(normals0, constraints['normal0']) * 0.5
+    E_constraint += compute_one_normal_constraint_energy(normals1, constraints['normal1']) * 0.5
 
     # ===== One Normal Energy =====
     E_one_normal = compute_two_normals_coherence_energy(thetas, one_normal)
@@ -1142,7 +1143,8 @@ def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_norma
     )
     
     # Return weighted sum of energies
-    return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
+    # return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
+    return 1e0 * E_constraint + 1e0 * E_pairwise + 1e2 * E_one_normal
 
 @jit
 def compute_one_normal_total_energy(thetas, Us, Vs, constraints, data):
@@ -1304,6 +1306,7 @@ def recover_normals(result, Us, Vs, mode='two'):
     
     return normals
 
+
 # Unified optimization function with different behavior for one/two normals
 def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map, 
                       mode='two', one_normal=None, callback_fn=None):
@@ -1330,9 +1333,19 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
     # Convert inputs to JAX arrays
     Us_jax = jnp.array(Us)
     Vs_jax = jnp.array(Vs)
+
+    print('mode', mode)
     
-    # Convert edge_constraints to JAX-friendly format
-    constraints_jax = prepare_edge_constraints(edge_constraints)
+
+    if mode == 'one':
+        # Convert edge_constraints to JAX-friendly format
+        constraints_jax = prepare_edge_constraints(edge_constraints)
+    else:
+        # I think for 2, it is already jaxed
+        constraints_jax = edge_constraints
+
+
+
     
     # Pre-process data for faster computation using improved rotations
     data = preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map)
@@ -1393,9 +1406,6 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
     print(f"JAX {mode}-normal optimization took {end_time - start_time:.6f} seconds")
     
     return result
-
-
-
 
 def convert_edge_normals_to_array(edge_normals, num_edges):
     """
@@ -1482,7 +1492,6 @@ def random_normal_for_edge( U, V) :
     '''
     return normal_for_edge( np.random.uniform(0, 2 * np.pi), U, V )                
 
-
 ## helper - never used
 def create_edge_weight_matrix(E, distances, epsilon=1):
     """
@@ -1516,7 +1525,6 @@ def create_edge_weight_matrix(E, distances, epsilon=1):
     
     return weight_matrix
 
-
 def collect_edge_indices_from_strokes(stroke_indices, polylines_edge_data):
     """
     Collects all edge indices from specified strokes/polylines.
@@ -1547,9 +1555,121 @@ def collect_edge_indices_from_strokes(stroke_indices, polylines_edge_data):
             all_edge_indices.extend(edge_indices)
     
     return all_edge_indices
+
+
+def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals):
+    '''
+    Computes corner constraints for vertices with valence 3.
     
+    Parameters:
+        - V: vertices
+        - E: edges
+        - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+        - estimate_normals: list of tuples (edge_index, normal_vector) for all edges with computed normals
+    
+    Returns:
+        - Dictionary with separate constraints for normals0 and normals1:
+          * 'normal0': Dictionary with 'indices' and 'normals' for first normal of each edge
+          * 'normal1': Dictionary with 'indices' and 'normals' for second normal of each edge
+    '''
+    # Convert normals to dictionary for lookup
+    estimate_normals = dict(estimate_normals)
+    
+    # Keep track of normals per edge
+    edge_normals = {}
+    
+    # For plotting: format (edge_idx, which_edge) -> normal
+    plotting_normals = {}
+    
+    # Helper function to check if a normal is similar to existing ones
+    def is_similar_normal(normal, existing_normals, threshold_degrees=30):
+        threshold = np.cos(np.radians(threshold_degrees))
+        for existing in existing_normals:
+            if abs(np.dot(normal, existing)) > threshold:
+                return True
+        return False
+    
+    # Process each vertex with valence 3
+    for vertex, edges in vertex_to_edges_map.items():
+        if len(edges) == 3:
+            # Get the three edges connected to this vertex
+            ei0, ei1, ei2 = edges
+            e0 = E[ei0]
+            e1 = E[ei1]
+            e2 = E[ei2]
+            
+            # Compute tangent vectors for each edge
+            t0 = compute_edge_tangent(V, e0)
+            t1 = compute_edge_tangent(V, e1)
+            t2 = compute_edge_tangent(V, e2)
+            
+            # Compute normal candidates by cross products of tangents
+            normals_candidates = {
+                ei0: [np.cross(t0, t1), np.cross(t0, t2)],
+                ei1: [np.cross(t0, t1), np.cross(t1, t2)],
+                ei2: [np.cross(t0, t2), np.cross(t1, t2)]
+            }
+            
+            # Normalize and orient all normals
+            for edge_idx, normals in normals_candidates.items():
+                for i in range(len(normals)):
+                    normal = normals[i]
+                    norm = np.linalg.norm(normal)
+                    if norm > 1e-10:  # Avoid division by zero
+                        normal = normal / norm
+                    
+                    # Ensure consistent orientation with estimated normals
+                    if np.dot(normal, estimate_normals[edge_idx]) < 0:
+                        normal = -normal
+                    
+                    normals[i] = normal
+            
+            # Add normals to edge_normals while avoiding duplicates
+            for edge_idx, normals in normals_candidates.items():
+                if edge_idx not in edge_normals:
+                    edge_normals[edge_idx] = []
+                
+                for normal in normals:
+                    if not is_similar_normal(normal, edge_normals[edge_idx]):
+                        edge_normals[edge_idx].append(normal)
+    
+    # Prepare the output format
+    indices0 = []
+    normals0 = []
+    indices1 = []
+    normals1 = []
+    
+    # Create both computation and plotting formats
+    for edge_idx, normals in edge_normals.items():
+        if len(normals) >= 1:
+            # First normal
+            indices0.append(edge_idx)
+            normals0.append(normals[0])
+            plotting_normals[(edge_idx, 0)] = normals[0]
+            
+            # Second normal - use the second one if available, otherwise reuse the first
+            indices1.append(edge_idx)
+            if len(normals) >= 2:
+                normals1.append(normals[1])
+                plotting_normals[(edge_idx, 1)] = normals[1]
+            else:
+                # If only one normal exists, use it for both constraints
+                normals1.append(normals[0])
+                plotting_normals[(edge_idx, 1)] = normals[0]
 
-
+    # Return formats for computation and plotting
+    return {
+        'normal0': {
+            'indices': np.array(indices0),
+            'normals': np.array(normals0)
+        },
+        'normal1': {
+            'indices': np.array(indices1),
+            'normals': np.array(normals1)
+        },
+        'plotting_normals': plotting_normals
+    }
+   
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
@@ -1558,8 +1678,6 @@ if __name__ == "__main__":
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
     parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=1,
                     help='Number of normals per edge (1 or 2)')
-    parser.add_argument('-c', '--constraints', choices=['t', 'f'], default='t', 
-                    help='Use constraints: t (true) or f (false) (default: t)')
     parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
@@ -1570,7 +1688,6 @@ if __name__ == "__main__":
     curve_file = args.curve_file
     normal_file = args.normal_file
     gltf_file = args.gltf_file
-    use_constraints = args.constraints.lower() == 't'
     show_plot = args.show_plot.lower() == 'true'
     save_debug_gltf = args.save_debug_gltf.lower() == 'true'
     mode_map = {1: 'one', 2: 'two'}
@@ -1698,9 +1815,12 @@ if __name__ == "__main__":
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
     # print('thetas0', thetas0)
 
+
+
+
+
     #####################################
     #endregion
-
 
 
   
@@ -1730,28 +1850,58 @@ if __name__ == "__main__":
 
     print('one_normal', one_normal)
 
-    if use_constraints:
+    if normals_per_edge =='one':
         result = optimize_normal_angles(
             thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
-            mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+            mode= normals_per_edge , one_normal=one_normal, callback_fn=callback_fn
         )
-    else:
+        normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
+    # # if there're 2 normal per edge, then use the optimized 1 normal as 
+    # # use opt 1 normal as starting normal
+    elif normals_per_edge =='two':
+
         result = optimize_normal_angles(
-            thetas0, Us, Vs, {}, pairwise, rotations_data, vertex_to_edges_map,
-            mode=normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            mode= 'one' , one_normal=one_normal, callback_fn=None
         )
 
+        estimate_normals = recover_normals(result, Us, Vs, mode='one')
+
+        if show_plot:
+            plot_edge_constraints(
+                V, E, P, estimate_normals, unconstrained_polylines_indices=None, 
+                scale=0.08, str="One-Normal Optimization Result", block=True
+            )
+            
+        corner_constraints = vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals)
+
+        print('corner_constraints', corner_constraints)
+
+        plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', block=True)
+        
+        
+        thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
+        edge_constraints = corner_constraints
 
 
-    normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
+        result = optimize_normal_angles(
+            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+        )
+
+        normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
 
 
-    constraints_str = "c" if args.constraints == 't' else "nc"  # constrained/not constrained
+
+
+
+
+
     normals_str = f"{args.normal_per_edge}n"  # 1n or 2n for normals
 
-    filename = f"{curve_name}_{constraints_str}_{normals_str}"
+    filename = f"{curve_name}_{normals_str}"
     # Create filename
-    filename = f"{curve_name}_{constraints_str}_{normals_str}"
+    filename = f"{curve_name}_{normals_str}"
 
     if not gltf_file:
         gltf_file = 'debug_normals/' + filename + '.gltf'
