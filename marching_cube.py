@@ -116,6 +116,107 @@ def resample_for_points_normal(V, E, N, sample_length=0.01, proximity_threshold=
     
     return np.array(points), np.array(normals)
 
+def resample_for_points_normal_v2(V, E, N, sample_length=0.01, proximity_threshold=5e-3):
+    '''
+    Sample the edge normal on the points using the sample length.
+    Filters out points that are too close to existing points while keeping exact duplicates.
+    For points that are exact duplicates, maintains separate normals for each edge.
+    
+    Parameters:
+        V: vertices array
+        E: edges array (pairs of vertex indices)
+        N: normals array
+        sample_length: desired length between samples
+        proximity_threshold: minimum allowed distance between points
+    Returns:
+        points: array of sampled points (may include duplicates at exact same position)
+        normals: array of corresponding normal vectors (one for each point)
+    '''
+    points_dict = {}  # Dictionary to store point-normal pairs
+    
+    def add_point_with_check(point, normal):
+        """Helper function to add point or check proximity
+        - Keeps exact duplicate points with their separate normals
+        - Filters out points that are too close (but not exact matches)
+        """
+        point_tuple = tuple(point)
+        
+        if not points_dict:  # First point, add directly
+            points_dict[point_tuple] = [normal]
+            return True
+            
+        # Check if point already exists exactly (common in mesh intersections)
+        if point_tuple in points_dict:
+            # For exact matches, keep the point but add the normal to list
+            points_dict[point_tuple].append(normal)
+            return True  # Consider this a "keep" scenario
+            
+        # Create KD-tree from existing points for proximity search
+        existing_points = np.array(list(points_dict.keys()))
+        tree = cKDTree(existing_points)
+        
+        # Check if point is too close to any existing point
+        distances, indices = tree.query(point, k=1)
+        if distances > proximity_threshold:
+            # Point is far enough from existing points, add it
+            points_dict[point_tuple] = [normal]
+            return True
+        else:
+            # If point is close but not exact, don't keep it
+            # No need to add the normal to the closest point
+            return False
+    
+    # Process each edge
+    for index, edge in enumerate(E):
+        e0, e1 = edge
+        p0 = V[e0]
+        p1 = V[e1]
+        edge_vec = p1 - p0
+        edge_length = np.linalg.norm(edge_vec)
+        n = max(2, int(np.ceil(edge_length / sample_length)))
+        normal = N[index]
+        
+        # Skip edges with zero normal
+        if np.linalg.norm(normal) < 1e-10:
+            continue
+            
+        # Add endpoints
+        add_point_with_check(p0, normal)
+        add_point_with_check(p1, normal)
+        
+        # Add interior points based on sampling density
+        if n > 2:
+            # Generate sample points along the edge
+            t = np.linspace(0, 1, n)[1:-1]  # Exclude endpoints
+            for ti in t:
+                point = p0 + ti * edge_vec
+                add_point_with_check(point, normal)
+        elif n == 2 and edge_length > proximity_threshold * 2:
+            # Add midpoint for short edges, if it's not too close to endpoints
+            mid_point = (p0 + p1) / 2
+            add_point_with_check(mid_point, normal)
+    
+    # Convert dictionary back to separate arrays
+    # For points with multiple normals, create separate entries for each normal
+    points = []
+    normals = []
+    
+    for point_key, normal_list in points_dict.items():
+        point = list(point_key)
+        
+        # For each normal associated with this point, create a separate entry
+        for normal in normal_list:
+            points.append(point)
+            
+            # Ensure the normal is normalized
+            norm = np.linalg.norm(normal)
+            if norm > 1e-10:
+                normal = normal / norm
+            normals.append(normal)
+    
+    return np.array(points), np.array(normals)
+
+
 def generate_bounding_box_points(V, scale_factor=2):
     """Generate axis-aligned bounding box vertices around 3D points.
     Args:
