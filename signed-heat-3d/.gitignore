@@ -1,0 +1,9 @@
+**/.DS_Store
+build/
+Xcode-build/
+data/
+export/
+media/
+deps/
+LICENSE
+README.md
