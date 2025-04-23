@@ -239,6 +239,7 @@ Vector<double> SignedHeatGridSolver::computeDistance(pointcloud::PointPositionDu
         Vector3 c = centroid(pointGeom);
         double r = radius(pointGeom, c);
         double s = r * options.scale;
+//        std::cout << "options.scale " << options.scale << std::endl;
         // clang-format off
         bboxMin = {-s, -s, -s}; bboxMax = {s, s, s};
         bboxMin += c; bboxMax += c;
@@ -304,7 +305,23 @@ Vector<double> SignedHeatGridSolver::computeDistance(pointcloud::PointPositionDu
                         // If outside both planes, use normalized direction vector
                         normalToUse = direction.normalize();
 #else
-                        if (dot1 < dot2)
+                        // Outside the n1 and n2
+                        // Use 3 cases now
+                        // close to n1
+                        // close to n2
+                        
+                        Vector3 bisector = ( n_prime + n ) / 2;
+                        bisector.normalize();
+                        
+                        double dot_bisector = dot(direction, bisector);
+                        
+                        assert(dot_bisector > 0);
+                        
+                        if (dot_bisector > dot1 and dot_bisector > dot2)
+                        {
+                            normalToUse = direction.normalize();
+                        }
+                        else if (dot1 < dot2)
                         {
                             normalToUse = n_prime;
                         }

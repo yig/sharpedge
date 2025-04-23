@@ -22,7 +22,9 @@ struct SignedHeat3DOptions {
     double tCoef = 1.0;
     double hCoef = 0.0;
     bool rebuild = true;
-    double scale = 2.;
+    // modified by Xue
+    //double scale = 2.;
+    double scale = 1.1;
     bool useCrouzeixRaviart = true;
     bool fastIntegration = false;
     bool exportData = false;
