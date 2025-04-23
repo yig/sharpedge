@@ -23,3 +23,6 @@ opt_figs/
 gltfs/
 normals_gltfs/
 surface/
+current_not_used_scripts/
+normal/
+opt_two_normal/
