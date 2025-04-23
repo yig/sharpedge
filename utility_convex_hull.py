@@ -511,7 +511,7 @@ def plot_3d_sketch_with_normals(vertices, edges, polylines, edge_normals, normal
     plt.tight_layout()
     plt.show()
 
-def export_sketch_normal_gltf(vertices, edges, P, edge_normals, filename="sketch_with_normal.gltf"):
+def export_sketch_normal_gltf(vertices, edges, P, edge_normals, unconstrained_polylines_indices = None, filename="sketch_with_normal.gltf"):
     """
     Export 3D sketch with edges, normals, and polylines as a GLTF file.
     
@@ -528,10 +528,11 @@ def export_sketch_normal_gltf(vertices, edges, P, edge_normals, filename="sketch
         - np.ndarray of shape (M, 3)
         - list of np.ndarray
         - list of lists
+        - dictionary: Dictionary with edge indices as keys and normal vectors as values
+    unconstrained_polylines_indices : a set/list of unconstrainted polyline indices
     filename : str
         Output GLTF filename
     """
-
 
     polylines = [[vertices[i] for i in line] for line in P]
 
@@ -544,7 +545,10 @@ def export_sketch_normal_gltf(vertices, edges, P, edge_normals, filename="sketch
         normals = edge_normals
     elif isinstance(edge_normals, list):  # Changed from "else isinstance()" to "elif isinstance()"
         normals = edge_normals
-        
+    elif isinstance(edge_normals, dict):
+        assert len(edge_normals) == len(edges)
+        for edge_index, normal in edge_normals.items():
+            normals[edge_index] = normal
 
      
     # Initialize exporter
@@ -590,113 +594,150 @@ def export_sketch_normal_gltf(vertices, edges, P, edge_normals, filename="sketch
         colors.append(rgba[:3])  # Take only RGB values, ignore alpha
     
     # Add polylines and their vertices
-    for polyline, color in zip(polylines, colors):
-        # Add the polyline as cylinder strips
+    for i, polyline in enumerate(polylines):
+        # Default parameters
+        polyline_radius = POLYLINE_RADIUS
+        vertex_radius = VERTEX_RADIUS 
+        color = colors[i]
+        
+        # Modify parameters for unconstrained polylines
+        if unconstrained_polylines_indices is not None and i in unconstrained_polylines_indices:
+            polyline_radius *= 2
+            vertex_radius *= 2
+            color = (1, 1, 1)
+
         exporter.add_cylinder_strips(polyline, 
                                    color=color,
-                                   radius=POLYLINE_RADIUS,
+                                   radius=polyline_radius,
                                    add_spheres=False)
         
         # Add vertices as spheres with matching color
         exporter.add_spheres(polyline,
                            color=color,
-                           radius=VERTEX_RADIUS)
+                           radius=vertex_radius)
     
     # Save the GLTF file
     exporter.save(filename)
     print(f"GLTF file saved as: {filename}")
 
  
-def export_sketch_polyline_normal_gltf(vertices, edges, polylines, polyline_normals, filename="sketch_with_normal.gltf", save_debug_gltf=True):
+
+def export_sketch_two_normal_gltf(vertices, edges, P, edge_normals, unconstrained_polylines_indices=None, filename="sketch_with_two_normals.gltf"):
     """
-    Export 3D sketch with edges, normals, and polylines as a GLTF file.
+    Export 3D sketch with edges, two normals per edge, and polylines as a GLTF file.
+    
     Parameters
     ----------
     vertices : np.ndarray, shape (N, 3)
         Array of vertex coordinates
     edges : np.ndarray, shape (M, 2)
         Array of edge vertex indices
-    polylines : list of lists
-        List of polylines, where each polyline is a list of vertex indices
-    polyline_normals : dict
-        Dictionary in one of two formats:
-        1. {polyline_idx: (position_in_polyline, normal_vector)}
-           - polyline_idx: index of the polyline
-           - position_in_polyline: position of the edge in the polyline
-           - normal_vector: reference normal vector
-        2. {polyline_idx: [normal_vectors]}
-           - polyline_idx: index of the polyline
-           - normal_vectors: list of normal vectors corresponding to each edge in the polyline
+    P : list of np.ndarray
+        List of polylines, where each polyline is vertex index
+    edge_normals : array-like
+        Array/list of edge normal vectors. Expected format:
+        - List of tuples: [((edge_idx, which_edge), normal), ...]
+        - Or: [(edge_idx, normal), ...] where which_edge defaults to 0
+        - Or: dictionary with edge keys and normal values
+    unconstrained_polylines_indices : a set/list of unconstrainted polyline indices
     filename : str
         Output GLTF filename
-    save_debug_gltf : bool, default=True
-        Whether to save the GLTF file
     """
-    # Skip if saving is disabled
-    if not save_debug_gltf:
-        print(f"GLTF export skipped for: {filename}")
-        return
-        
+
+    polylines = [[vertices[i] for i in line] for line in P]
+
     # Initialize exporter
     exporter = GLTFGeometryExporter()
+    
     # Constants for visualization
     NORMAL_SHAFT_RADIUS = 0.002
     NORMAL_HEAD_RADIUS = 0.004
     VERTEX_RADIUS = 0.005
     POLYLINE_RADIUS = 0.002
     NORMAL_SCALE = 0.1
-    # Ensure vertices is a numpy array
+    NORMAL_OFFSET = 0.01  # Offset for separating the two normals
+    
+    # Ensure inputs are numpy arrays
     vertices = np.asarray(vertices)
-    # Add edge normals (green arrows)
-    edge_normal_points = []
-    edge_normal_directions = []
+    edges = np.asarray(edges)
     
-    # Process normals from the polyline_normal dictionary
-    for polyline_idx, normal_data in polyline_normals.items():
-        # Get the polyline
-        polyline = polylines[polyline_idx]
+    # Process edge normals - separate by color
+    green_normal_points = []  # for which_edge = 0
+    green_normal_directions = []
+    
+    red_normal_points = []    # for which_edge = 1
+    red_normal_directions = []
+
+    # Convert constraints to list format if it's a dictionary
+    if isinstance(edge_normals, dict):
+        constraint_pairs = list(edge_normals.items())
+    else:
+        constraint_pairs = edge_normals
+    
+    # Process normal vectors
+    for constraint_item in constraint_pairs:
+        # Parse the edge info - could be different formats
+        if isinstance(constraint_item[0], tuple):
+            # Format: ((edge_idx, which_edge), normal)
+            edge_key, normal = constraint_item
+            edge_idx, which_edge = edge_key
+        else:
+            # Handle other possible formats if needed
+            edge_idx, normal = constraint_item
+            which_edge = 0
+
+        # Convert normal to numpy array if it isn't already
+        normal = np.asarray(normal, dtype=float)
         
-        # Determine format: single normal with position or list of normals
-        if isinstance(normal_data, tuple):
-            # Format 1: (position_in_polyline, normal_vector)
-            edge_pos, normal = normal_data
-            
+        if np.any(np.abs(normal) > 1e-15):  # Check if normal is non-zero
             # Get the edge vertices
-            if edge_pos + 1 < len(polyline):
-                v1_idx = polyline[edge_pos]
-                v2_idx = polyline[edge_pos + 1]
+            if edge_idx < len(edges):  # Make sure edge_idx is valid
+                v1_idx, v2_idx = edges[edge_idx]
+                start = vertices[v1_idx]
+                end = vertices[v2_idx]
                 
-                # Convert normal to numpy array if it isn't already
-                normal = np.asarray(normal, dtype=float)
+                # Calculate midpoint
+                midpoint = (start + end) / 2
                 
-                if np.any(np.abs(normal) > 1e-15):  # More robust zero check
-                    # Calculate midpoint of edge for normal placement
-                    midpoint = ((vertices[v1_idx] + vertices[v2_idx]) / 2).tolist()
-                    edge_normal_points.append(midpoint)
-                    edge_normal_directions.append((normal * NORMAL_SCALE).tolist())
-        
-        elif isinstance(normal_data, list):
-            # Format 2: [normal_vectors] - list of normals for each edge
-            for edge_idx, normal in enumerate(normal_data):
-                # Check if we have a valid edge (need two vertices)
-                if edge_idx + 1 < len(polyline):
-                    v1_idx = polyline[edge_idx]
-                    v2_idx = polyline[edge_idx + 1]
-                    
-                    # Convert normal to numpy array if it isn't already
-                    normal = np.asarray(normal, dtype=float)
-                    
-                    if np.any(np.abs(normal) > 1e-15):  # More robust zero check
-                        # Calculate midpoint of edge for normal placement
-                        midpoint = ((vertices[v1_idx] + vertices[v2_idx]) / 2).tolist()
-                        edge_normal_points.append(midpoint)
-                        edge_normal_directions.append((normal * NORMAL_SCALE).tolist())
+                # Calculate edge direction for offset
+                edge_dir = end - start
+                edge_dir_norm = edge_dir / np.linalg.norm(edge_dir)
+                
+                # Create offset perpendicular to both edge and normal
+                offset_dir = np.cross(edge_dir_norm, normal)
+                if np.linalg.norm(offset_dir) > 1e-6:  # Check if not zero
+                    offset_dir = offset_dir / np.linalg.norm(offset_dir)
+                    # Apply offset based on which_edge (0 or 1)
+                    offset_amount = NORMAL_OFFSET * (which_edge - 0.5)
+                    midpoint = midpoint + offset_amount * offset_dir
+                
+                # Add to appropriate list based on which_edge
+                if which_edge == 0:
+                    green_normal_points.append(midpoint.tolist())
+                    green_normal_directions.append((normal * NORMAL_SCALE).tolist())
+                else:
+                    red_normal_points.append(midpoint.tolist())
+                    red_normal_directions.append((normal * NORMAL_SCALE).tolist())
     
-    if edge_normal_points:
-        exporter.add_normal_arrows(edge_normal_points, edge_normal_directions,
-                                    color=(0, 1, 0),  # Green normals
-                                    shaft_radius=NORMAL_SHAFT_RADIUS,
-                                    head_radius=NORMAL_HEAD_RADIUS)
+    # Add green normals (which_edge=0)
+    if green_normal_points:
+        exporter.add_normal_arrows(
+            green_normal_points, 
+            green_normal_directions,
+            color=(0, 1, 0),  # Green for first normal
+            shaft_radius=NORMAL_SHAFT_RADIUS,
+            head_radius=NORMAL_HEAD_RADIUS
+        )
+    
+    # Add red normals (which_edge=1)
+    if red_normal_points:
+        exporter.add_normal_arrows(
+            red_normal_points, 
+            red_normal_directions,
+            color=(1, 0, 0),  # Red for second normal
+            shaft_radius=NORMAL_SHAFT_RADIUS,
+            head_radius=NORMAL_HEAD_RADIUS
+        )
     
     # Generate colors for polylines using the same rainbow colormap
     num_polylines = len(polylines)
@@ -707,25 +748,31 @@ def export_sketch_polyline_normal_gltf(vertices, edges, polylines, polyline_norm
         colors.append(rgba[:3])  # Take only RGB values, ignore alpha
     
     # Add polylines and their vertices
-    for i, (polyline, color) in enumerate(zip(polylines, colors)):
-        # Convert vertex indices to 3D points
-        polyline_points = np.array([vertices[idx] for idx in polyline])
+    for i, polyline in enumerate(polylines):
+        # Default parameters
+        polyline_radius = POLYLINE_RADIUS
+        vertex_radius = VERTEX_RADIUS 
+        color = colors[i]
         
-        # Add the polyline as cylinder strips
-        exporter.add_cylinder_strips(polyline_points, 
-                                    color=color,
-                                    radius=POLYLINE_RADIUS,
-                                    add_spheres=False)
+        # Modify parameters for unconstrained polylines
+        if unconstrained_polylines_indices is not None and i in unconstrained_polylines_indices:
+            polyline_radius *= 2
+            vertex_radius *= 2
+            color = (1, 1, 1)
+
+        exporter.add_cylinder_strips(polyline, 
+                                   color=color,
+                                   radius=polyline_radius,
+                                   add_spheres=False)
         
         # Add vertices as spheres with matching color
-        exporter.add_spheres(polyline_points,
-                            color=color,
-                            radius=VERTEX_RADIUS)
+        exporter.add_spheres(polyline,
+                           color=color,
+                           radius=vertex_radius)
     
     # Save the GLTF file
     exporter.save(filename)
     print(f"GLTF file saved as: {filename}")
-
 
 
 def plot_hull_with_normals(vertices, edges, faces, vertex_normals, edge_normals, face_normals):

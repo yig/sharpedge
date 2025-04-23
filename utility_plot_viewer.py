@@ -22,7 +22,7 @@ def plot_sketch_data(V, P):
     ax.scatter(V[:, 0], V[:, 1], V[:, 2], s = 6, color = 'k')
 
 
-    for polyline in P:
+    for index, polyline in enumerate(P):
         points = [V[index] for index in polyline]
         pts = np.asarray( points )
         xs = pts[:, 0]
@@ -30,8 +30,14 @@ def plot_sketch_data(V, P):
         zs = pts[:, 2]
         ax.plot(xs, ys, zs)
         ax.scatter(xs, ys, zs, s = 5)
-       
- 
+        
+        # Calculate midpoint for edge label
+        midx = (xs[0] + xs[1]) / 2
+        midy = (ys[0] + ys[1]) / 2
+        midz = (zs[0] + zs[1]) / 2
+        
+        ax.text(midx, midy, midz, str(index))
+
     
     plt.axis('off')
     plt.axis('equal')

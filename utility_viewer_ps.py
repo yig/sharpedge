@@ -172,9 +172,6 @@ def plot_different_normals(V, E, N1, N2, angle_threshold_degrees=20):
         N2: (m,3) array of second set of normal vectors for edges
         angle_threshold_degrees: Minimum angle difference to consider normals "very different"
     """
-    import numpy as np
-    import polyscope as ps
-    
     # Convert angle threshold to radians
     angle_threshold = np.deg2rad(angle_threshold_degrees)
     

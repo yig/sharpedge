@@ -1,7 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from opt_edges import load_sketch_polyline_data, build_vertex_to_edges_map
+from collections import defaultdict
+
+from utility_io import load_sketch_polyline_data
 
 def compute_edge_circulation(edge_indices, vertex_idx, E, V):
     """
@@ -64,6 +66,31 @@ def plot_sorted_edges(vertex_idx, ordered_edge_indices, E, V, ax=None):
 
     ax.set_title(f"Circulation around vertex {vertex_idx}")
     ax.legend()
+
+
+def build_vertex_to_edges_map(edges):
+    '''
+    Create a mapping from each vertex to all edges that contain it.
+    
+    Parameters:
+    vertices: (n,3) array of vertex coordinates
+    edges: (m,2) array of edge vertex index pairs
+    
+    Returns:
+    dict: Mapping from vertex index to list of edge indices
+    '''
+    vertex_to_edges = defaultdict(list)
+    
+    for edge_idx, edge in enumerate(edges):
+        # Add this edge to both of its vertices' lists
+        vertex_to_edges[edge[0]].append(edge_idx)
+        vertex_to_edges[edge[1]].append(edge_idx)
+    
+    for vertex_idx in vertex_to_edges:
+        assert len(vertex_to_edges[vertex_idx]) == len(set(vertex_to_edges[vertex_idx])), \
+            f"Vertex {vertex_idx} has duplicate edge entries"
+    
+    return vertex_to_edges
 
 
 # Example usage

@@ -252,6 +252,71 @@ def write_two_normal(V, E, normals, filename):
     print(f"- {len(E)} edges")
     print(f"- {len(edge_indices) * 2} normal vectors (2 per edge)")
 
+
+def read_two_normal(filename):
+    """
+    Read vertices, edges, and dual normal data from an OBJ file.
+    Each edge has exactly two normal vectors.
+    
+    Args:
+        filename (str): Path to input OBJ file
+        
+    Returns:
+        V (ndarray): nx3 array of vertex coordinates (x, y, z)
+        E (ndarray): mx2 array of edge vertex pairs (0-based indices)
+        normals (dict): Dictionary with keys (edge_idx, which_edge) where:
+            - edge_idx is the edge index
+            - which_edge is 0 or 1 for the first or second normal
+            Values are 3D normal vectors (nx, ny, nz)
+    
+    File format expected:
+        v x y z     # vertex coordinates
+        l i j       # edge between vertices i and j (1-based indices)
+        vn nx ny nz # normal vector for edge
+        
+    Note:
+        Edge indices are automatically converted from 1-based (OBJ file format)
+        to 0-based (output) during reading.
+        For each edge, both normal vectors are expected to be consecutive.
+    """
+    import numpy as np
+    
+    V = []  # Vertices
+    E = []  # Edges
+    normals = {}  # Dictionary to store normals
+    normal_vectors = []  # Temporary list to store normal vectors
+    
+    with open(filename, 'r') as f:
+        for line in f:
+            parts = line.strip().split()
+            if not parts:
+                continue
+                
+            if parts[0] == 'v':  # Vertex
+                V.append([float(parts[1]), float(parts[2]), float(parts[3])])
+            elif parts[0] == 'l':  # Edge
+                # Convert from 1-based to 0-based indexing
+                E.append([int(parts[1])-1, int(parts[2])-1])
+            elif parts[0] == 'vn':  # Normal vector
+                normal_vectors.append([float(parts[1]), float(parts[2]), float(parts[3])])
+    
+    # Associate normals with edges
+    for i, _ in enumerate(E):
+        normals[(i, 0)] = normal_vectors[2*i]
+        normals[(i, 1)] = normal_vectors[2*i + 1]
+    
+    # Convert lists to numpy arrays
+    V = np.array(V)
+    E = np.array(E)
+    
+    # Print summary of read data
+    print(f"Read from {filename}:")
+    print(f"- {len(V)} vertices")
+    print(f"- {len(E)} edges")
+    print(f"- {len(normal_vectors)} normal vectors ({len(normal_vectors) // len(E)} per edge)")
+    
+    return V, E, normals
+
 def load_mesh(filename):
     """
     Read a tetrahedral mesh from either .tet or .node/.ele files.
