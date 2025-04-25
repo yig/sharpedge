@@ -9,6 +9,8 @@ from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
 
+from utility_high_valence_sort_edges import compute_edge_circulation
+
 import scipy.optimize as opt
 
 from pathlib import Path
@@ -53,13 +55,15 @@ def edge_distance_matrix(V, E):
 
 
 # Only extract the distance 0 edges. No thresholds.
-def extract_pairwise_weight(E, distances):
+# weight = |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
+def extract_pairwise_weight(V, E, distances):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
     do not chose the edge from the same polyline.
     avoiding duplicates and ensuring each edge pair appears only once.
     
     Args:
+        V : vertices
         E: Edges as vertex index pairs, shape (num_edges, 2)
         distances: NxN array where entry (i,j) is the weight between edges i and j
 
@@ -71,9 +75,73 @@ def extract_pairwise_weight(E, distances):
     for i in range(len(E)):
         for j in range(i+1, len(E)):
             if distances[i, j] == 0:
-                pairwise.add((i, j, 1))
+                ei = E[i]
+                ej = E[j]
+
+
+                # Compute tangent vectors for both edges
+                # This could be vectorized, not now
+                ei_vec = compute_edge_tangent(V, ei)
+                ej_vec = compute_edge_tangent(V, ej)
+
+                # Calculate the absolute cosine similarity
+                dot_product = np.abs(np.dot(ei_vec, ej_vec))
+            
+                # Calculate weight using the formula: |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
+                # Since vectors are normalized, we just need dot_product * 0.5 + 0.5
+                weight = dot_product * 0.5 + 0.5
+            
+                # Add to the set of pairwise weights
+                pairwise.add((i, j, weight))
 
     return pairwise
+   
+
+
+def create_pairwise_weight(V, E, vertex_to_edges_map):
+    '''
+    now only create pairwise between share vertices
+    will add 0 distance ones later
+    '''
+    pairwise = set()
+    
+    for vertex_index, edge_indices in vertex_to_edges_map.items():
+        if len(edge_indices) == 2:
+            ei0, ei1 = edge_indices
+            
+            e0 = E[ei0]
+            e1 = E[ei1]
+
+            e0_vec = compute_edge_tangent(V, e0)
+            e1_vec = compute_edge_tangent(V, e1)
+
+            dot_product = np.abs(np.dot(e0_vec, e1_vec))
+            weight = dot_product * 0.5 + 0.5
+            pairwise.add((ei0, ei1, weight))
+        
+        elif len(edge_indices) >= 3:
+            
+            sorted_edges = compute_edge_circulation(edge_indices, vertex_index, E, V)
+            n_sorted_edges = len(sorted_edges)
+            sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
+
+            # 
+
+            for ei0, ei1 in sorted_pairs:
+                e0 = E[ei0]
+                e1 = E[ei1]
+
+                e0_vec = compute_edge_tangent(V, e0)
+                e1_vec = compute_edge_tangent(V, e1)
+
+                dot_product = np.abs(np.dot(e0_vec, e1_vec))
+                weight = dot_product * 0.5 + 0.5
+                pairwise.add((ei0, ei1, weight))
+    
+
+    return pairwise
+
+
 
 
 def build_vertex_to_edges_map(edges):
@@ -1585,10 +1653,12 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
     def is_similar_normal(normal, existing_normals, threshold_degrees=30):
         threshold = np.cos(np.radians(threshold_degrees))
         for existing in existing_normals:
-            if abs(np.dot(normal, existing)) > threshold:
+            if abs(np.dot(normal, existing)) > threshold or abs(np.dot(-normal,existing)) > threshold:
                 return True
         return False
     
+    normals_candidates = defaultdict(list)
+
     # Process each vertex with valence 3
     for vertex, edges in vertex_to_edges_map.items():
         if len(edges) == 3:
@@ -1604,14 +1674,40 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
             t2 = compute_edge_tangent(V, e2)
             
             # Compute normal candidates by cross products of tangents
-            normals_candidates = {
-                ei0: [np.cross(t0, t1), np.cross(t0, t2)],
-                ei1: [np.cross(t0, t1), np.cross(t1, t2)],
-                ei2: [np.cross(t0, t2), np.cross(t1, t2)]
-            }
-            
-            # Normalize and orient all normals
-            for edge_idx, normals in normals_candidates.items():
+            normals_candidates[ei0] = [np.cross(t0, t1), np.cross(t0, t2)]
+            normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
+            normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
+
+        elif len(edges) > 3:
+            # I can dn do higher valence here
+            # because edges in the circluar order 
+            # every edge will have 2 from cross product 
+
+            sorted_edges = compute_edge_circulation(edges, vertex, E, V)
+            n_sorted_edges = len(sorted_edges)
+            sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
+
+            # running this to get normals_candidates
+            for ei0, ei1 in sorted_pairs:
+                e0 = E[ei0]
+                e1 = E[ei1]
+
+                e0_vec = compute_edge_tangent(V, e0)
+                e1_vec = compute_edge_tangent(V, e1)
+
+                normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
+                normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
+
+        print('normals_candidates', normals_candidates)
+        for edge_index, normals in normals_candidates.items():
+            print(edge_index, len(normals))
+
+        # now for all the candidates normals
+        # I only want at most 2: if all of them are very similar
+        # I am ok with just one    
+        # 
+        # normalize and make the angel different 
+        for edge_idx, normals in normals_candidates.items():
                 for i in range(len(normals)):
                     normal = normals[i]
                     norm = np.linalg.norm(normal)
@@ -1621,17 +1717,17 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
                     # Ensure consistent orientation with estimated normals
                     if np.dot(normal, estimate_normals[edge_idx]) < 0:
                         normal = -normal
-                    
                     normals[i] = normal
             
-            # Add normals to edge_normals while avoiding duplicates
-            for edge_idx, normals in normals_candidates.items():
-                if edge_idx not in edge_normals:
-                    edge_normals[edge_idx] = []
+        # Now Add normals to edge_normals while avoiding duplicates
+        for edge_idx, normals in normals_candidates.items():
+            if edge_idx not in edge_normals:
+                edge_normals[edge_idx] = []
                 
-                for normal in normals:
-                    if not is_similar_normal(normal, edge_normals[edge_idx]):
-                        edge_normals[edge_idx].append(normal)
+            for normal in normals:
+                if not is_similar_normal(normal, edge_normals[edge_idx]):
+                    edge_normals[edge_idx].append(normal)
+                
     
     # Prepare the output format
     indices0 = []
@@ -1791,7 +1887,7 @@ if __name__ == "__main__":
 
     vertex_to_edges_map = build_vertex_to_edges_map( E )
 
-    # print('vertex_to_edges', vertex_to_edges)
+    print('vertex_to_edges_map', vertex_to_edges_map)
     # compute distance between edges 
     
     distances = edge_distance_matrix(V, E)
@@ -1826,8 +1922,12 @@ if __name__ == "__main__":
   
 
     # print('weight_matrix', weight_matrix)
-    pairwise = extract_pairwise_weight(E, distances)
+    pairwise = extract_pairwise_weight(V, E, distances)
+
+    print('pairwise_orignal', pairwise)
     
+    # pairwise = create_pairwise_weight(V, E, vertex_to_edges_map)
+    # print('pairwise', pairwise)
     # Create JAX-friendly edge rotation map
     rotations_data = precompute_edge_rotation_map(V, E)
 
@@ -1877,7 +1977,8 @@ if __name__ == "__main__":
 
         print('corner_constraints', corner_constraints)
 
-        plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', block=True)
+        if show_plot:
+            plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', block=True)
         
         
         thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
