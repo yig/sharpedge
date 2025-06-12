@@ -53,7 +53,6 @@ def edge_distance_matrix(V, E):
     
     return distances
 
-
 # Only extract the distance 0 edges. No thresholds.
 # weight = |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
 def extract_pairwise_weight(V, E, distances):
@@ -96,8 +95,6 @@ def extract_pairwise_weight(V, E, distances):
 
     return pairwise
    
-
-
 def create_pairwise_weight(V, E, vertex_to_edges_map):
     '''
     now only create pairwise between share vertices
@@ -141,9 +138,6 @@ def create_pairwise_weight(V, E, vertex_to_edges_map):
 
     return pairwise
 
-
-
-
 def build_vertex_to_edges_map(edges):
     '''
     Create a mapping from each vertex to all edges that contain it.
@@ -167,7 +161,6 @@ def build_vertex_to_edges_map(edges):
             f"Vertex {vertex_idx} has duplicate edge entries"
     
     return vertex_to_edges
-
 
 def find_edge_indices_from_polyline(polyline, E):
     '''
@@ -207,7 +200,6 @@ def find_edge_indices_from_polyline(polyline, E):
             raise ValueError(f"Edge ({v1},{v2}) not found in edge list")
     
     return edge_indices, edge_reversed
-
 
 def create_frames_for_each_polyline(V, E, P):
     '''
@@ -1678,25 +1670,25 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
             normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
             normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
 
-        elif len(edges) > 3:
-            # I can dn do higher valence here
-            # because edges in the circluar order 
-            # every edge will have 2 from cross product 
+        # elif len(edges) > 3:
+        #     # I can dn do higher valence here
+        #     # because edges in the circluar order 
+        #     # every edge will have 2 from cross product 
 
-            sorted_edges = compute_edge_circulation(edges, vertex, E, V)
-            n_sorted_edges = len(sorted_edges)
-            sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
+        #     sorted_edges = compute_edge_circulation(edges, vertex, E, V)
+        #     n_sorted_edges = len(sorted_edges)
+        #     sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
-            # running this to get normals_candidates
-            for ei0, ei1 in sorted_pairs:
-                e0 = E[ei0]
-                e1 = E[ei1]
+        #     # running this to get normals_candidates
+        #     for ei0, ei1 in sorted_pairs:
+        #         e0 = E[ei0]
+        #         e1 = E[ei1]
 
-                e0_vec = compute_edge_tangent(V, e0)
-                e1_vec = compute_edge_tangent(V, e1)
+        #         e0_vec = compute_edge_tangent(V, e0)
+        #         e1_vec = compute_edge_tangent(V, e1)
 
-                normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
-                normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
+        #         normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
+        #         normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
 
         print('normals_candidates', normals_candidates)
         for edge_index, normals in normals_candidates.items():
