@@ -2,6 +2,8 @@ import numpy as np
 from utility_plot_viewer import plot_sketch_data, plot_edge_info
 import argparse
 from pathlib import Path
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def load_sketch_polyline_data(filename):
@@ -63,6 +65,38 @@ def load_sketch_polyline_data(filename):
     
     return V, E, P
 
+
+def find_edges_to_split(V, E):
+    """
+    Find edges that will be split (both endpoints have valence > 2)
+    
+    Args:
+        V: nx3 numpy array of vertex coordinates 
+        E: mx2 numpy array of edge vertex indices (0-based)
+    
+    Returns:
+        edges_to_split: set of edges (tuples) that will be split
+        vertex_valence: dictionary of vertex valences
+    """
+    # Calculate valence for each vertex
+    vertex_valence = {}
+    
+    for edge in E:
+        v1, v2 = edge[0], edge[1]
+        vertex_valence[v1] = vertex_valence.get(v1, 0) + 1
+        vertex_valence[v2] = vertex_valence.get(v2, 0) + 1
+    
+    # Find edges that need splitting (both endpoints have valence > 2)
+    edges_to_split = set()
+    
+    for edge in E:
+        v1, v2 = edge[0], edge[1]
+        if vertex_valence.get(v1, 0) > 2 and vertex_valence.get(v2, 0) > 2:
+            edges_to_split.add(tuple(sorted([v1, v2])))
+    
+    return edges_to_split, vertex_valence
+
+
 def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
     """
     Visualize the sketch with edges to be split highlighted in red
@@ -74,9 +108,12 @@ def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
         edges_to_split: set of edges that will be split
         vertex_valence: dictionary of vertex valences
     """
-    fig = plt.figure(figsize=(12, 8))
-    ax = fig.add_subplot(111, projection='3d')
+    fig = plt.figure(figsize=(8,8))
     
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
     # Plot all edges in light gray first
     for edge in E:
         v1_idx, v2_idx = edge[0], edge[1]
@@ -135,8 +172,9 @@ def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
     print(f"Edges to split: {sorted(edges_to_split)} (total: {len(edges_to_split)})")
     print(f"High valence vertices (>2): {sorted(high_valence_vertices)}")
     
+    plt.axis('off')
     plt.show()
-    
+
 
 def split_edges_preprocessing_compatible(V, E, P):
     """
@@ -153,28 +191,13 @@ def split_edges_preprocessing_compatible(V, E, P):
         P_new: updated polylines with split edges
     """
     
-    # Step 1: Calculate valence for each vertex using the provided edges
-    vertex_valence = {}
-    
-    for edge in E:
-        v1, v2 = edge[0], edge[1]
-        vertex_valence[v1] = vertex_valence.get(v1, 0) + 1
-        vertex_valence[v2] = vertex_valence.get(v2, 0) + 1
+    # Step 1: Find edges to split
+    edges_to_split, vertex_valence = find_edges_to_split(V, E)
     
     print(f"Vertex valences: {dict(sorted(vertex_valence.items()))}")
-    
-    # Step 2: Find edges that need splitting (both endpoints have valence > 2)
-    edges_to_split = []
-    
-    for edge in E:
-        v1, v2 = edge[0], edge[1]
-        if vertex_valence.get(v1, 0) > 2 and vertex_valence.get(v2, 0) > 2:
-            edges_to_split.append(tuple(sorted([v1, v2])))
-    
-    edges_to_split = set(edges_to_split)
     print(f"Edges to split: {sorted(edges_to_split)} (total: {len(edges_to_split)})")
     
-    # Step 3: Create midpoint vertices
+    # Step 2: Create midpoint vertices
     V_new = V.copy()
     edge_to_midpoint = {}
     
@@ -193,7 +216,7 @@ def split_edges_preprocessing_compatible(V, E, P):
         
         print(f"Created midpoint vertex {new_vertex_idx} for edge {edge} at {midpoint}")
     
-    # Step 4: Update polylines
+    # Step 3: Update polylines
     P_new = []
     
     for poly_idx, polyline in enumerate(P):
@@ -216,7 +239,7 @@ def split_edges_preprocessing_compatible(V, E, P):
         
         P_new.append(np.array(new_polyline))
     
-    # Step 5: Update edge list
+    # Step 4: Update edge list
     edges_new = set()
     for poly in P_new:
         for i in range(len(poly) - 1):
@@ -243,9 +266,6 @@ def save_split_result(filename, V, P):
             f.write(f"l {' '.join(indices_1based)}\n")
 
 
-
-
-
 def validate_splitting_result(V_orig, P_orig, V_new, P_new):
     """
     Validate that the splitting was done correctly
@@ -268,18 +288,34 @@ def validate_splitting_result(V_orig, P_orig, V_new, P_new):
             return False
         
         # Check that original vertices are still there in order
-        orig_positions = []
-        for orig_v in orig_poly:
-            try:
-                pos = list(new_poly).index(orig_v)
-                orig_positions.append(pos)
-            except ValueError:
+        # Handle closed polylines (where first and last vertex may be the same)
+        orig_vertices_to_find = orig_poly.copy()
+        new_poly_list = list(new_poly)
+        
+        # Track positions of original vertices in the new polyline
+        found_positions = []
+        used_positions = set()
+        
+        for orig_v in orig_vertices_to_find:
+            # Find the next occurrence of this vertex that hasn't been used
+            found = False
+            for pos, new_v in enumerate(new_poly_list):
+                if new_v == orig_v and pos not in used_positions:
+                    found_positions.append(pos)
+                    used_positions.add(pos)
+                    found = True
+                    break
+            
+            if not found:
                 print(f"❌ Original vertex {orig_v} missing from polyline {i}!")
                 return False
         
         # Check that original vertices maintain their relative order
-        if orig_positions != sorted(orig_positions):
+        # (positions should be in ascending order)
+        if found_positions != sorted(found_positions):
             print(f"❌ Original vertex order changed in polyline {i}!")
+            print(f"   Original positions: {found_positions}")
+            print(f"   Should be: {sorted(found_positions)}")
             return False
     
     print("✅ All validation checks passed")
@@ -291,32 +327,40 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
-    
+    parser.add_argument('--preview', action='store_true', 
+                       help='Show preview of edges to be split without actually splitting')
     
     args = parser.parse_args()
 
     curve_file = args.curve_file
-
     curve_name = Path(curve_file).stem
-
 
     # Load original for comparison
     V_orig, E_orig, P_orig = load_sketch_polyline_data(curve_file)
 
+    # Show original sketch
     plot_sketch_data(V_orig, P_orig)
-    # plot_edge_info(V_orig, E_orig)
-
+    
+    # Find edges that will be split
+    edges_to_split, vertex_valence = find_edges_to_split(V_orig, E_orig)
+    
+    # Show preview of edges to be split
+    highlight_edges_to_split(V_orig, E_orig, P_orig, edges_to_split, vertex_valence)
+    
+    # If preview mode, stop here
+    if args.preview:
+        print("Preview mode - stopping before actual splitting")
+        exit()
+    
     # Process the file
     V_new, E_new, P_new = split_edges_preprocessing_compatible(V_orig, E_orig, P_orig)
 
-
+    # Show result
     plot_sketch_data(V_new, P_new)
-    # plot_edge_info(V_new, E_new)
-    
     
     # Validate
     validate_splitting_result(V_orig, P_orig, V_new, P_new)
 
+    # Save result
     new_file = 'sketches_split/' + curve_name + '.obj'
-
     save_split_result(new_file, V_new, P_new)
