@@ -9,7 +9,7 @@ from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
 
-from utility_high_valence_sort_edges import compute_edge_circulation
+from utility_high_valence_sort_edges import compute_edge_circulation, compute_edge_circulation_graph_laplacian
 
 import scipy.optimize as opt
 
@@ -1060,6 +1060,7 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
         
         # Curve edges: use min of diagonal/antidiagonal sum
         # Non-curve edges: use global minimum
+        # potential problem : normal0 is being constrained and also being paired, they might be conflicting
         pair_energy = jnp.where(
             is_curve,
             weight * jnp.minimum(diagonal_sum, antidiagonal_sum),
@@ -1642,7 +1643,8 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
     plotting_normals = {}
     
     # Helper function to check if a normal is similar to existing ones
-    def is_similar_normal(normal, existing_normals, threshold_degrees=30):
+    def is_similar_normal(normal, existing_normals, threshold_degrees=15):
+        return False
         threshold = np.cos(np.radians(threshold_degrees))
         for existing in existing_normals:
             if abs(np.dot(normal, existing)) > threshold or abs(np.dot(-normal,existing)) > threshold:
@@ -1664,63 +1666,78 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
             t0 = compute_edge_tangent(V, e0)
             t1 = compute_edge_tangent(V, e1)
             t2 = compute_edge_tangent(V, e2)
-            
+
+            print('vertex, ei0, ei1, ei2', vertex, ei0, ei1, ei2)
+            print('t0, t1, t2', t0, t1, t2)
             # Compute normal candidates by cross products of tangents
             normals_candidates[ei0] = [np.cross(t0, t1), np.cross(t0, t2)]
             normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
             normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
 
-        # elif len(edges) > 3:
-        #     # I can dn do higher valence here
-        #     # because edges in the circluar order 
-        #     # every edge will have 2 from cross product 
+            # normals_candidates[ei0].extend( [ np.cross(t0, t1), np.cross(t0, t2)] )
+            # normals_candidates[ei1].extend( [ np.cross(t0, t1), np.cross(t1, t2)] )
+            # normals_candidates[ei2].extend( [ np.cross(t0, t2), np.cross(t1, t2)] )
 
-        #     sorted_edges = compute_edge_circulation(edges, vertex, E, V)
-        #     n_sorted_edges = len(sorted_edges)
-        #     sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
+            print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2))
+            print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.linalg.norm( np.cross(t0, t1) ),np.linalg.norm(np.cross(t1, t2)), np.linalg.norm(np.cross(t0, t2)))
 
-        #     # running this to get normals_candidates
-        #     for ei0, ei1 in sorted_pairs:
-        #         e0 = E[ei0]
-        #         e1 = E[ei1]
 
-        #         e0_vec = compute_edge_tangent(V, e0)
-        #         e1_vec = compute_edge_tangent(V, e1)
+        elif len(edges) > 3:
+            # I can dn do higher valence here
+            # because edges in the circluar order 
+            # every edge will have 2 from cross product 
 
-        #         normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
-        #         normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
+            sorted_edges = compute_edge_circulation_graph_laplacian(edges, vertex, E, V)
+            n_sorted_edges = len(sorted_edges)
+            sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
-        print('normals_candidates', normals_candidates)
-        for edge_index, normals in normals_candidates.items():
-            print(edge_index, len(normals))
+            # running this to get normals_candidates
+            for ei0, ei1 in sorted_pairs:
+                e0 = E[ei0]
+                e1 = E[ei1]
 
-        # now for all the candidates normals
-        # I only want at most 2: if all of them are very similar
-        # I am ok with just one    
-        # 
-        # normalize and make the angel different 
-        for edge_idx, normals in normals_candidates.items():
-                for i in range(len(normals)):
-                    normal = normals[i]
-                    norm = np.linalg.norm(normal)
-                    if norm > 1e-10:  # Avoid division by zero
-                        normal = normal / norm
-                    
-                    # Ensure consistent orientation with estimated normals
-                    if np.dot(normal, estimate_normals[edge_idx]) < 0:
-                        normal = -normal
-                    normals[i] = normal
+                e0_vec = compute_edge_tangent(V, e0)
+                e1_vec = compute_edge_tangent(V, e1)
+
+                normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
+                normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
+
+        # print('normals_candidates', normals_candidates)
+        # for edge_index, normals in normals_candidates.items():
+        #     print(edge_index, len(normals))
+
+
+    # now for all the candidates normals
+    # I only want at most 2: if all of them are very similar
+    # I am ok with just one    
+    # normalize and make the angel different 
+    for edge_idx, normals in normals_candidates.items():
+        # Now add normals to edge_normals while avoiding duplicates
+        if edge_idx not in edge_normals:
+            edge_normals[edge_idx] = []
+        
+
+        for i in range(len(normals)):
+            normal = normals[i]
+            norm = np.linalg.norm(normal)
+            # TODO Q: `norm` is sine of the angle between the tangents. Is this a good parallel threshold?
+            # Skip normals whose norm is below threshold.
+            if norm < np.sin(np.radians(5)):  # Skip tangents less than N degrees apart
+                # Skip this normal
+                continue
             
-        # Now Add normals to edge_normals while avoiding duplicates
-        for edge_idx, normals in normals_candidates.items():
-            if edge_idx not in edge_normals:
-                edge_normals[edge_idx] = []
-                
-            for normal in normals:
-                if not is_similar_normal(normal, edge_normals[edge_idx]):
-                    edge_normals[edge_idx].append(normal)
-                
-    
+            normal = normal / norm
+            
+            # Ensure consistent orientation with estimated normals
+            # TODO Q: The same normal gets assigned to two edges. Is it possible that we negate the normal inconsistently?
+            if np.dot(normal, estimate_normals[edge_idx]) < 0:
+                normal = -normal
+            
+            # Add the normal to the edge
+            if not is_similar_normal(normal, edge_normals[edge_idx]):
+                edge_normals[edge_idx].append(normal)
+
+
     # Prepare the output format
     indices0 = []
     normals0 = []
@@ -1735,15 +1752,23 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
             normals0.append(normals[0])
             plotting_normals[(edge_idx, 0)] = normals[0]
             
-            # Second normal - use the second one if available, otherwise reuse the first
-            indices1.append(edge_idx)
+
             if len(normals) >= 2:
+                # Second normal - use the second one if available, otherwise reuse the first
+                indices1.append(edge_idx)
                 normals1.append(normals[1])
                 plotting_normals[(edge_idx, 1)] = normals[1]
             else:
                 # If only one normal exists, use it for both constraints
-                normals1.append(normals[0])
-                plotting_normals[(edge_idx, 1)] = normals[0]
+                # TODO: Don't re-use a normal. Let the second one be free.
+                # normals1.append(normals[0])
+                # plotting_normals[(edge_idx, 1)] = normals[0]
+                pass
+
+    print('indices0', indices0)
+    print('normals0', normals0)
+    print('indices1', indices1)
+    print('normals1', normals1)
 
     # Return formats for computation and plotting
     return {
@@ -1764,7 +1789,7 @@ if __name__ == "__main__":
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('normal_file', nargs='?', help='The curve sketch with optimized normal information.')
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
-    parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=1,
+    parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=2,
                     help='Number of normals per edge (1 or 2)')
     parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
@@ -1825,7 +1850,7 @@ if __name__ == "__main__":
     # same polyline, same color
     if show_plot:
         plot_sketch_data(V, P)
-        # plot_edge_info(V, E)
+        plot_edge_info(V, E)
 
     #####################################
     #endregion
