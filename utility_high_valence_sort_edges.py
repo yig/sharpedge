@@ -2,10 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from collections import defaultdict
+from utility_parallel_transport import perpendicular_normal
 
 from utility_io import load_sketch_polyline_data
 
-def compute_edge_circulation(edge_indices, vertex_idx, E, V):
+def compute_edge_circulation_PCA(edge_indices, vertex_idx, E, V):
     """
     Compute the counter-clockwise circulation ordering of edges around a vertex.
     """
@@ -27,9 +28,53 @@ def compute_edge_circulation(edge_indices, vertex_idx, E, V):
         vectors.append((unit_vec, ei))
         vector_array[i] = unit_vec
 
-    centered_data = vector_array # - np.mean(vector_array, axis=0)
+    centered_data = vector_array - np.mean(vector_array, axis=0)
     _, _, Vt = np.linalg.svd(centered_data, full_matrices=False)
     basis_1, basis_2 = Vt[0], Vt[1]
+
+    projected_vectors = []
+    for unit_vec, ei in vectors:
+        proj_1 = np.dot(unit_vec, basis_1)
+        proj_2 = np.dot(unit_vec, basis_2)
+        angle = np.arctan2(proj_2, proj_1)
+        projected_vectors.append((angle, ei))
+
+    projected_vectors.sort(key=lambda x: x[0])
+    ordered_edges = [ei for _, ei in projected_vectors]
+    return ordered_edges
+
+def compute_edge_circulation_graph_laplacian(edge_indices, vertex_idx, E, V):
+    """
+    Compute the counter-clockwise circulation ordering of edges around a vertex.
+    """
+    vertex_pos = V[vertex_idx]
+
+    # Filter for incident edges
+    incident_edges = [ei for ei in edge_indices if vertex_idx in E[ei]]
+    if len(incident_edges) <= 2:
+        return incident_edges
+
+    vectors = []
+    vector_array = np.zeros((len(incident_edges), 3))
+    
+    for i, ei in enumerate(incident_edges):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        vec = V[other_idx] - vertex_pos
+        unit_vec = vec / np.linalg.norm(vec)
+        vectors.append((unit_vec, ei))
+        vector_array[i] = unit_vec
+
+    Hn = np.average( vector_array, axis = 0 )
+    Hn_norm = np.linalg.norm(Hn)
+    ## We will have mean curvature near 0 if the surface is flat or saddle.
+    ## In that case, the PCA normal should provide a good plane for projection.
+    if Hn_norm < 1e-5:
+        return compute_edge_circulation_PCA( edge_indices, vertex_idx, E, V )
+    else:
+        Hn /= Hn_norm
+        basis_1 = perpendicular_normal( Hn )
+        basis_2 = np.cross( Hn, basis_1 )
 
     projected_vectors = []
     for unit_vec, ei in vectors:
@@ -284,7 +329,7 @@ if __name__ == "__main__":
     for vertex_idx in vertices_to_check:
         print(f"\nVisualizing vertex {vertex_idx} with {len(vertex_to_edges_map[vertex_idx])} edges.")
         edge_indices = vertex_to_edges_map[vertex_idx]
-        sorted_edges = compute_edge_circulation(edge_indices, vertex_idx, E, V)
+        sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_idx, E, V)
         print(f"  Sorted edge indices: {sorted_edges}")
         print(f"  Original edges:")
         for ei in edge_indices:
@@ -305,26 +350,3 @@ if __name__ == "__main__":
         if vertex_idx != vertices_to_check[-1]:  # If not the last vertex
             input("Press Enter to continue to the next vertex...")
 
-# Example usage
-# if __name__ == "__main__":
-#     curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
-#     V, E, P = load_sketch_polyline_data(curve_file)
-    
-#     vertex_to_edges_map = build_vertex_to_edges_map(E)
-#     print('Loaded vertex_to_edges_map:', vertex_to_edges_map)
-    
-#     vertices_to_check = [idx for idx, edges in vertex_to_edges_map.items() if len(edges) >= 4]
-
-#     for vertex_idx in vertices_to_check:
-#         print(f"\nVisualizing vertex {vertex_idx} with {len(vertex_to_edges_map[vertex_idx])} edges.")
-#         edge_indices = vertex_to_edges_map[vertex_idx]
-#         sorted_edges = compute_edge_circulation(edge_indices, vertex_idx, E, V)
-#         print(f"  Sorted edge indices: {sorted_edges}")
-#         print(f"  Original edges:")
-#         for ei in edge_indices:
-#             print(f"    {ei}: {E[ei]}")
-#         fig = plt.figure()
-#         ax = fig.add_subplot(111, projection='3d')
-#         plot_sorted_edges(vertex_idx, sorted_edges, E, V, ax=ax)
-#         plt.tight_layout()
-#         plt.show()
