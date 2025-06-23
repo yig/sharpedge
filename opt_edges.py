@@ -9,7 +9,7 @@ from utility_parallel_transport import compute_parallel_transport_frames
 from utility_parallel_transport_bidirection import parallel_transport_bi_direction
 from utility_rotate_vector import rotation_matrix_from
 
-from utility_high_valence_sort_edges import compute_edge_circulation, compute_edge_circulation_graph_laplacian
+from utility_high_valence_sort_edges import compute_edge_circulation_graph_laplacian
 
 import scipy.optimize as opt
 
@@ -116,13 +116,12 @@ def create_pairwise_weight(V, E, vertex_to_edges_map):
             weight = dot_product * 0.5 + 0.5
             pairwise.add((ei0, ei1, weight))
         
-        elif len(edge_indices) >= 3:
+        elif len(edge_indices) > 2:
             
-            sorted_edges = compute_edge_circulation(edge_indices, vertex_index, E, V)
+            sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
             n_sorted_edges = len(sorted_edges)
             sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
-            # 
 
             for ei0, ei1 in sorted_pairs:
                 e0 = E[ei0]
@@ -824,22 +823,78 @@ def precompute_edge_rotation_map(V, E):
         'has_rotation': has_rotation
     }
 
-def preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map):
+def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode = 'one'):
     """
     Preprocess geometric edge pair data into an optimized format for energy computation.
     Produces JAX-compatible arrays specifically designed for efficient computation.
 
     Parameters:
     - E: List of edge vertex indices
-    - pairwise: List of tuples (edge1, edge2, weight)
     - rotations_data: Dictionary with rotation data between edge pairs
     - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
 
     Returns:
     - Dictionary with JAX arrays containing pre-processed edge pair data ready for computation
     """
-
     
+    e1_normal_indices = []
+    e2_normal_indices = []
+    has_rotation_h = []
+    rotation_matrices_h = []
+
+    # curve edge pairwise 
+    pairwise = set()
+
+    if mode == 'one':
+        pairwise = extract_pairwise_weight(V, E, distances)
+    else:
+    # if True:
+        high_valence_pair = set()
+
+        for vertex_index, edge_indices in vertex_to_edges_map.items():
+            if len(edge_indices) == 2:
+                ei0, ei1 = edge_indices
+                
+                e0 = E[ei0]
+                e1 = E[ei1]
+
+                e0_vec = compute_edge_tangent(V, e0)
+                e1_vec = compute_edge_tangent(V, e1)
+
+                dot_product = np.abs(np.dot(e0_vec, e1_vec))
+                weight = dot_product * 0.5 + 0.5
+                # weight = 1 # not much difference 
+                pairwise.add((ei0, ei1, weight))
+            
+            elif len(edge_indices) > 2:
+
+                sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
+                n_sorted_edges = len(sorted_edges)
+                sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
+
+
+                for ei0, ei1 in sorted_pairs:
+                    e0 = E[ei0]
+                    e1 = E[ei1]
+
+                    # e0_vec = compute_edge_tangent(V, e0)
+                    # e1_vec = compute_edge_tangent(V, e1)
+
+                    # dot_product = np.abs(np.dot(e0_vec, e1_vec))
+                    # # weight = dot_product * 0.5 + 0.5
+                    weight = 1
+                    high_valence_pair.add((ei0, ei1, weight))
+        
+         # print('high_valence_pair', high_valence_pair)
+        
+        # 
+        e1_normal_indices = np.array([p[0] for p in high_valence_pair])
+        e2_normal_indices = np.array([p[1] for p in high_valence_pair])
+    
+        has_rotation_h = np.array([rotations_data['has_rotation'][e1, e2] for e1, e2 in zip(e1_normal_indices, e2_normal_indices)])
+        rotation_matrices_h = np.array([rotations_data['matrices'][e1, e2] for e1, e2 in zip(e1_normal_indices, e2_normal_indices)])
+
+
     # Extract pairwise data
     e1_indices = np.array([p[0] for p in pairwise])
     e2_indices = np.array([p[1] for p in pairwise])
@@ -854,20 +909,28 @@ def preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map):
             vertex = next(iter(shared_vertex))
             if len(vertex_to_edges_map[vertex]) == 2:
                 curve_edges[i] = True
-    
+
+
     # Extract rotation data for the specific edge pairs in pairwise
     has_rotation = np.array([rotations_data['has_rotation'][e1, e2] for e1, e2 in zip(e1_indices, e2_indices)])
     rotation_matrices = np.array([rotations_data['matrices'][e1, e2] for e1, e2 in zip(e1_indices, e2_indices)])
-    
+
     return {
         'e1_indices': jnp.array(e1_indices),
         'e2_indices': jnp.array(e2_indices),
         'weights': jnp.array(weights),
+        'e1_normal_indices': jnp.array(e1_normal_indices),
+        'e2_normal_indices': jnp.array(e2_normal_indices),
         'curve_edges': jnp.array(curve_edges),
         'rotation_matrices': jnp.array(rotation_matrices),
         'has_rotation': jnp.array(has_rotation),
+        'has_rotation_h' : jnp.array(has_rotation_h),
+        'rotation_matrices_h' : jnp.array(rotation_matrices_h),
         'num_pairs': len(e1_indices)
     }
+
+
+
 
 def prepare_edge_constraints(edge_constraints):
     """
@@ -1023,7 +1086,14 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
     curve_edges = data['curve_edges']
     rotation_matrices = data['rotation_matrices']
     has_rotation = data['has_rotation']
+    ## These two elements encode the circulation order for valence > 2 (when curve_edges[i] is false).
+    e1_normal_indices = data['e1_normal_indices']
+    e2_normal_indices = data['e2_normal_indices']
+    has_rotation_h = data['has_rotation_h']
+    rotation_matrices_h = data['rotation_matrices_h']
     
+
+
     # Process all pairs with a manual loop instead of scan
     def body_fun(i, accum):
         energy_sum, weight_sum = accum
@@ -1057,16 +1127,37 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
         # Calculate pair energy based on edge type
         diagonal_sum = cost_00 + cost_11
         antidiagonal_sum = cost_01 + cost_10
+
+        ## High valence
+        # Do I need to use the same for high valence pairs 
+        # Seems 
+
+        e1_normal_index = e1_normal_indices[i]
+        e2_normal_index = e2_normal_indices[i]
+        has_rot_h = has_rotation_h[i]
+        rot_matrix_h = rotation_matrices_h[i]
         
+        n1_1_h = normals1[e1_normal_index]
+        n2_1_h = normals1[e2_normal_index]
+
+
+        # Apply rotation if needed (using JAX's where for conditional)
+        n1_1_rot_h = jnp.where(has_rot_h, jnp.dot(rot_matrix_h, n1_1_h), n1_1_h)
+
+        # Compute costs for all combinations
+        cost_11_h = (1.0 - jnp.dot(n1_1_rot_h, n2_1_h))**2
+
         # Curve edges: use min of diagonal/antidiagonal sum
         # Non-curve edges: use global minimum
         # potential problem : normal0 is being constrained and also being paired, they might be conflicting
         pair_energy = jnp.where(
             is_curve,
             weight * jnp.minimum(diagonal_sum, antidiagonal_sum),
-            weight * jnp.min(costs)
+            # weight * costs[ e1_normal_index, e2_normal_index ]
+            cost_11_h
         )
         
+
         return energy_sum + pair_energy, weight_sum + weight
     
     # Get a static upper bound for the number of pairs
@@ -1369,7 +1460,7 @@ def recover_normals(result, Us, Vs, mode='two'):
 
 
 # Unified optimization function with different behavior for one/two normals
-def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map, 
+def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map, distances, 
                       mode='two', one_normal=None, callback_fn=None):
     """
     Unified JAX-based optimization function for both one-normal and two-normal cases
@@ -1378,7 +1469,6 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
     - thetas0: Initial theta values for each edge
     - Us, Vs: Frame vectors for each edge
     - edge_constraints: List of tuples (edge_index, desired_normal_vector)
-    - pairwise: List of tuples (edge1, edge2, weight)
     - rotations_data: Dictionary with rotation data
     - E: List of edge vertex indices
     - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
@@ -1408,11 +1498,14 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
 
 
     
-    # Pre-process data for faster computation using improved rotations
-    data = preprocess_edge_pair_data(pairwise, rotations_data, vertex_to_edges_map)
+
     
     if mode == 'one':
         # One normal per edge
+
+        # Pre-process data for faster computation using improved rotations
+        data = preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode)
+
         energy_jax_jit = jit(compute_one_normal_total_energy)
         
         def energy_wrapper(thetas):
@@ -1429,8 +1522,11 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, pairwise, rotation
         
     else:  # Two normals per edge
         # Create initial 2D array of thetas
+        data = preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode)
+
         num_edges = len(thetas0)
         thetas_2d = np.column_stack((thetas0, thetas0))
+        # thetas_2d[:, 0] -= 1e-3  # Small perturbation for second normal
         thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
         initial_thetas = thetas_2d.flatten()
         
@@ -1655,34 +1751,34 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
 
     # Process each vertex with valence 3
     for vertex, edges in vertex_to_edges_map.items():
-        if len(edges) == 3:
-            # Get the three edges connected to this vertex
-            ei0, ei1, ei2 = edges
-            e0 = E[ei0]
-            e1 = E[ei1]
-            e2 = E[ei2]
+        # if len(edges) == 3:
+        #     # Get the three edges connected to this vertex
+        #     ei0, ei1, ei2 = edges
+        #     e0 = E[ei0]
+        #     e1 = E[ei1]
+        #     e2 = E[ei2]
             
-            # Compute tangent vectors for each edge
-            t0 = compute_edge_tangent(V, e0)
-            t1 = compute_edge_tangent(V, e1)
-            t2 = compute_edge_tangent(V, e2)
+        #     # Compute tangent vectors for each edge
+        #     t0 = compute_edge_tangent(V, e0)
+        #     t1 = compute_edge_tangent(V, e1)
+        #     t2 = compute_edge_tangent(V, e2)
 
-            print('vertex, ei0, ei1, ei2', vertex, ei0, ei1, ei2)
-            print('t0, t1, t2', t0, t1, t2)
-            # Compute normal candidates by cross products of tangents
-            normals_candidates[ei0] = [np.cross(t0, t1), np.cross(t0, t2)]
-            normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
-            normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
+        #     print('vertex, ei0, ei1, ei2', vertex, ei0, ei1, ei2)
+        #     print('t0, t1, t2', t0, t1, t2)
+        #     # Compute normal candidates by cross products of tangents
+        #     normals_candidates[ei0] = [np.cross(t0, t1), np.cross(t0, t2)]
+        #     normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
+        #     normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
 
-            # normals_candidates[ei0].extend( [ np.cross(t0, t1), np.cross(t0, t2)] )
-            # normals_candidates[ei1].extend( [ np.cross(t0, t1), np.cross(t1, t2)] )
-            # normals_candidates[ei2].extend( [ np.cross(t0, t2), np.cross(t1, t2)] )
+        #     # normals_candidates[ei0].extend( [ np.cross(t0, t1), np.cross(t0, t2)] )
+        #     # normals_candidates[ei1].extend( [ np.cross(t0, t1), np.cross(t1, t2)] )
+        #     # normals_candidates[ei2].extend( [ np.cross(t0, t2), np.cross(t1, t2)] )
 
-            print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2))
-            print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.linalg.norm( np.cross(t0, t1) ),np.linalg.norm(np.cross(t1, t2)), np.linalg.norm(np.cross(t0, t2)))
+        #     print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2))
+        #     print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.linalg.norm( np.cross(t0, t1) ),np.linalg.norm(np.cross(t1, t2)), np.linalg.norm(np.cross(t0, t2)))
 
 
-        elif len(edges) > 3:
+        if len(edges) >= 3:
             # I can dn do higher valence here
             # because edges in the circluar order 
             # every edge will have 2 from cross product 
@@ -1811,8 +1907,9 @@ if __name__ == "__main__":
 
     if curve_file is None:
         curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
-        curve_file = 'made_examples/sketch/cylinder.obj'
-
+        # curve_file = 'made_examples/sketch/cylinder.obj'
+        curve_file = 'sketches_split/onshape_simple_shape.obj'
+        curve_file = 'sketches_split/onshape_simple_mouse.obj'
 
 
     curve_name = Path(curve_file).stem
@@ -1939,9 +2036,9 @@ if __name__ == "__main__":
   
 
     # print('weight_matrix', weight_matrix)
-    pairwise = extract_pairwise_weight(V, E, distances)
+    # pairwise = extract_pairwise_weight(V, E, distances)
 
-    print('pairwise_orignal', pairwise)
+    # print('pairwise_orignal', pairwise)
     
     # pairwise = create_pairwise_weight(V, E, vertex_to_edges_map)
     # print('pairwise', pairwise)
@@ -1969,7 +2066,7 @@ if __name__ == "__main__":
 
     if normals_per_edge =='one':
         result = optimize_normal_angles(
-            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map, distances,
             mode= normals_per_edge , one_normal=one_normal, callback_fn=callback_fn
         )
         normals = recover_normals(result, Us, Vs, mode=normals_per_edge)
@@ -1978,7 +2075,7 @@ if __name__ == "__main__":
     elif normals_per_edge =='two':
 
         result = optimize_normal_angles(
-            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map, distances,
             mode= 'one' , one_normal=one_normal, callback_fn=None
         )
 
@@ -2003,7 +2100,7 @@ if __name__ == "__main__":
 
 
         result = optimize_normal_angles(
-            thetas0, Us, Vs, edge_constraints, pairwise, rotations_data, vertex_to_edges_map,
+            thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map,
             normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
         )
 
