@@ -837,10 +837,8 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
     - Dictionary with JAX arrays containing pre-processed edge pair data ready for computation
     """
     
-    e1_normal_indices = []
-    e2_normal_indices = []
-    has_rotation_h = []
-    rotation_matrices_h = []
+    e1_normal_indices_dict = {}
+    e2_normal_indices_dict = {}
 
     # curve edge pairwise 
     pairwise = set()
@@ -883,32 +881,37 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
                     # dot_product = np.abs(np.dot(e0_vec, e1_vec))
                     # # weight = dot_product * 0.5 + 0.5
                     weight = 1
-                    high_valence_pair.add((ei0, ei1, weight))
-        
-         # print('high_valence_pair', high_valence_pair)
-        
-        # 
-        e1_normal_indices = np.array([p[0] for p in high_valence_pair])
-        e2_normal_indices = np.array([p[1] for p in high_valence_pair])
-    
-        has_rotation_h = np.array([rotations_data['has_rotation'][e1, e2] for e1, e2 in zip(e1_normal_indices, e2_normal_indices)])
-        rotation_matrices_h = np.array([rotations_data['matrices'][e1, e2] for e1, e2 in zip(e1_normal_indices, e2_normal_indices)])
-
+                    pairwise.add((ei0, ei1, weight))
+                    # Set up the high valence circulation order normal correspondence.
+                    # The first edge in the circulation order pair compares its 0-th normal to the second edge's 1-th normal.
+                    e1_normal_indices_dict[ (ei0, ei1) ] = 0
+                    e2_normal_indices_dict[ (ei0, ei1) ] = 1
 
     # Extract pairwise data
     e1_indices = np.array([p[0] for p in pairwise])
     e2_indices = np.array([p[1] for p in pairwise])
     weights = np.array([p[2] for p in pairwise])
-    
+
     # Pre-compute information about shared vertices and curve edges
     curve_edges = np.zeros(len(pairwise), dtype=bool)
+    e1_normal_indices = np.zeros(len(pairwise), dtype=int)
+    e2_normal_indices = np.zeros(len(pairwise), dtype=int)
     
     for i, (e1, e2, _) in enumerate(pairwise):
+        # Unpack the circulation normal pairing information into a flat array
+        if (e1, e2) in e1_normal_indices_dict:
+            assert (e1, e2) in e2_normal_indices_dict
+            e1_normal_indices[i] = e1_normal_indices_dict[ (e1, e2) ]
+            e2_normal_indices[i] = e2_normal_indices_dict[ (e1, e2) ]
+        # Set up the valence 2 information.
+        # TODO: Is this redundant with the above check?
         shared_vertex = frozenset(E[e1]) & frozenset(E[e2])
         if len(shared_vertex) == 1:
             vertex = next(iter(shared_vertex))
             if len(vertex_to_edges_map[vertex]) == 2:
                 curve_edges[i] = True
+        else:
+            assert (e1, e2) in e1_normal_indices_dict
 
 
     # Extract rotation data for the specific edge pairs in pairwise
@@ -924,8 +927,6 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
         'curve_edges': jnp.array(curve_edges),
         'rotation_matrices': jnp.array(rotation_matrices),
         'has_rotation': jnp.array(has_rotation),
-        'has_rotation_h' : jnp.array(has_rotation_h),
-        'rotation_matrices_h' : jnp.array(rotation_matrices_h),
         'num_pairs': len(e1_indices)
     }
 
@@ -1089,10 +1090,6 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
     ## These two elements encode the circulation order for valence > 2 (when curve_edges[i] is false).
     e1_normal_indices = data['e1_normal_indices']
     e2_normal_indices = data['e2_normal_indices']
-    has_rotation_h = data['has_rotation_h']
-    rotation_matrices_h = data['rotation_matrices_h']
-    
-
 
     # Process all pairs with a manual loop instead of scan
     def body_fun(i, accum):
@@ -1134,27 +1131,14 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
 
         e1_normal_index = e1_normal_indices[i]
         e2_normal_index = e2_normal_indices[i]
-        has_rot_h = has_rotation_h[i]
-        rot_matrix_h = rotation_matrices_h[i]
         
-        n1_1_h = normals1[e1_normal_index]
-        n2_1_h = normals1[e2_normal_index]
-
-
-        # Apply rotation if needed (using JAX's where for conditional)
-        n1_1_rot_h = jnp.where(has_rot_h, jnp.dot(rot_matrix_h, n1_1_h), n1_1_h)
-
-        # Compute costs for all combinations
-        cost_11_h = (1.0 - jnp.dot(n1_1_rot_h, n2_1_h))**2
-
         # Curve edges: use min of diagonal/antidiagonal sum
         # Non-curve edges: use global minimum
         # potential problem : normal0 is being constrained and also being paired, they might be conflicting
         pair_energy = jnp.where(
             is_curve,
             weight * jnp.minimum(diagonal_sum, antidiagonal_sum),
-            # weight * costs[ e1_normal_index, e2_normal_index ]
-            cost_11_h
+            weight * costs[ e1_normal_index, e2_normal_index ]
         )
         
 
@@ -1738,45 +1722,14 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
     # For plotting: format (edge_idx, which_edge) -> normal
     plotting_normals = {}
     
-    # Helper function to check if a normal is similar to existing ones
-    def is_similar_normal(normal, existing_normals, threshold_degrees=15):
-        return False
-        threshold = np.cos(np.radians(threshold_degrees))
-        for existing in existing_normals:
-            if abs(np.dot(normal, existing)) > threshold or abs(np.dot(-normal,existing)) > threshold:
-                return True
-        return False
-    
-    normals_candidates = defaultdict(list)
+    # Prepare the output format
+    indices0 = []
+    normals0 = []
+    indices1 = []
+    normals1 = []
 
     # Process each vertex with valence 3
     for vertex, edges in vertex_to_edges_map.items():
-        # if len(edges) == 3:
-        #     # Get the three edges connected to this vertex
-        #     ei0, ei1, ei2 = edges
-        #     e0 = E[ei0]
-        #     e1 = E[ei1]
-        #     e2 = E[ei2]
-            
-        #     # Compute tangent vectors for each edge
-        #     t0 = compute_edge_tangent(V, e0)
-        #     t1 = compute_edge_tangent(V, e1)
-        #     t2 = compute_edge_tangent(V, e2)
-
-        #     print('vertex, ei0, ei1, ei2', vertex, ei0, ei1, ei2)
-        #     print('t0, t1, t2', t0, t1, t2)
-        #     # Compute normal candidates by cross products of tangents
-        #     normals_candidates[ei0] = [np.cross(t0, t1), np.cross(t0, t2)]
-        #     normals_candidates[ei1] = [np.cross(t0, t1), np.cross(t1, t2)]
-        #     normals_candidates[ei2] = [np.cross(t0, t2), np.cross(t1, t2)]
-
-        #     # normals_candidates[ei0].extend( [ np.cross(t0, t1), np.cross(t0, t2)] )
-        #     # normals_candidates[ei1].extend( [ np.cross(t0, t1), np.cross(t1, t2)] )
-        #     # normals_candidates[ei2].extend( [ np.cross(t0, t2), np.cross(t1, t2)] )
-
-        #     print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2))
-        #     print('np.cross(t0, t1),np.cross(t1, t2), np.cross(t0, t2)', np.linalg.norm( np.cross(t0, t1) ),np.linalg.norm(np.cross(t1, t2)), np.linalg.norm(np.cross(t0, t2)))
-
 
         if len(edges) >= 3:
             # I can dn do higher valence here
@@ -1795,71 +1748,28 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
                 e0_vec = compute_edge_tangent(V, e0)
                 e1_vec = compute_edge_tangent(V, e1)
 
-                normals_candidates[ei0].append( np.cross(e0_vec, e1_vec) )
-                normals_candidates[ei1].append( np.cross(e0_vec, e1_vec) )
+                normal = np.cross(e0_vec, e1_vec)
+                norm = np.linalg.norm(normal)
+                # TODO Q: `norm` is sine of the angle between the tangents. Is this a good parallel threshold?
+                # Skip normals whose norm is below threshold.
+                if norm < np.sin(np.radians(5)):  # Skip tangents less than N degrees apart
+                    # Skip this normal
+                    continue
+                
+                normal = normal / norm
 
-        # print('normals_candidates', normals_candidates)
-        # for edge_index, normals in normals_candidates.items():
-        #     print(edge_index, len(normals))
+                # Ensure consistent orientation with estimated normals (average ei0 and ei1)
+                # TODO Q: The same normal gets assigned to two edges. Is it possible that we negate the normal inconsistently?
+                if np.dot(normal, estimate_normals[ei0] + estimate_normals[ei1]) < 0:
+                    normal = -normal
+                
+                indices0.append( ei0 )
+                normals0.append( normal )
+                plotting_normals[(ei0,0)] = normal
 
-
-    # now for all the candidates normals
-    # I only want at most 2: if all of them are very similar
-    # I am ok with just one    
-    # normalize and make the angel different 
-    for edge_idx, normals in normals_candidates.items():
-        # Now add normals to edge_normals while avoiding duplicates
-        if edge_idx not in edge_normals:
-            edge_normals[edge_idx] = []
-        
-
-        for i in range(len(normals)):
-            normal = normals[i]
-            norm = np.linalg.norm(normal)
-            # TODO Q: `norm` is sine of the angle between the tangents. Is this a good parallel threshold?
-            # Skip normals whose norm is below threshold.
-            if norm < np.sin(np.radians(5)):  # Skip tangents less than N degrees apart
-                # Skip this normal
-                continue
-            
-            normal = normal / norm
-            
-            # Ensure consistent orientation with estimated normals
-            # TODO Q: The same normal gets assigned to two edges. Is it possible that we negate the normal inconsistently?
-            if np.dot(normal, estimate_normals[edge_idx]) < 0:
-                normal = -normal
-            
-            # Add the normal to the edge
-            if not is_similar_normal(normal, edge_normals[edge_idx]):
-                edge_normals[edge_idx].append(normal)
-
-
-    # Prepare the output format
-    indices0 = []
-    normals0 = []
-    indices1 = []
-    normals1 = []
-    
-    # Create both computation and plotting formats
-    for edge_idx, normals in edge_normals.items():
-        if len(normals) >= 1:
-            # First normal
-            indices0.append(edge_idx)
-            normals0.append(normals[0])
-            plotting_normals[(edge_idx, 0)] = normals[0]
-            
-
-            if len(normals) >= 2:
-                # Second normal - use the second one if available, otherwise reuse the first
-                indices1.append(edge_idx)
-                normals1.append(normals[1])
-                plotting_normals[(edge_idx, 1)] = normals[1]
-            else:
-                # If only one normal exists, use it for both constraints
-                # TODO: Don't re-use a normal. Let the second one be free.
-                # normals1.append(normals[0])
-                # plotting_normals[(edge_idx, 1)] = normals[0]
-                pass
+                indices1.append( ei1 )
+                normals1.append( normal )
+                plotting_normals[(ei1,1)] = normal
 
     print('indices0', indices0)
     print('normals0', normals0)
