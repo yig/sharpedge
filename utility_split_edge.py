@@ -97,41 +97,44 @@ def find_edges_to_split(V, E):
     return edges_to_split, vertex_valence
 
 
-def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
+def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence, show_plot=True):
     """
     Visualize the sketch with edges to be split highlighted in red
     
     Args:
-        V: nx3 numpy array of vertex coordinates 
+        V: nx3 numpy array of vertex coordinates
         E: mx2 numpy array of edge vertex indices (0-based)
         P: list of numpy arrays containing vertex indices for each polyline (0-based)
         edges_to_split: set of edges that will be split
         vertex_valence: dictionary of vertex valences
+        show_plot: bool, whether to display the plot (default: True)
+    
+    Returns:
+        fig: matplotlib figure object that can be saved externally
     """
     fig = plt.figure(figsize=(8,8))
-    
     ax = fig.add_subplot(111, projection='3d')
     ax.view_init(vertical_axis='y', elev=30, azim=45)
     ax.set_aspect('equal')
-
+    
     # Plot all edges in light gray first
     for edge in E:
         v1_idx, v2_idx = edge[0], edge[1]
         v1_coord = V[v1_idx]
         v2_coord = V[v2_idx]
-        
         edge_tuple = tuple(sorted([v1_idx, v2_idx]))
+        
         if edge_tuple in edges_to_split:
             # Highlight edges to be split in red
-            ax.plot([v1_coord[0], v2_coord[0]], 
-                   [v1_coord[1], v2_coord[1]], 
-                   [v1_coord[2], v2_coord[2]], 
+            ax.plot([v1_coord[0], v2_coord[0]],
+                   [v1_coord[1], v2_coord[1]],
+                   [v1_coord[2], v2_coord[2]],
                    'r-', linewidth=3, label='Edges to split' if edge_tuple == list(edges_to_split)[0] else "")
         else:
             # Regular edges in light gray
-            ax.plot([v1_coord[0], v2_coord[0]], 
-                   [v1_coord[1], v2_coord[1]], 
-                   [v1_coord[2], v2_coord[2]], 
+            ax.plot([v1_coord[0], v2_coord[0]],
+                   [v1_coord[1], v2_coord[1]],
+                   [v1_coord[2], v2_coord[2]],
                    'lightgray', linewidth=1)
     
     # Plot vertices with different colors based on valence
@@ -140,32 +143,31 @@ def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
     
     if high_valence_vertices:
         high_valence_coords = V[high_valence_vertices]
-        ax.scatter(high_valence_coords[:, 0], 
-                  high_valence_coords[:, 1], 
-                  high_valence_coords[:, 2], 
+        ax.scatter(high_valence_coords[:, 0],
+                  high_valence_coords[:, 1],
+                  high_valence_coords[:, 2],
                   c='red', s=50, alpha=0.8, label=f'High valence vertices (>{2})')
     
     if low_valence_vertices:
         low_valence_coords = V[low_valence_vertices]
-        ax.scatter(low_valence_coords[:, 0], 
-                  low_valence_coords[:, 1], 
-                  low_valence_coords[:, 2], 
+        ax.scatter(low_valence_coords[:, 0],
+                  low_valence_coords[:, 1],
+                  low_valence_coords[:, 2],
                   c='blue', s=30, alpha=0.6, label=f'Low valence vertices (≤{2})')
     
     # Add vertex labels for high valence vertices
     for v_idx in high_valence_vertices:
         coord = V[v_idx]
         valence = vertex_valence[v_idx]
-        ax.text(coord[0], coord[1], coord[2], f'{v_idx}({valence})', 
-               fontsize=8, color='darkred')
+        ax.text(coord[0], coord[1], coord[2], f'{v_idx}({valence})',
+                fontsize=8, color='darkred')
     
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.legend()
-    
     plt.title(f'Edges to Split Visualization\n'
-             f'{len(edges_to_split)} edges will be split (shown in red)')
+              f'{len(edges_to_split)} edges will be split (shown in red)')
     
     print(f"\n=== EDGE SPLITTING PREVIEW ===")
     print(f"Vertex valences: {dict(sorted(vertex_valence.items()))}")
@@ -173,7 +175,12 @@ def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence):
     print(f"High valence vertices (>2): {sorted(high_valence_vertices)}")
     
     plt.axis('off')
-    plt.show()
+    plt.axis('equal')
+    
+    if show_plot:
+        plt.show()
+    
+    return fig
 
 
 def split_edges_preprocessing_compatible(V, E, P):
@@ -345,8 +352,10 @@ if __name__ == "__main__":
     edges_to_split, vertex_valence = find_edges_to_split(V_orig, E_orig)
     
     # Show preview of edges to be split
-    highlight_edges_to_split(V_orig, E_orig, P_orig, edges_to_split, vertex_valence)
-    
+    fig = highlight_edges_to_split(V_orig, E_orig, P_orig, edges_to_split, vertex_valence)
+    fig.savefig('sketches_split_png/' + curve_name + '.png', bbox_inches='tight')
+
+
     # If preview mode, stop here
     if args.preview:
         print("Preview mode - stopping before actual splitting")
