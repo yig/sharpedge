@@ -10,7 +10,7 @@ imgui.ini
 .polyscope.ini
 
 tex_math/
-3d-sketches-curated-dataset-main/
+3d-sketches-dataset/
 debug_normals/
 debug_normals_gltf/
 debug_normals_w_r/
@@ -27,3 +27,7 @@ current_not_used_scripts/
 normal/
 opt_two_normal/
 opt_one_normal/
+sketches_split/
+
+sketches_split_gltf/
+sketches_split_png/
