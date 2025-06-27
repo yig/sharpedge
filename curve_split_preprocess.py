@@ -340,12 +340,14 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
+    parser.add_argument('output_file', nargs='?', help='The output file.')
     parser.add_argument('--preview', action='store_true', 
                        help='Show preview of edges to be split without actually splitting')
     
     args = parser.parse_args()
 
     curve_file = args.curve_file
+    output_file = args.output_file
     curve_name = Path(curve_file).stem
 
     # Load original for comparison
@@ -377,5 +379,5 @@ if __name__ == "__main__":
     validate_splitting_result(V_orig, P_orig, V_new, P_new)
 
     # Save result
-    new_file = 'sketches_split/' + curve_name + '.obj'
-    save_split_result(new_file, V_new, P_new)
+    if output_file:
+        save_split_result(output_file, V_new, P_new)
