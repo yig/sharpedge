@@ -1,9 +1,14 @@
-#!/usr/bin/env python3
+'''
+curve_resample_preprocess.py
+Using RDP to resample curve.
+Reduce calculation load.
+'''
+
 
 from rdp import rdp
 import numpy as np
 from utility_io import load_sketch_polyline_data
-from utility_plot_viewer import plot_sketch_data
+from utility_plot_viewer import plot_sketch_data, plot_polylines
 import argparse
 
 
@@ -97,9 +102,9 @@ resampled_polylines = []
 
 for polyline in polylines:
     points = rdp_closed(polyline, epsilon=2e-3) 
-
     resampled_polylines.append( points )
 
+plot_polylines(resampled_polylines)
 
 write_polylines_to_obj(resampled_polylines, output_file)
 
