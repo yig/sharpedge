@@ -19,7 +19,11 @@ def plot_sketch_data(V, P):
     ax.set_aspect('equal')
 
     V = np.asarray(V)
-    ax.scatter(V[:, 0], V[:, 1], V[:, 2], s = 6, color = 'k')
+    # ax.scatter(V[:, 0], V[:, 1], V[:, 2], s = 6, color = 'k')
+
+    # for i, (x, y, z) in enumerate(V):
+    #     ax.text(x + 0.01, y + 0.01, z + 0.01, str(i), fontsize=8)
+
 
 
     for index, polyline in enumerate(P):
@@ -32,11 +36,11 @@ def plot_sketch_data(V, P):
         ax.scatter(xs, ys, zs, s = 5)
         
         # Calculate midpoint for edge label
-        midx = (xs[0] + xs[1]) / 2
-        midy = (ys[0] + ys[1]) / 2
-        midz = (zs[0] + zs[1]) / 2
+        midx = np.mean(xs)
+        midy = np.mean(ys) 
+        midz = np.mean(zs)
         
-        ax.text(midx, midy, midz, str(index))
+        # ax.text(midx, midy, midz, str(index))
 
     
     plt.axis('off')
@@ -72,6 +76,31 @@ def plot_edge_info(V, E):
         ax.scatter(xs, ys, zs, s=5)
         ax.text(midx, midy, midz, str(edge_index))
     
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+def plot_polylines( polylines ):
+    '''
+    just purely plot polylines.
+    '''
+
+    fig = plt.figure(figsize=(8,8))
+    
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+
+    for index, polyline in enumerate(polylines):
+        pts = np.asarray( polyline )
+        xs = pts[:, 0]
+        ys = pts[:, 1]
+        zs = pts[:, 2]
+        ax.plot(xs, ys, zs)
+        ax.scatter(xs, ys, zs, s = 5)
+        
+
     plt.axis('off')
     plt.axis('equal')
     plt.show()
@@ -571,18 +600,23 @@ def plot_edge_constraints_two_normals(V, E, P, constraints, unconstrained_polyli
     
     if str is not None:
         ax.set_title(str)
-    
+
     if filename:
         plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0.1)
-        plt.close()
+        # Only close if we're not going to show it
+        if not block:
+            plt.close()
+
+    # Always handle display logic (whether we saved or not)
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+
+    if block:
+        plt.ioff()  # Turn off interactive mode when blocking
+        plt.show(block=True)
     else:
-        fig.canvas.draw()
-        # Fix: We should respect the block parameter here
-        if block:
-            plt.ioff()  # Turn off interactive mode when blocking
-            plt.show(block=True)  # Use plt.show with block=True
-        else:
-            plt.show(block=False)
-            plt.pause(0.001)  # Only pause if not blocking
-    
+        plt.ion()   # Turn on interactive mode for non-blocking
+        plt.show(block=False)
+        plt.pause(0.1)  # Increased pause time for better visibility
+
     return fig, ax

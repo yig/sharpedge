@@ -24,119 +24,13 @@ def parse_obj_file(content):
     
     return np.array(vertices), polylines
 
-def find_coincident_vertices(vertices, tolerance=1e-10):
-    """Find groups of vertices that are coincident within tolerance."""
-    n = len(vertices)
-    coincident_groups = []
-    processed = set()
-    
-    for i in range(n):
-        if i in processed:
-            continue
-            
-        group = [i]
-        processed.add(i)
-        
-        for j in range(i + 1, n):
-            if j in processed:
-                continue
-                
-            # Calculate distance between vertices
-            dist = np.linalg.norm(vertices[i] - vertices[j])
-            if dist < tolerance:
-                group.append(j)
-                processed.add(j)
-        
-        if len(group) > 1:
-            coincident_groups.append(group)
-    
-    return coincident_groups
-
-def split_polylines_at_intersections(vertices, polylines, tolerance=1e-10):
-    """Split polylines where vertices are coincident and more than 2 polylines meet."""
-    # Find coincident vertex groups
-    coincident_groups = find_coincident_vertices(vertices, tolerance)
-    
-    # Create mapping from vertex index to group representative
-    vertex_to_group = {}
-    for group in coincident_groups:
-        representative = min(group)  # Use lowest index as representative
-        for vertex_idx in group:
-            vertex_to_group[vertex_idx] = representative
-    
-    # Count how many polylines pass through each intersection point
-    intersection_usage = defaultdict(set)  # representative -> set of polyline indices
-    vertex_to_polylines = defaultdict(list)  # vertex -> list of (polyline_idx, position_in_polyline)
-    
-    for polyline_idx, polyline in enumerate(polylines):
-        for pos, vertex_idx in enumerate(polyline):
-            if vertex_idx in vertex_to_group:
-                representative = vertex_to_group[vertex_idx]
-                intersection_usage[representative].add(polyline_idx)
-                vertex_to_polylines[representative].append((polyline_idx, pos))
-            else:
-                # Handle vertices that are not part of coincident groups
-                intersection_usage[vertex_idx].add(polyline_idx)
-                vertex_to_polylines[vertex_idx].append((polyline_idx, pos))
-    
-    # Find intersections where more than 2 polylines meet (changed from >3 to >2)
-    split_intersections = set()
-    for vertex_key, polyline_set in intersection_usage.items():
-        if len(polyline_set) > 2:
-            split_intersections.add(vertex_key)
-            print(f"Intersection at vertex {vertex_key + 1} (1-indexed) has {len(polyline_set)} polylines meeting - will split")
-    
-    split_polylines = []
-    
-    for polyline_idx, polyline in enumerate(polylines):
-        # Find positions in this polyline where we need to split
-        split_positions = []
-        
-        for pos, vertex_idx in enumerate(polyline):
-            # Check if this vertex is a split intersection
-            vertex_key = vertex_to_group.get(vertex_idx, vertex_idx)
-            
-            if vertex_key in split_intersections:
-                # Only split at interior vertices or endpoints that connect to other polylines
-                if pos == 0 or pos == len(polyline) - 1:
-                    # Check if this endpoint connects to other polylines
-                    other_polylines_at_vertex = [
-                        p_idx for p_idx, p_pos in vertex_to_polylines[vertex_key] 
-                        if p_idx != polyline_idx
-                    ]
-                    if other_polylines_at_vertex:
-                        split_positions.append(pos)
-                else:
-                    # Interior vertex - always split
-                    split_positions.append(pos)
-        
-        # If no split positions, keep the original polyline
-        if not split_positions:
-            split_polylines.append(polyline)
-            continue
-        
-        # Split the polyline at the identified positions
-        current_segment = []
-        
-        for pos, vertex_idx in enumerate(polyline):
-            current_segment.append(vertex_idx)
-            
-            # If this position is a split point and we have a valid segment
-            if pos in split_positions and len(current_segment) >= 2:
-                split_polylines.append(current_segment[:])  # Add copy of segment
-                current_segment = [vertex_idx]  # Start new segment with this vertex
-        
-        # Add the final segment if it's valid
-        if len(current_segment) >= 2:
-            split_polylines.append(current_segment)
-    
-    return split_polylines, coincident_groups, split_intersections
-
-def remove_duplicate_vertices(vertices, polylines, tolerance=1e-10):
-    """Remove duplicate vertices and update polyline indices accordingly."""
+def consolidate_nearby_vertices(vertices, polylines, tolerance=1e-7):
+    """Consolidate vertices that are within tolerance distance."""
     n = len(vertices)
     vertex_map = {}  # Maps old index to new index
     unique_vertices = []
+    
+    print(f"Consolidating vertices with tolerance: {tolerance}")
     
     for i in range(n):
         # Check if this vertex is close to any existing unique vertex
@@ -167,29 +61,91 @@ def remove_duplicate_vertices(vertices, polylines, tolerance=1e-10):
         if len(filtered_polyline) > 1:
             updated_polylines.append(filtered_polyline)
     
+    consolidated_count = len(vertices) - len(unique_vertices)
+    if consolidated_count > 0:
+        print(f"Consolidated {consolidated_count} nearby vertices")
+    
     return np.array(unique_vertices), updated_polylines, vertex_map
 
-def plot_polylines(vertices, polylines, split_intersections=None, title="Polylines Visualization", 
-                   vertex_to_group=None, show_vertex_labels=False):
-    """
-    Plot polylines with highlighted intersection vertices.
+def find_high_valence_vertices(vertices, polylines, min_valence=3):
+    """Find vertices where more than min_valence-1 polylines meet."""
+    vertex_valence = defaultdict(set)  # vertex_idx -> set of polyline indices
+    vertex_positions = defaultdict(list)  # vertex_idx -> list of (polyline_idx, position)
     
-    Parameters:
-    - vertices: numpy array of vertex coordinates
-    - polylines: list of polylines (lists of vertex indices)
-    - split_intersections: set of vertex indices that are intersection points
-    - title: plot title
-    - vertex_to_group: mapping from vertex index to group representative (for coincident vertices)
-    - show_vertex_labels: whether to show vertex index labels
-    """
-    # Determine if we need 2D or 3D plot
-    if vertices.shape[1] == 2:
-        fig, ax = plt.subplots(figsize=(12, 8))
-        is_3d = False
-    else:
-        fig = plt.figure(figsize=(12, 8))
-        ax = fig.add_subplot(111, projection='3d')
-        is_3d = True
+    # Count how many polylines use each vertex
+    for polyline_idx, polyline in enumerate(polylines):
+        for pos, vertex_idx in enumerate(polyline):
+            vertex_valence[vertex_idx].add(polyline_idx)
+            vertex_positions[vertex_idx].append((polyline_idx, pos))
+    
+    # Find high-valence vertices (intersections)
+    high_valence_vertices = {}
+    for vertex_idx, polyline_set in vertex_valence.items():
+        valence = len(polyline_set)
+        if valence >= min_valence:
+            high_valence_vertices[vertex_idx] = valence
+            print(f"High-valence vertex {vertex_idx + 1} (1-indexed): {valence} polylines meeting")
+    
+    return high_valence_vertices, vertex_positions
+
+def split_polylines_at_high_valence(polylines, high_valence_vertices, vertex_positions):
+    """Split polylines at high-valence vertices."""
+    split_polylines = []
+    
+    for polyline_idx, polyline in enumerate(polylines):
+        # Find split points in this polyline
+        split_points = []
+        
+        for pos, vertex_idx in enumerate(polyline):
+            if vertex_idx in high_valence_vertices:
+                # Always split at high-valence vertices that are interior points
+                # or endpoints that connect to other polylines
+                if pos == 0 or pos == len(polyline) - 1:
+                    # Endpoint - check if it connects to other polylines
+                    other_polylines = [
+                        p_idx for p_idx, p_pos in vertex_positions[vertex_idx]
+                        if p_idx != polyline_idx
+                    ]
+                    if other_polylines:
+                        split_points.append(pos)
+                else:
+                    # Interior point - always split
+                    split_points.append(pos)
+        
+        # If no split points, keep original polyline
+        if not split_points:
+            split_polylines.append(polyline)
+            continue
+        
+        # Split the polyline
+        segments = []
+        current_segment = []
+        
+        for pos, vertex_idx in enumerate(polyline):
+            current_segment.append(vertex_idx)
+            
+            # If this is a split point and we have at least 2 vertices
+            if pos in split_points and len(current_segment) >= 2:
+                segments.append(current_segment[:])  # Save current segment
+                current_segment = [vertex_idx]  # Start new segment with split vertex
+        
+        # Add final segment if it has at least 2 vertices
+        if len(current_segment) >= 2:
+            segments.append(current_segment)
+        
+        # Add all valid segments
+        for segment in segments:
+            if len(segment) >= 2:
+                split_polylines.append(segment)
+    
+    return split_polylines
+
+def plot_polylines(vertices, polylines, high_valence_vertices=None, title="Polylines Visualization", 
+                   show_vertex_labels=False):
+    """Plot 3D polylines with highlighted high-valence vertices."""
+    # Always use 3D plot
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
     
     # Plot polylines
     colors = plt.cm.tab10(np.linspace(0, 1, len(polylines)))
@@ -201,62 +157,52 @@ def plot_polylines(vertices, polylines, split_intersections=None, title="Polylin
         # Get coordinates for this polyline
         polyline_coords = vertices[polyline]
         
-        if is_3d:
-            ax.plot(polyline_coords[:, 0], polyline_coords[:, 1], polyline_coords[:, 2], 
-                   color=colors[i], linewidth=2, alpha=0.7, label=f'Polyline {i+1}')
-        else:
-            ax.plot(polyline_coords[:, 0], polyline_coords[:, 1], 
-                   color=colors[i], linewidth=2, alpha=0.7, label=f'Polyline {i+1}')
+        ax.plot(polyline_coords[:, 0], polyline_coords[:, 1], polyline_coords[:, 2], 
+               color=colors[i], linewidth=2, alpha=0.7, label=f'Polyline {i+1}')
     
-    # Highlight intersection vertices
-    if split_intersections:
+    # Highlight high-valence vertices
+    if high_valence_vertices:
         intersection_coords = []
-        for vertex_idx in split_intersections:
-            # Handle case where vertex_idx might be a group representative
-            if vertex_to_group:
-                # Find all original vertices that map to this representative
-                original_vertices = [v for v, rep in vertex_to_group.items() if rep == vertex_idx]
-                if original_vertices:
-                    intersection_coords.extend([vertices[v] for v in original_vertices])
-                else:
-                    intersection_coords.append(vertices[vertex_idx])
-            else:
-                intersection_coords.append(vertices[vertex_idx])
+        intersection_valences = []
+        
+        for vertex_idx, valence in high_valence_vertices.items():
+            intersection_coords.append(vertices[vertex_idx])
+            intersection_valences.append(valence)
         
         if intersection_coords:
             intersection_coords = np.array(intersection_coords)
-            if is_3d:
-                ax.scatter(intersection_coords[:, 0], intersection_coords[:, 1], intersection_coords[:, 2], 
-                          color='red', s=100, zorder=5, label='Intersection Points', marker='o')
-            else:
-                ax.scatter(intersection_coords[:, 0], intersection_coords[:, 1], 
-                          color='red', s=100, zorder=5, label='Intersection Points', marker='o')
+            
+            # Size markers based on valence
+            sizes = [50 + 20 * (v - 3) for v in intersection_valences]
+            
+            scatter = ax.scatter(intersection_coords[:, 0], intersection_coords[:, 1], 
+                               intersection_coords[:, 2], 
+                               c='red', s=sizes, zorder=5, alpha=0.8, 
+                               label='High-Valence Vertices', marker='o', edgecolors='darkred')
+            
+            # Add valence labels
+            for i, (coord, valence) in enumerate(zip(intersection_coords, intersection_valences)):
+                ax.text(coord[0], coord[1], coord[2], f'{valence}', 
+                       fontsize=10, fontweight='bold', color='white',
+                       ha='center', va='center')
     
     # Plot all vertices as small points
-    if is_3d:
-        ax.scatter(vertices[:, 0], vertices[:, 1], vertices[:, 2], 
-                  color='black', s=20, alpha=0.5, zorder=3)
-    else:
-        ax.scatter(vertices[:, 0], vertices[:, 1], 
-                  color='black', s=20, alpha=0.5, zorder=3)
+    ax.scatter(vertices[:, 0], vertices[:, 1], vertices[:, 2], 
+              color='black', s=10, alpha=0.3, zorder=3)
     
     # Add vertex labels if requested
     if show_vertex_labels:
         for i, vertex in enumerate(vertices):
-            if is_3d:
-                ax.text(vertex[0], vertex[1], vertex[2], f'{i+1}', fontsize=8, alpha=0.7)
-            else:
-                ax.text(vertex[0], vertex[1], f'{i+1}', fontsize=8, alpha=0.7)
+            ax.text(vertex[0], vertex[1], vertex[2], f'{i+1}', fontsize=8, alpha=0.7)
     
     ax.set_title(title, fontsize=14)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
-    if is_3d:
-        ax.set_zlabel('Z')
+    ax.set_zlabel('Z')
     
     # Add legend (but limit to reasonable number of entries)
     handles, labels = ax.get_legend_handles_labels()
-    if len(handles) <= 20:  # Only show legend if not too many polylines
+    if len(handles) <= 15:  # Only show legend if not too many polylines
         ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
     
     ax.grid(True, alpha=0.3)
@@ -276,81 +222,65 @@ def write_obj_file(vertices, polylines, output_filename):
             indices_1based = [str(i + 1) for i in polyline]
             f.write(f"l {' '.join(indices_1based)}\n")
 
-def process_obj_file(input_content, tolerance=1e-10, plot_results=True):
-    """Main function to process OBJ file and split curves at intersections."""
+def process_obj_file(input_content, tolerance=1e-7, min_valence=3, plot_results=True):
+    """Main function to process OBJ file and split curves at high-valence intersections."""
     # Parse the input
     vertices, polylines = parse_obj_file(input_content)
     
     print(f"Original: {len(vertices)} vertices, {len(polylines)} polylines")
     
-    # Plot original polylines
+    # Step 1: Consolidate nearby vertices
+    vertices, polylines, vertex_map = consolidate_nearby_vertices(vertices, polylines, tolerance)
+    print(f"After consolidation: {len(vertices)} vertices, {len(polylines)} polylines")
+    
+    # Plot original (consolidated) polylines
     if plot_results:
-        fig1, ax1 = plot_polylines(vertices, polylines, title="Original Polylines")
+        fig1, ax1 = plot_polylines(vertices, polylines, title="Consolidated Polylines")
         plt.show()
     
-    # Split polylines at intersections
-    split_polylines, coincident_groups, split_intersections = split_polylines_at_intersections(
-        vertices, polylines, tolerance
-    )
+    # Step 2: Find high-valence vertices
+    high_valence_vertices, vertex_positions = find_high_valence_vertices(vertices, polylines, min_valence)
     
-    print(f"After splitting: {len(vertices)} vertices, {len(split_polylines)} polylines")
-    print(f"Found {len(coincident_groups)} groups of coincident vertices")
+    if not high_valence_vertices:
+        print("No high-valence vertices found - no splitting needed")
+        return vertices, polylines, {}, vertex_map
     
-    # Create vertex mapping for plotting
-    vertex_to_group = {}
-    for group in coincident_groups:
-        representative = min(group)
-        for vertex_idx in group:
-            vertex_to_group[vertex_idx] = representative
+    print(f"Found {len(high_valence_vertices)} high-valence vertices")
     
-    # Plot split polylines with highlighted intersections
+    # Plot with highlighted high-valence vertices
     if plot_results:
         fig2, ax2 = plot_polylines(
-            vertices, split_polylines, split_intersections, 
-            title="Split Polylines with Intersection Points",
-            vertex_to_group=vertex_to_group
+            vertices, polylines, high_valence_vertices,
+            title="High-Valence Vertices (Red circles with valence numbers)"
         )
         plt.show()
     
-    # Remove duplicate vertices and update indices
-    unique_vertices, final_polylines, vertex_map = remove_duplicate_vertices(
-        vertices, split_polylines, tolerance
-    )
+    # Step 3: Split polylines at high-valence vertices
+    split_polylines = split_polylines_at_high_valence(polylines, high_valence_vertices, vertex_positions)
     
-    print(f"After removing duplicates: {len(unique_vertices)} vertices, {len(final_polylines)} polylines")
-    print(f"Removed {len(vertices) - len(unique_vertices)} duplicate vertices")
+    print(f"After splitting: {len(vertices)} vertices, {len(split_polylines)} polylines")
+    print(f"Split into {len(split_polylines) - len(polylines)} additional segments")
     
     # Plot final result
     if plot_results:
-        # Map split intersections to new vertex indices
-        final_intersections = set()
-        for old_intersection in split_intersections:
-            if old_intersection in vertex_map:
-                final_intersections.add(vertex_map[old_intersection])
-        
         fig3, ax3 = plot_polylines(
-            unique_vertices, final_polylines, final_intersections,
-            title="Final Result: Deduplicated Vertices and Split Polylines"
+            vertices, split_polylines, high_valence_vertices,
+            title="Final Result: Split Polylines at High-Valence Vertices"
         )
         plt.show()
     
-    # Print coincident groups for debugging
-    for i, group in enumerate(coincident_groups):
-        print(f"Coincident group {i + 1}: vertices {[v + 1 for v in group]} (1-indexed)")
-        # Show the actual coordinates
-        group_coords = vertices[group]
-        print(f"  Coordinates: {group_coords}")
-    
-    return unique_vertices, final_polylines, coincident_groups, vertex_map
+    return vertices, split_polylines, high_valence_vertices, vertex_map
 
 # Example usage:
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Optimize edges to get normals')
+    parser = argparse.ArgumentParser(description='Split polylines at high-valence intersections')
     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
     parser.add_argument('output_file', nargs='?', help='The curve sketch to write.')
     parser.add_argument('--no-plot', action='store_true', help='Disable plotting')
-    parser.add_argument('--tolerance', type=float, default=1e-8, 
-                       help='Tolerance for vertex coincidence detection')
+    parser.add_argument('--tolerance', type=float, default=1e-7, 
+                       help='Tolerance for vertex consolidation (default: 1e-7)')
+    parser.add_argument('--min-valence', type=int, default=3,
+                       help='Minimum valence to consider as intersection (default: 3)')
     args = parser.parse_args()
 
     input_file = args.curve_file
@@ -359,6 +289,7 @@ if __name__ == "__main__":
 
     if not input_file:
         print("Please provide an input OBJ file")
+        print("Usage: python script.py input.obj [output.obj] [options]")
         exit(1)
     
     if not output_file:
@@ -372,21 +303,20 @@ if __name__ == "__main__":
         exit(1)
     
     # Process the file
-    vertices, split_polylines, coincident_groups, vertex_map = process_obj_file(
-        content, tolerance=args.tolerance, plot_results=plot_enabled
+    vertices, split_polylines, high_valence_vertices, vertex_map = process_obj_file(
+        content, tolerance=args.tolerance, min_valence=args.min_valence, plot_results=plot_enabled
     )
     
     # Write the result
     write_obj_file(vertices, split_polylines, output_file)
-    print(f"Split curves with deduplicated vertices written to {output_file}")
+    print(f"\nSplit curves written to {output_file}")
     
-    # Optionally, print the vertex mapping for debugging
-    print("\nVertex mapping (old_index -> new_index):")
-    for old_idx, new_idx in sorted(vertex_map.items()):
-        if old_idx != new_idx:  # Only show remapped vertices
-            print(f"  {old_idx + 1} -> {new_idx + 1} (1-indexed)")
+    # Summary
+    print(f"\nSummary:")
+    print(f"- Found {len(high_valence_vertices)} intersection points")
+    print(f"- Split {len(split_polylines)} total polyline segments")
     
     if plot_enabled:
-        print("\nPlots have been displayed. Close the plot windows to continue.")
+        print("- Plots displayed (close windows to continue)")
     else:
-        print("Plotting was disabled with --no-plot flag.")
+        print("- Use --no-plot flag removed to see visualizations")

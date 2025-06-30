@@ -847,7 +847,6 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
         pairwise = extract_pairwise_weight(V, E, distances)
     else:
     # if True:
-        high_valence_pair = set()
 
         for vertex_index, edge_indices in vertex_to_edges_map.items():
             if len(edge_indices) == 2:
@@ -900,6 +899,7 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
     for i, (e1, e2, _) in enumerate(pairwise):
         # Unpack the circulation normal pairing information into a flat array
         if (e1, e2) in e1_normal_indices_dict:
+            print('e1_normal_indices_dict', e1_normal_indices_dict)
             assert (e1, e2) in e2_normal_indices_dict
             e1_normal_indices[i] = e1_normal_indices_dict[ (e1, e2) ]
             e2_normal_indices[i] = e2_normal_indices_dict[ (e1, e2) ]
@@ -911,7 +911,8 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
             if len(vertex_to_edges_map[vertex]) == 2:
                 curve_edges[i] = True
         else:
-            assert (e1, e2) in e1_normal_indices_dict
+            if mode == 'two':
+                assert (e1, e2) in e1_normal_indices_dict
 
 
     # Extract rotation data for the specific edge pairs in pairwise
@@ -1127,7 +1128,6 @@ def compute_two_normal_pairwise_energy(normals0, normals1, data):
 
         ## High valence
         # Do I need to use the same for high valence pairs 
-        # Seems 
 
         e1_normal_index = e1_normal_indices[i]
         e2_normal_index = e2_normal_indices[i]
@@ -1788,7 +1788,57 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
         },
         'plotting_normals': plotting_normals
     }
-   
+
+def group_normals_inplace(normals_dict):
+    """
+    Groups normals by swapping in-place within the dictionary.
+    
+    Args:
+        normals_dict: Dictionary with keys (edge_idx, normal_idx) and normal vectors as values
+    
+    Returns:
+        tuple: (swapped_count, n1_list, n2_list)
+            - swapped_count: number of edges where normals were swapped
+            - n1_list: list of all first normals (after grouping)
+            - n2_list: list of all second normals (after grouping)
+    """
+    import numpy as np
+    
+    # Get all unique edge indices from dictionary keys
+    edge_indices = set(key[0] for key in normals_dict.keys())
+    
+    # Get reference from first edge's first normal
+    reference = normals_dict[(0, 0)] / np.linalg.norm(normals_dict[(0, 0)])
+    
+    swapped_count = 0
+    n1_list = []
+    n2_list = []
+    
+    for edge_idx in sorted(edge_indices):  # Sort for consistent ordering
+        n1 = normals_dict[(edge_idx, 0)]
+        n2 = normals_dict[(edge_idx, 1)]
+        
+        # Calculate similarities
+        n1_sim = np.abs(np.dot(n1 / np.linalg.norm(n1), reference))
+        n2_sim = np.abs(np.dot(n2 / np.linalg.norm(n2), reference))
+        
+        # Swap if needed
+        if n2_sim > n1_sim:
+            normals_dict[(edge_idx, 0)] = n2
+            normals_dict[(edge_idx, 1)] = n1
+            swapped_count += 1
+            # Add swapped normals to lists
+            n1_list.append(n2)
+            n2_list.append(n1)
+        else:
+            # Add original normals to lists
+            n1_list.append(n1)
+            n2_list.append(n2)
+    
+    return swapped_count, n1_list, n2_list
+
+
+
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
@@ -1820,6 +1870,7 @@ if __name__ == "__main__":
         # curve_file = 'made_examples/sketch/cylinder.obj'
         curve_file = 'sketches_split/onshape_simple_shape.obj'
         curve_file = 'sketches_split/onshape_simple_mouse.obj'
+        curve_file = 'sketches_split/t2f_toothpaste.obj'
 
 
     curve_name = Path(curve_file).stem
@@ -1857,7 +1908,7 @@ if __name__ == "__main__":
     # same polyline, same color
     if show_plot:
         plot_sketch_data(V, P)
-        plot_edge_info(V, E)
+        # plot_edge_info(V, E)
 
     #####################################
     #endregion
@@ -2002,7 +2053,7 @@ if __name__ == "__main__":
         print('corner_constraints', corner_constraints)
 
         if show_plot:
-            plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', block=True)
+            plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', filename='debug_normals/' + curve_name + '.png', block=True)
         
         
         thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
@@ -2053,8 +2104,22 @@ if __name__ == "__main__":
                 scale=0.08, str="Two-Normal Optimization Result", block=True
             )
 
-        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, gltf_file)
-    
+            # swap the normals
+            _, n1, n2 = group_normals_inplace(normals)
+            plot_edge_constraints_two_normals(
+                V, E, P, normals, unconstrained_polylines_indices=None, 
+                scale=0.08, str="Grouped normal", block=True
+            )
+
+            # plot_two_normals(V, E, normals)
+
+            export_sketch_normal_gltf(V, E, P, n1, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n0.gltf', arrow_color=(0, 1, 0) )
+            export_sketch_normal_gltf(V, E, P, n2, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n1.gltf', arrow_color= (1, 0, 0) )
+
+
+
+        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals/' + curve_name + '.gltf')
+
         write_two_normal(V, E, normals , normal_file)
 
         # if save_debug_gltf:

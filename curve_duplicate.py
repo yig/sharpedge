@@ -96,4 +96,5 @@ output_file = args.output_file
 
 V, E, P = load_sketch_polyline_data(curve_file)
 
-remove_duplicates_and_write(V,P, output_file)
+if output_file is not None:
+    remove_duplicates_and_write(V,P, output_file)

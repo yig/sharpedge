@@ -98,9 +98,9 @@ V, E, P = load_sketch_polyline_data(curve_file)
 V_centered = center_vertices(V)
 
 
-v0 = V[59]
-v1 = V[194]
-r = rotation_matrix_align_vectors(v0, v1, to_vec=(0, 1, 0))
+v0 = V[83]
+v1 = V[84]
+r = rotation_matrix_align_vectors(v0, v1, to_vec=(0, -1, 0))
 
 V_rotated = rotate_vertices(V, r)
 # Rotate to make it vertical - try different combinations to get the desired orientation

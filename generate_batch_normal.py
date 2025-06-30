@@ -22,9 +22,17 @@ def optimize_edge_normals( sketch_folder ):
 
     for sketch_file in sketches:
         curve_name = Path(sketch_file).stem 
-        normal_file = 'normal/' + curve_name + '.normal'
-        gltf_file = 'normal/' + curve_name + '.gltf'
-        subprocess.run(['python', 'opt_edges.py', str(sketch_file), str(normal_file), str(gltf_file), '--show_plot', 'false', '--save_debug_gltf', 'true'])
+
+        # normal_file = 'normals_gltfs/opt_one_n/' + curve_name + '.normal'
+        # gltf_file = 'normals_gltfs/opt_one_n/' + curve_name + '.gltf'
+        # subprocess.run(['python', 'opt_edges.py', str(sketch_file), str(normal_file), str(gltf_file), '-p', '1' , '--show_plot', 'false', '--save_debug_gltf', 'false'])
+        subprocess.run(['python', 'opt_edges.py', str(sketch_file)])
+
+
+
+        # normal_file = 'normals_gltfs/opt_two_n/' + curve_name + '.normal'
+        # gltf_file = 'normals_gltfs/opt_two_n/' + curve_name + '.gltf'
+        # subprocess.run(['python', 'opt_edges.py', str(sketch_file), str(normal_file), str(gltf_file), '-p', '2' , '--show_plot', 'false', '--save_debug_gltf', 'false'])
     
 
 
@@ -36,14 +44,26 @@ def optimize_edge_normals( sketch_folder ):
 
 
 # sketch_folder = 'sketches/t2f'
-
 # sketch_folder = 'sketches/flowrep'
-sketch_folder = 'sketches/t2f'
-sketch_folder = 'sketches/ils'
-sketch_folder = 'sketches/onshape'
+# sketch_folder = 'sketches/t2f'
+# sketch_folder = 'sketches/ils'
+# sketch_folder = 'sketches/onshape'
 # sketch_folder = 'sketches/author_vr'
 # sketch_folder = 'sketches/flowsurf'
+# sketch_folder = 'sketches/scaffold_3d'
+
+# sketch_folders = [
+#     'sketches/t2f',
+#     'sketches/flowrep',
+#     'sketches/ils',
+#     'sketches/onshape',
+#     'sketches/author_vr',
+#     'sketches/flowsurf',
+#     'sketches/scaffold_3d'
+# ]
+
+# for sketch_folder in sketch_folders:
+#     optimize_edge_normals(sketch_folder)
 
 
-optimize_edge_normals(sketch_folder)
-
+optimize_edge_normals(sketch_folder='3d-sketches/flowrep')

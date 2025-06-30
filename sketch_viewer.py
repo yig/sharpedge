@@ -175,4 +175,4 @@ if __name__ == "__main__":
     if file_type == "normal":
         plot_normal_data(V, E, N)
     elif file_type == "polyline":
-        plot_cdt_skecth_with_polylines(V,E, P)  
+        plot_cdt_skecth_with_polylines(V, E, P)  

@@ -12,13 +12,9 @@ curve_file = args.curve_file
 
 curve_name = Path(curve_file).stem
 
-temp1 = 'temp/temp1.obj'
-process1 = subprocess.Popen(['python', 't2f_to_obj.py', str(curve_file), temp1])
-process1.wait()  # Wait for completion
-
 
 temp2 = 'temp/temp2.obj'
-process2 = subprocess.Popen(['python', 't2f_center_and_scale.py', temp1, temp2])
+process2 = subprocess.Popen(['python', 'flowrep_split.py', curve_file, temp2])
 process2.wait()  # Wait for completion
 
 
@@ -45,7 +41,7 @@ process6.wait()  # Wait for completion
 # process6 = subprocess.Popen(['python', 'curve_duplicate.py', temp5, temp6])
 # process6.wait()  # Wait for completion
 
-process7 = subprocess.Popen(['python', 'curve_split_preprocess.py', temp5, '3d-sketches/t2f/' + curve_name + '.obj'])
+process7 = subprocess.Popen(['python', 'curve_split_preprocess.py', temp5, '3d-sketches/flowrep/' + curve_name + '.obj'])
 process7.wait()  # Wait for completion
 
 

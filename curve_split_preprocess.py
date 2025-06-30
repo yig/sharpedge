@@ -154,12 +154,12 @@ def highlight_edges_to_split(V, E, P, edges_to_split, vertex_valence, show_plot=
                   high_valence_coords[:, 2],
                   c='red', s=50, alpha=0.8, label=f'High valence vertices (>{2})')
     
-    if low_valence_vertices:
-        low_valence_coords = V[low_valence_vertices]
-        ax.scatter(low_valence_coords[:, 0],
-                  low_valence_coords[:, 1],
-                  low_valence_coords[:, 2],
-                  c='blue', s=30, alpha=0.6, label=f'Low valence vertices (≤{2})')
+    # if low_valence_vertices:
+    #     low_valence_coords = V[low_valence_vertices]
+    #     ax.scatter(low_valence_coords[:, 0],
+    #               low_valence_coords[:, 1],
+    #               low_valence_coords[:, 2],
+    #               c='blue', s=30, alpha=0.6, label=f'Low valence vertices (≤{2})')
     
     # Add vertex labels for high valence vertices
     for v_idx in high_valence_vertices:
@@ -354,7 +354,7 @@ if __name__ == "__main__":
     V_orig, E_orig, P_orig = load_sketch_polyline_data(curve_file)
 
     # Show original sketch
-    plot_sketch_data(V_orig, P_orig)
+    # plot_sketch_data(V_orig, P_orig)
     
     # Find edges that will be split
     edges_to_split, vertex_valence = find_edges_to_split(V_orig, E_orig)
@@ -373,7 +373,7 @@ if __name__ == "__main__":
     V_new, E_new, P_new = split_edges_preprocessing_compatible(V_orig, E_orig, P_orig)
 
     # Show result
-    plot_sketch_data(V_new, P_new)
+    # plot_sketch_data(V_new, P_new)
     
     # Validate
     validate_splitting_result(V_orig, P_orig, V_new, P_new)

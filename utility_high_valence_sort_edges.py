@@ -145,20 +145,33 @@ def build_vertex_to_edges_map(edges):
     
     return vertex_to_edges
 
-def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
+def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V, auto_detect_method=True):
     """
     Visualize the projection plane, the original 3D points (vertices), and their projections.
     Original vertices in black, projections in blue.
+    
+    Parameters:
+    -----------
+    vertex_idx : int
+        Index of the central vertex
+    edge_indices : list
+        List of edge indices around the vertex
+    E : array
+        Edge array
+    V : array  
+        Vertex array
+    auto_detect_method : bool
+        If True, automatically detects whether to use PCA or Graph Laplacian based on 
+        the same logic as compute_edge_circulation_graph_laplacian
     """
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    
     ax.view_init(vertical_axis='y', elev=30, azim=45)
     ax.set_aspect('equal')
 
     vertex_pos = V[vertex_idx]
-    ax.scatter(V[:,0], V[:,1], V[:,2])
+    ax.scatter(V[:,0], V[:,1], V[:,2], alpha=0.3, s=20)
 
     # Collect all edge endpoints and vectors
     incident_edges = []
@@ -176,7 +189,7 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
             # Store actual point
             edge_endpoints.append((other_pos, ei))
             
-            # Also compute vector (for SVD)
+            # Also compute vector (for plane computation)
             vec = other_pos - vertex_pos
             unit_vec = vec / np.linalg.norm(vec)
             vectors.append((unit_vec, ei))
@@ -187,15 +200,71 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
     # Plot the central vertex
     ax.scatter(*vertex_pos, color='red', s=100, label=f'Vertex {vertex_idx}')
     
-    # Compute projection plane using SVD
-    centered_data = vector_array - np.mean(vector_array, axis=0)
-    _, S, Vt = np.linalg.svd(centered_data, full_matrices=False)
-    basis_1, basis_2, basis_3 = Vt[0], Vt[1], Vt[2]
-    
-    # Print variance information
-    total_variance = np.sum(S**2)
-    variance_explained = (S[0]**2 + S[1]**2) / total_variance
-    print(f"Variance explained by projection plane: {variance_explained:.4f}")
+    # Compute projection plane using auto-detection logic (same as graph_laplacian method)
+    if auto_detect_method:
+        # First, compute mean curvature vector to decide which method to use
+        Hn = np.average(vector_array, axis=0)
+        Hn_norm = np.linalg.norm(Hn)
+        
+        print(f"Auto-detection - Mean curvature norm: {Hn_norm:.6f}")
+        
+        if Hn_norm < 1e-5:
+            # Use PCA method (same logic as graph_laplacian fallback)
+            print("  Using PCA method (flat/saddle surface detected)")
+            centered_data = vector_array - np.mean(vector_array, axis=0)
+            _, S, Vt = np.linalg.svd(centered_data, full_matrices=False)
+            basis_1, basis_2, basis_3 = Vt[0], Vt[1], Vt[2]
+            
+            # Print variance information
+            total_variance = np.sum(S**2)
+            variance_explained = (S[0]**2 + S[1]**2) / total_variance
+            print(f"  PCA - Variance explained by projection plane: {variance_explained:.4f}")
+            method_title = "Auto-detected: PCA"
+        else:
+            # Use Graph Laplacian method
+            print("  Using Graph Laplacian method (curved surface detected)")
+            Hn /= Hn_norm
+            basis_1 = perpendicular_normal(Hn)
+            basis_2 = np.cross(Hn, basis_1)
+            basis_3 = Hn  # Normal to the plane
+            method_title = "Auto-detected: Graph Laplacian"
+    else:
+        # Legacy manual method selection (keeping for backwards compatibility)
+        method = 'PCA'  # Default fallback
+        if method.lower() == 'pca':
+            # PCA method
+            centered_data = vector_array - np.mean(vector_array, axis=0)
+            _, S, Vt = np.linalg.svd(centered_data, full_matrices=False)
+            basis_1, basis_2, basis_3 = Vt[0], Vt[1], Vt[2]
+            
+            # Print variance information
+            total_variance = np.sum(S**2)
+            variance_explained = (S[0]**2 + S[1]**2) / total_variance
+            print(f"PCA - Variance explained by projection plane: {variance_explained:.4f}")
+            method_title = "PCA"
+        elif method.lower() == 'graph_laplacian':
+            # Graph Laplacian method
+            Hn = np.average(vector_array, axis=0)
+            Hn_norm = np.linalg.norm(Hn)
+            
+            print(f"Graph Laplacian - Mean curvature norm: {Hn_norm:.6f}")
+            
+            if Hn_norm < 1e-5:
+                print("  Falling back to PCA (flat/saddle surface)")
+                # Fall back to PCA
+                centered_data = vector_array - np.mean(vector_array, axis=0)
+                _, S, Vt = np.linalg.svd(centered_data, full_matrices=False)
+                basis_1, basis_2, basis_3 = Vt[0], Vt[1], Vt[2]
+                method_title = "Graph Laplacian (PCA fallback)"
+            else:
+                # Use mean curvature normal
+                Hn /= Hn_norm
+                basis_1 = perpendicular_normal(Hn)
+                basis_2 = np.cross(Hn, basis_1)
+                basis_3 = Hn  # Normal to the plane
+                method_title = "Graph Laplacian"
+        else:
+            raise ValueError("method must be 'PCA' or 'graph_laplacian'")
     
     # Create a grid for the projection plane
     center = vertex_pos
@@ -223,22 +292,26 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
     # Plot basis vectors of the plane
     scale_basis = scale * 0.5  # Scale for basis vectors visualization
     
-    # Basis 1 (1st principal component)
+    # Basis 1 (1st principal component or perpendicular to mean curvature)
     ax.quiver(center[0], center[1], center[2], 
               basis_1[0]*scale_basis, basis_1[1]*scale_basis, basis_1[2]*scale_basis, 
               color='r', arrow_length_ratio=0.1, label='Basis 1')
     
-    # Basis 2 (2nd principal component)
+    # Basis 2 (2nd principal component or cross product)
     ax.quiver(center[0], center[1], center[2], 
               basis_2[0]*scale_basis, basis_2[1]*scale_basis, basis_2[2]*scale_basis, 
               color='g', arrow_length_ratio=0.1, label='Basis 2')
     
     # Basis 3 (normal to plane)
+    normal_color = 'blue' if 'PCA' in method_title else 'purple'
+    normal_label = 'PCA Normal' if 'PCA' in method_title else 'Mean Curvature Normal'
     ax.quiver(center[0], center[1], center[2], 
               basis_3[0]*scale_basis, basis_3[1]*scale_basis, basis_3[2]*scale_basis, 
-              color='b', arrow_length_ratio=0.1, label='Normal')
+              color=normal_color, arrow_length_ratio=0.1, label=normal_label)
     
-    # Plot lines from center to original points
+    # Plot lines from center to original points and their projections
+    angles_and_edges = []  # Store for sorting verification
+    
     for point, ei in edge_endpoints:
         # Draw line from center to original point
         ax.plot([vertex_pos[0], point[0]], 
@@ -247,25 +320,24 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
                 'k-', linewidth=1.5)
         
         # Plot original point (black)
-        ax.scatter(*point, color='black', s=60, label=f'Original Point {ei}' if ei == incident_edges[0] else "")
+        ax.scatter(*point, color='black', s=60)
         
         # Add edge index label at the point
         ax.text(*point, f'e{ei}', fontsize=10, color='black')
         
         # Compute projection of this point onto the plane
         vec = point - vertex_pos
-        vec_centered = vec - np.mean(vector_array * np.linalg.norm(vec), axis=0)
+        unit_vec = vec / np.linalg.norm(vec)  # Normalize like in the main functions
         
-        # Project onto the plane
-        proj_1 = np.dot(vec_centered, basis_1)
-        proj_2 = np.dot(vec_centered, basis_2)
+        # Project the unit vector directly onto the plane
+        proj_1 = np.dot(unit_vec, basis_1)
+        proj_2 = np.dot(unit_vec, basis_2)
         
-        # Compute the projected point
-        proj_point = center + proj_1 * basis_1 + proj_2 * basis_2
+        # Compute the projected point in 3D space
+        proj_point = vertex_pos + proj_1 * basis_1 + proj_2 * basis_2
         
         # Plot projected point (blue)
-        ax.scatter(*proj_point, color='blue', s=60, 
-                   label=f'Projected Point {ei}' if ei == incident_edges[0] else "")
+        ax.scatter(*proj_point, color='blue', s=60)
         
         # Add projected edge index label
         ax.text(*proj_point, f'p{ei}', fontsize=10, color='blue')
@@ -285,14 +357,19 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
         # Compute and show angle in the plane
         angle = np.arctan2(proj_2, proj_1)
         angle_deg = np.degrees(angle)
-        ax.text(*proj_point, f'\n{angle_deg:.1f}°', fontsize=8, color='blue')
+        # ax.text(*proj_point, f'\n{angle_deg:.1f}°', fontsize=8, color='blue')
+        
+        # Store for verification
+        angles_and_edges.append((angle, ei))
     
-    # Create a custom legend to avoid duplicating entries
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    ax.legend(by_label.values(), by_label.keys(), loc='best', fontsize=9)
+    # Print the angle ordering for verification
+    angles_and_edges.sort(key=lambda x: x[0])
+    print(f"  Projected angles and edge order:")
+    for angle, ei in angles_and_edges:
+        print(f"    Edge {ei}: {np.degrees(angle):.1f}°")
     
-    ax.set_title(f"Original Points (Black) vs. Projections (Blue) for Vertex {vertex_idx}")
+    ax.legend(loc='best', fontsize=9)
+    ax.set_title(f"{method_title} Projection: Original Points (Black) vs. Projections (Blue)\nVertex {vertex_idx}")
     
     # Equal aspect ratio
     max_range = np.array([
@@ -309,9 +386,6 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
     ax.set_ylim(mid_y - max_range, mid_y + max_range)
     ax.set_zlim(mid_z - max_range, mid_z + max_range)
     
-    plt.axis('off')
-    plt.axis('equal')
-
     plt.tight_layout()
     return fig, ax
 
@@ -319,12 +393,13 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V):
 # Example usage
 if __name__ == "__main__":
     curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
+    curve_file = 'sketches_split/onshape_simple_shape.obj'
     V, E, P = load_sketch_polyline_data(curve_file)
     
     vertex_to_edges_map = build_vertex_to_edges_map(E)
     print('Loaded vertex_to_edges_map:', vertex_to_edges_map)
     
-    vertices_to_check = [idx for idx, edges in vertex_to_edges_map.items() if len(edges) >= 4]
+    vertices_to_check = [idx for idx, edges in vertex_to_edges_map.items() if len(edges) >= 3]
 
     for vertex_idx in vertices_to_check:
         print(f"\nVisualizing vertex {vertex_idx} with {len(vertex_to_edges_map[vertex_idx])} edges.")
@@ -342,9 +417,9 @@ if __name__ == "__main__":
         plt.tight_layout()
         plt.show()
         
-        # Second plot: visualize the projection plane and points
-        fig2, ax2 = plot_projection_plane_and_points(vertex_idx, edge_indices, E, V)
-        plt.show()
+        # # Second plot: visualize the projection plane and points
+        # fig2, ax2 = plot_projection_plane_and_points(vertex_idx, edge_indices, E, V)
+        # plt.show()
         
         # Optional: Add a prompt to continue to the next vertex
         if vertex_idx != vertices_to_check[-1]:  # If not the last vertex

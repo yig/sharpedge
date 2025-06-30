@@ -511,7 +511,7 @@ def plot_3d_sketch_with_normals(vertices, edges, polylines, edge_normals, normal
     plt.tight_layout()
     plt.show()
 
-def export_sketch_normal_gltf(vertices, edges, P, edge_normals, unconstrained_polylines_indices = None, filename="sketch_with_normal.gltf"):
+def export_sketch_normal_gltf(vertices, edges, P, edge_normals, unconstrained_polylines_indices = None, filename="sketch_with_normal.gltf", arrow_color=(0, 1, 0)):
     """
     Export 3D sketch with edges, normals, and polylines as a GLTF file.
     
@@ -581,7 +581,7 @@ def export_sketch_normal_gltf(vertices, edges, P, edge_normals, unconstrained_po
     
     if edge_normal_points:
         exporter.add_normal_arrows(edge_normal_points, edge_normal_directions,
-                                 color=(0, 1, 0),  # Green normals
+                                 color = arrow_color,  # Green normals
                                  shaft_radius=NORMAL_SHAFT_RADIUS,
                                  head_radius=NORMAL_HEAD_RADIUS)
     
