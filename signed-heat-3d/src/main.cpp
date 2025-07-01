@@ -48,7 +48,9 @@ polyscope::SlicePlane* psPlane;
 
 // Solvers & parameters
 float TCOEF = 1.0;
-float HCOEF = 0.0;
+// Xue modified this, set 1.0 by default.
+// Maybe 2 is better, but slow.
+float HCOEF = 1.0;
 std::unique_ptr<SignedHeatTetSolver> tetSolver;
 std::unique_ptr<SignedHeatGridSolver> gridSolver;
 SignedHeat3DOptions SHM_OPTIONS;
@@ -332,21 +334,21 @@ readPointNormals(const std::string& filepath) {
 
 
 int main(int argc, char** argv) {
-
+    
     // Configure the argument parser
     args::ArgumentParser parser("Solve for generalized signed distance (3D domains).");
     args::HelpFlag help(parser, "help", "Display this help menu", {"help"});
     args::Positional<std::string> meshFilename(parser, "mesh", "A mesh or point cloud file.");
     args::ValueFlag<double> hCoef(parser, "h", "Controls the tet/grid spacing proportional to $2^{-h}$.",
                                   {"h", "hCoef"});
-
+    
     args::Group group(parser);
     args::Flag grid(group, "grid", "Solve on a background grid (vs. tet mesh).", {"g", "grid"});
     args::Flag fast(group, "fast", "Solve using a less accurate, but significantly faster, method of integration.",
                     {"f", "fast"});
     args::Flag verbose(group, "verbose", "Verbose output", {"V", "verbose"});
     args::Flag headless(group, "headless", "Don't use the GUI.", {"l", "headless"});
-
+    
     // Parse args
     try {
         parser.ParseCLI(argc, argv);
@@ -358,7 +360,7 @@ int main(int argc, char** argv) {
         std::cerr << parser;
         return 1;
     }
-
+    
     if (!meshFilename) {
         std::cerr << "Please specify a mesh file as argument." << std::endl;
         return EXIT_FAILURE;
@@ -366,7 +368,7 @@ int main(int argc, char** argv) {
     if (hCoef) {
         HCOEF = args::get(hCoef);
     }
-
+    
     // Load mesh
     std::string meshFilepath = args::get(meshFilename);
     MESH_MODE = grid ? MeshMode::Grid : MeshMode::Tet;
@@ -375,33 +377,22 @@ int main(int argc, char** argv) {
     SHM_OPTIONS.exportData = headless; // always true if in headless mode
     SHM_OPTIONS.meshname = polyscope::guessNiceNameFromPath(meshFilepath);
     VERBOSE = verbose;
-
+    
     // Get file extension.
     std::string ext = meshFilepath.substr(meshFilepath.find_last_of(".") + 1);
     pointcloud::PointData<Vector3> pointPositions;
     pointcloud::PointData<Vector3> pointNormals0;
     pointcloud::PointData<Vector3> pointNormals1;
-    if (ext != "pc") {
+    if (ext != "pc" && ext != "normal") {
         std::tie(mesh, geometry) = readSurfaceMesh(meshFilepath);
         INPUT_MODE = InputMode::Mesh;
-    } else {
+    } else if (ext == "normal"){
+        std::cout << "reading edge normal file " << std::endl;
         
-//        // comment out original one normal code
-//        std::vector<Vector3> positions, normals;
-//        std::tie(positions, normals) = readPointCloud(meshFilepath);
-//        size_t nPts = positions.size();
-//        cloud = std::unique_ptr<pointcloud::PointCloud>(new pointcloud::PointCloud(nPts));
-//        pointPositions = pointcloud::PointData<Vector3>(*cloud);
-//        pointNormals0 = pointcloud::PointData<Vector3>(*cloud);
-//        for (size_t i = 0; i < nPts; i++) {
-//            pointPositions[i] = positions[i];
-//            pointNormals0[i] = normals[i];
-//        }
-//        pointGeom = std::unique_ptr<pointcloud::PointPositionNormalGeometry>(
-//            new pointcloud::PointPositionNormalGeometry(*cloud, pointPositions, pointNormals0));
-//        INPUT_MODE = InputMode::Points;
         
-
+        
+    }else {
+        // read Dual Normal
         std::vector<Vector3> positions, normals0, normals1;
         std::tie(positions, normals0, normals1) = readPointNormals(meshFilepath);
         size_t nPts = positions.size();
