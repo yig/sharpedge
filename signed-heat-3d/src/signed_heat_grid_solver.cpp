@@ -464,6 +464,306 @@ Vector<double> SignedHeatGridSolver::integrateGreedily(const Eigen::VectorXd& Yt
     return phi;
 }
 
+
+
+// Modified computeDistance function for EdgeDualNormalGeometry
+Vector<double> SignedHeatGridSolver::computeDistance(EdgeDualNormalGeometry& edgeGeom,
+                                                     const SignedHeat3DOptions& options) {
+    
+    std::cout << "EdgeDualNormalGeometry with dual normals per edge" << std::endl;
+
+    if (options.rebuild) {
+        if (VERBOSE) std::cerr << "Building grid..." << std::endl;
+        std::chrono::time_point<high_resolution_clock> t1, t2;
+        std::chrono::duration<double, std::milli> ms_fp;
+        t1 = high_resolution_clock::now();
+
+        // Calculate centroid and radius from edge vertices
+        Vector3 c = centroidFromEdges(edgeGeom);
+        double r = radiusFromEdges(edgeGeom, c);
+        double s = r * options.scale;
+
+        // clang-format off
+        bboxMin = {-s, -s, -s}; bboxMax = {s, s, s};
+        bboxMin += c; bboxMax += c;
+        glm::vec3 boundMin, boundMax;
+        for (int i = 0; i < 3; i++) {
+            boundMin[i] = bboxMin[i];
+            boundMax[i] = bboxMax[i];
+        }
+        nx = 2 * std::pow(2, options.hCoef + 3); ny = nx; nz = nx;
+        // clang-format on
+        cellSize = 2. * s / (nx - 1);
+        if (VERBOSE) std::cerr << "Building Laplacian..." << std::endl;
+        laplaceMat = laplacian();
+        t2 = high_resolution_clock::now();
+        ms_fp = t2 - t1;
+        if (VERBOSE) std::cerr << "Pre-compute time (s): " << ms_fp.count() / 1000. << std::endl;
+        polyscope::VolumeGrid* psGrid = polyscope::registerVolumeGrid("domain", {nx, ny, nz}, boundMin, boundMax);
+    }
+
+    if (VERBOSE) std::cerr << "Steps 1 & 2..." << std::endl;
+
+    // Calculate timestep based on average edge length
+    double h = calculateAverageEdgeLength(edgeGeom);
+    shortTime = options.tCoef * h * h;
+    double lambda = std::sqrt(1. / shortTime);
+    size_t totalNodes = nx * ny * nz;
+    Eigen::VectorXd Y = Eigen::VectorXd::Zero(3 * totalNodes);
+
+    const auto& edges = edgeGeom.getEdges();
+    const auto& vertices = edgeGeom.getVertices();
+    const auto& normals1 = edgeGeom.getNormals1();
+    const auto& normals2 = edgeGeom.getNormals2();
+    size_t numEdges = edges.size();
+
+    for (size_t i = 0; i < nx; i++) {
+        for (size_t j = 0; j < ny; j++) {
+            for (size_t k = 0; k < nz; k++) {
+                size_t idx = indicesToNodeIndex(i, j, k);
+                Vector3 x = indicesToNodePosition(i, j, k);  // Grid point
+
+                // Process each edge
+                for (size_t edgeIdx = 0; edgeIdx < numEdges; edgeIdx++) {
+                    // Get edge endpoints
+                    size_t v0Idx = edges[edgeIdx].first;
+                    size_t v1Idx = edges[edgeIdx].second;
+                    Vector3 v0 = vertices[v0Idx];
+                    Vector3 v1 = vertices[v1Idx];
+
+                    // Calculate edge midpoint (sample point on edge)
+                    Vector3 y = (v0 + v1) * 0.5;  // Edge midpoint
+
+                    // Get dual normals for this edge
+                    Vector3 n = normals1[edgeIdx];
+                    Vector3 n_prime = normals2[edgeIdx];
+
+                    // Calculate edge length as area weight
+                    double edgeLength = (v1 - v0).norm();
+                    double A = edgeLength; // Use edge length as weight
+
+                    // Direction from edge midpoint to grid point
+                    Vector3 direction = x - y;
+
+                    // Calculate dot products to determine which side of each plane the query point is on
+                    double dot1 = dot(direction, n);
+                    double dot2 = dot(direction, n_prime);
+
+                    Vector3 normalToUse;
+
+                    // Logic for choosing which normal to use (same as your point-based logic)
+                    if (dot1 > 0 && dot2 < 0) {
+                        normalToUse = n;
+                    } else if (dot1 < 0 && dot2 > 0) {
+                        normalToUse = n_prime;
+                    } else if (dot1 > 0 && dot2 > 0) {
+#if NICOLE
+                        // If outside both planes, use normalized direction vector
+                        normalToUse = direction.normalize();
+#else
+                        // Outside both n1 and n2
+                        Vector3 bisector = (n_prime + n) / 2;
+                        bisector = bisector.normalize();
+
+                        double dot_bisector = dot(direction, bisector);
+
+                        assert(dot_bisector > 0);
+
+                        if (dot_bisector > dot1 && dot_bisector > dot2) {
+                            normalToUse = direction.normalize();
+                        } else if (dot1 < dot2) {
+                            normalToUse = n_prime;
+                        } else {
+                            normalToUse = n;
+                        }
+#endif
+                    } else {
+#if NICOLE
+                        // If inside both planes, use first normal
+                        normalToUse = n;
+#else
+                        if (dot1 > dot2) {
+                            normalToUse = n;
+                        } else {
+                            normalToUse = n_prime;
+                        }
+#endif
+                    }
+
+                    Vector3 source = normalToUse * A * yukawaPotential(x, y, lambda);  // x, y order
+                    for (int p = 0; p < 3; p++) Y(3 * idx + p) += source[p];
+                }
+
+                Vector3 X = {Y(3 * idx + 0), Y(3 * idx + 1), Y(3 * idx + 2)};
+                X /= X.norm();  // Simplified like in VertexPositionGeometry
+                for (int p = 0; p < 3; p++) Y(3 * idx + p) = X[p];
+            }
+        }
+    }
+    if (VERBOSE) std::cerr << "\tCompleted." << std::endl;
+
+    // Integrate gradient to get distance.
+    if (VERBOSE) std::cerr << "Step 3..." << std::endl;
+    SparseMatrix<double> D = gradient(); // 3N x N
+    Vector<double> divYt = D.transpose() * Y;
+    
+    // Add NaN/inf checking like in VertexPositionGeometry version
+    for (size_t i = 0; i < divYt.size(); i++) {
+        if (std::isinf(divYt[i]) || std::isnan(divYt[i])) divYt[i] = 0.;
+    }
+
+    Vector<double> phi;
+    if (options.fastIntegration) {
+        phi = integrateGreedily(Y);
+    } else {
+        SparseMatrix<double> A;
+        size_t m = 0;
+        std::vector<size_t> nodeIndices;
+        std::vector<double> coeffs;
+        std::vector<bool> hasCellBeenUsed(totalNodes, false);
+        std::vector<Eigen::Triplet<double>> tripletList;
+
+        // Sample constraint points from edge midpoints
+        for (size_t edgeIdx = 0; edgeIdx < numEdges; edgeIdx++) {
+            size_t v0Idx = edges[edgeIdx].first;
+            size_t v1Idx = edges[edgeIdx].second;
+            Vector3 v0 = vertices[v0Idx];
+            Vector3 v1 = vertices[v1Idx];
+            Vector3 b = (v0 + v1) * 0.5; // Edge midpoint
+
+            Vector3 d = b - bboxMin;
+            size_t i = std::floor(d[0] / cellSize);
+            size_t j = std::floor(d[1] / cellSize);
+            size_t k = std::floor(d[2] / cellSize);
+            size_t nodeIdx = indicesToNodeIndex(i, j, k);
+            if (hasCellBeenUsed[nodeIdx]) continue;
+            trilinearCoefficients(b, nodeIndices, coeffs);
+            for (size_t i = 0; i < nodeIndices.size(); i++) tripletList.emplace_back(m, nodeIndices[i], coeffs[i]);
+            hasCellBeenUsed[nodeIdx] = true;
+            m++;
+        }
+
+        A.resize(m, totalNodes);
+        A.setFromTriplets(tripletList.begin(), tripletList.end());
+        SparseMatrix<double> Z(m, m);
+        SparseMatrix<double> LHS1 = horizontalStack<double>({laplaceMat, A.transpose()});
+        SparseMatrix<double> LHS2 = horizontalStack<double>({A, Z});
+        SparseMatrix<double> LHS = verticalStack<double>({LHS1, LHS2});
+        Vector<double> RHS = Vector<double>::Zero(totalNodes + m);
+        RHS.head(totalNodes) = divYt;
+        Vector<double> soln = solveSquare(LHS, RHS);
+        phi = -soln.head(totalNodes);
+    }
+
+    double shift = evaluateAverageAlongEdgeGeometry(edgeGeom, phi);
+    phi -= shift * Vector<double>::Ones(totalNodes);
+    if (VERBOSE) std::cerr << "\tCompleted." << std::endl;
+
+    if (options.exportData) exportData(phi, options);
+    return phi;
+}
+
+
+// Helper functions you'll need to implement:
+
+Vector3 SignedHeatGridSolver::centroidFromEdges(const EdgeDualNormalGeometry& edgeGeom) {
+    const auto& vertices = edgeGeom.getVertices();
+    Vector3 centroid = {0, 0, 0};
+    for (const auto& v : vertices) {
+        centroid += v;
+    }
+    return centroid / vertices.size();
+}
+
+double SignedHeatGridSolver::radiusFromEdges(const EdgeDualNormalGeometry& edgeGeom, const Vector3& center) {
+    const auto& vertices = edgeGeom.getVertices();
+    double maxDist = 0;
+    for (const auto& v : vertices) {
+        double dist = (v - center).norm();
+        if (dist > maxDist) maxDist = dist;
+    }
+    return maxDist;
+}
+
+double SignedHeatGridSolver::calculateAverageEdgeLength(const EdgeDualNormalGeometry& edgeGeom) {
+    const auto& edges = edgeGeom.getEdges();
+    const auto& vertices = edgeGeom.getVertices();
+    double totalLength = 0;
+
+    for (const auto& edge : edges) {
+        Vector3 v0 = vertices[edge.first];
+        Vector3 v1 = vertices[edge.second];
+        totalLength += (v1 - v0).norm();
+    }
+
+    return totalLength / edges.size();
+}
+
+double SignedHeatGridSolver::evaluateAverageAlongEdgeGeometry(const EdgeDualNormalGeometry& edgeGeom,
+                                                              const Vector<double>& phi) {
+    const auto& edges = edgeGeom.getEdges();
+    const auto& vertices = edgeGeom.getVertices();
+    double sum = 0;
+    size_t count = 0;
+
+    for (const auto& edge : edges) {
+        Vector3 v0 = vertices[edge.first];
+        Vector3 v1 = vertices[edge.second];
+        Vector3 midpoint = (v0 + v1) * 0.5;
+
+        // Evaluate phi at edge midpoint
+        double value = evaluateAtPoint(midpoint, phi);
+        sum += value;
+        count++;
+    }
+
+    return sum / count;
+}
+
+
+double SignedHeatGridSolver::evaluateAtPoint(const Vector3& point, const Vector<double>& phi) {
+    // Convert world coordinates to grid indices
+    Vector3 d = point - bboxMin;
+    double fi = d[0] / cellSize;
+    double fj = d[1] / cellSize;
+    double fk = d[2] / cellSize;
+    
+    // Get integer parts and fractional parts
+    size_t i0 = std::floor(fi); size_t i1 = i0 + 1;
+    size_t j0 = std::floor(fj); size_t j1 = j0 + 1;
+    size_t k0 = std::floor(fk); size_t k1 = k0 + 1;
+    
+    double alpha = fi - i0;
+    double beta = fj - j0;
+    double gamma = fk - k0;
+    
+    // Bounds checking
+    if (i1 >= nx || j1 >= ny || k1 >= nz) return 0.0;
+    
+    // Trilinear interpolation
+    double c000 = phi[indicesToNodeIndex(i0, j0, k0)];
+    double c001 = phi[indicesToNodeIndex(i0, j0, k1)];
+    double c010 = phi[indicesToNodeIndex(i0, j1, k0)];
+    double c011 = phi[indicesToNodeIndex(i0, j1, k1)];
+    double c100 = phi[indicesToNodeIndex(i1, j0, k0)];
+    double c101 = phi[indicesToNodeIndex(i1, j0, k1)];
+    double c110 = phi[indicesToNodeIndex(i1, j1, k0)];
+    double c111 = phi[indicesToNodeIndex(i1, j1, k1)];
+    
+    double c00 = c000 * (1 - alpha) + c100 * alpha;
+    double c01 = c001 * (1 - alpha) + c101 * alpha;
+    double c10 = c010 * (1 - alpha) + c110 * alpha;
+    double c11 = c011 * (1 - alpha) + c111 * alpha;
+    
+    double c0 = c00 * (1 - beta) + c10 * beta;
+    double c1 = c01 * (1 - beta) + c11 * beta;
+    
+    return c0 * (1 - gamma) + c1 * gamma;
+}
+
+
+
+
 /* Builds negative-definite Laplace */
 SparseMatrix<double> SignedHeatGridSolver::laplacian() const {
 

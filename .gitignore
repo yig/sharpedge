@@ -20,7 +20,8 @@ made_examples/
 convex_hull_area_surface/
 convex_hull_voronoi_area/
 opt_figs/
-gltfs/
+gltf/
+3d-sketches/
 normals_gltfs/
 surface/
 current_not_used_scripts/

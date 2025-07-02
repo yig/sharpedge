@@ -1,6 +1,6 @@
 **/.DS_Store
 build/
-Xcode-build/
+build-xcode/
 data/
 export/
 media/

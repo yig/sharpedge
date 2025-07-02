@@ -5,6 +5,7 @@
 
 #include "signed_heat_3d.h"
 #include "point_position_dual_normal_geometry.h"
+#include "edge_dual_normal_geometry.h"
 
 using namespace geometrycentral;
 using namespace geometrycentral::surface;
@@ -22,6 +23,10 @@ class SignedHeatGridSolver {
     
     Vector<double> computeDistance(pointcloud::PointPositionDualNormalGeometry& pointGeom,
                                   const SignedHeat3DOptions& options);
+    
+    Vector<double> computeDistance(EdgeDualNormalGeometry& edgeGeom,
+                                   const SignedHeat3DOptions& options);
+
 
     bool VERBOSE = true;
 
@@ -48,4 +53,16 @@ class SignedHeatGridSolver {
     size_t indicesToNodeIndex(const size_t& i, const size_t& j, const size_t& k) const;
     Vector3 indicesToNodePosition(const size_t& i, const size_t& j, const size_t& k) const;
     void exportData(const Vector<double>& phi, const SignedHeat3DOptions& options) const;
+    
+    
+    
+    // For edge dual normal
+    Vector3 centroidFromEdges(const EdgeDualNormalGeometry& edgeGeom);
+    double radiusFromEdges(const EdgeDualNormalGeometry& edgeGeom, const Vector3& center);
+    double calculateAverageEdgeLength(const EdgeDualNormalGeometry& edgeGeom);
+    double evaluateAverageAlongEdgeGeometry(const EdgeDualNormalGeometry& edgeGeom, const Vector<double>& phi);
+    double evaluateAtPoint(const Vector3& point, const Vector<double>& phi);
+
+    
+    
 };
