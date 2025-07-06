@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
 """
 OBJ Polyline Converter
 Converts OBJ format from individual line segments to connected polylines.
 Input: v x y z, g polylineX, l v1 v2, l v2 v3, ...
 Output: v x y z, l 1 2 3 4 5 ... (single line connecting all vertices in polyline)
 """
+import argparse
 
 def parse_obj_file(filename):
     """Parse OBJ file and extract vertices and polylines."""
@@ -119,37 +119,14 @@ def convert_to_connected_polylines(input_filename, output_filename):
     
     print(f"Conversion complete! Output written to {output_filename}")
 
-def main():
-    """Main entry point."""
-    import sys
-    
-    if len(sys.argv) != 3:
-        print("Usage: python obj_converter.py <input_file.obj> <output_file.obj>")
-        print("Example: python obj_converter.py input.obj output_connected.obj")
-        print()
-        print("Converts:")
-        print("  v x y z")
-        print("  g polyline0")
-        print("  l 1 2")
-        print("  l 2 3")
-        print("  l 3 4")
-        print()
-        print("To:")
-        print("  v x y z")
-        print("  l 1 2 3 4")
-        sys.exit(1)
-    
-    input_file = sys.argv[1]
-    output_file = sys.argv[2]
-    
-    try:
-        convert_to_connected_polylines(input_file, output_file)
-    except FileNotFoundError:
-        print(f"Error: Input file '{input_file}' not found.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error: {e}")
-        sys.exit(1)
-
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Convert True2Form OBJ file to connected polylines.')
+    parser.add_argument('input_file', help='Input OBJ file')
+    parser.add_argument('output_file', nargs='?', help='Optional output file (if omitted, print to stdout)')
+    args = parser.parse_args()
+
+    input_file = args.input_file
+    output_file = args.output_file
+
+    if output_file:
+        convert_to_connected_polylines(input_file, output_file)
