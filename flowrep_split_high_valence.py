@@ -1,13 +1,33 @@
 #!/usr/bin/env python3
 """
-OBJ Polyline Processor
-Reads an OBJ file with vertices (v) and lines (l), calculates vertex valence,
-and splits polylines at high valence vertices.
+This script reads a .obj file with vertices (v) and edge (l)
+
+Input:
+    v x y z
+    l i0 i1
+
+v is vertex location, l is the index of vertices.
+
+Output:
+    v x y z
+    l i0 i1 i2 i3 ...
+
+
+The script computes vertex valence, and splits polylines at high-valence vertices (e.g., intersections).
+
+Usage:
+  python flowrep_split_high_valence.py input.obj output.obj
+
+Typical behavior:
+  - Vertices with valence >= 3 are treated as splitting points.
+  - Output is a cleaned .obj file with polylines split accordingly.
+
+I believe this script could be used to deal with v and l obj in general.
 """
 
-from collections import defaultdict, deque
+from collections import defaultdict
 from typing import List, Tuple, Dict, Set
-import sys 
+import argparse
 
 def parse_obj_file(filename: str) -> Tuple[List[List[float]], List[List[int]]]:
     """Parse OBJ file and extract vertices and line segments."""
@@ -178,21 +198,18 @@ def print_analysis(vertices: List[List[float]], edges: List[List[int]],
     for i, polyline in enumerate(polylines[:5]):
         print(f"  Polyline {i+1}: {polyline}")
 
-def main():
-
-    if len(sys.argv) != 3:
-        print("Usage: python normalize_obj.py input.obj output.obj")
-        sys.exit(1)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Split polylines at high-valence vertices in an OBJ file.')
+    parser.add_argument('input', help='Input .obj file containing vertices and polylines')
+    parser.add_argument('output', help='Output .obj file to save split polylines')
+    parser.add_argument('--threshold', '-t', type=int, default=3,
+                        help='Valence threshold to split polylines (default: 3)')
     
-    input_filename = sys.argv[1]
-    output_filename = sys.argv[2]
-
-
-    valence_threshold = 3  # Split at vertices with 3+ connections
+    args = parser.parse_args()
     
     try:
         # Parse input file
-        vertices, edges = parse_obj_file(input_filename)
+        vertices, edges = parse_obj_file(args.input)
         
         # Calculate vertex valence
         valence = calculate_valence(edges, len(vertices))
@@ -201,19 +218,16 @@ def main():
         adj = build_adjacency_list(edges)
         
         # Find polylines
-        polylines = find_polylines(adj, valence, valence_threshold)
+        polylines = find_polylines(adj, valence, valence_threshold=args.threshold)
         
         # Print analysis
         print_analysis(vertices, edges, valence, polylines)
         
         # Write output
-        write_polylines_obj(vertices, polylines, output_filename)
-        print(f"Polylines written to: {output_filename}")
+        write_polylines_obj(vertices, polylines, args.output)
+        print(f"✅ Polylines written to: {args.output}")
         
     except FileNotFoundError:
-        print(f"Error: Could not find input file '{input_filename}'")
+        print(f"❌ Error: Could not find input file '{args.input}'")
     except Exception as e:
-        print(f"Error: {e}")
-
-if __name__ == "__main__":
-    main()
+        print(f"❌ Error: {e}")

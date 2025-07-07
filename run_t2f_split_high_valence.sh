@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INPUT_DIR="3d-sketches-processing/t2f_no_dup"
-OUTPUT_DIR="3d-sketches-processing/t2f_intersection"
+INPUT_DIR="3d-sketches-processing/haopan_no_dup"
+OUTPUT_DIR="3d-sketches-processing/haopan_intersection"
 
 mkdir -p "$OUTPUT_DIR"
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-INPUT_DIR="3d-sketches-processing/t2f_center"
+INPUT_DIR="3d-sketches-processing/flowrep_center"
 OUTPUT_DIR="3d-sketches-processing/edge_split"
 
 mkdir -p "$OUTPUT_DIR"

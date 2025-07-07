@@ -1,6 +1,6 @@
 #!/bin/bash
-INPUT_DIR="3d-sketches-processing/t2f_resample"
-OUTPUT_BASE="3d-sketches-processing/t2f_align"
+INPUT_DIR="3d-sketches-processing/haopan_resample"
+OUTPUT_BASE="3d-sketches-processing/haopan_align"
 mkdir -p "$OUTPUT_BASE"
 
 for file in "$INPUT_DIR"/*.obj; do

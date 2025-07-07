@@ -1,6 +1,6 @@
 #!/bin/bash
-INPUT_DIR="3d-sketches-processing/t2f_align"
-OUTPUT_DIR="3d-sketches-processing/t2f_center"
+INPUT_DIR="3d-sketches-processing/flowrep_resample"
+OUTPUT_DIR="3d-sketches-processing/flowrep_center"
 PNG_DIR="$OUTPUT_DIR/visualizations"
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$PNG_DIR"

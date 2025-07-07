@@ -21,7 +21,6 @@ convex_hull_area_surface/
 convex_hull_voronoi_area/
 opt_figs/
 gltf/
-3d-sketches/
 normals_gltfs/
 surface/
 current_not_used_scripts/
@@ -32,7 +31,14 @@ sketches_split/
 
 sketches_split_gltf/
 sketches_split_png/
-3d-sketches/
+sketches/
 3d-original-objs/
 temp/
+3d-sketches-processing/
+made_examples/
 
+3d-sketches/flowrep
+3d-sketches/mingzou
+3d-sketches/onshape
+backup_scripts/
+gltf_viewer.html
