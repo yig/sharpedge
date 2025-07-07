@@ -1847,7 +1847,7 @@ if __name__ == "__main__":
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
     parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=2,
                     help='Number of normals per edge (1 or 2)')
-    parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='true',
+    parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='false',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
                    help='Save the gltf files for debug (default: true)')    
@@ -2098,14 +2098,15 @@ if __name__ == "__main__":
         write_normal_data(V, E, normals, normal_file)
 
     else:
+        # swap the normals
+        _, n1, n2 = group_normals_inplace(normals)
         if show_plot:
             plot_edge_constraints_two_normals(
                 V, E, P, normals, unconstrained_polylines_indices=None, 
                 scale=0.08, str="Two-Normal Optimization Result", block=True
             )
 
-            # swap the normals
-            _, n1, n2 = group_normals_inplace(normals)
+
             plot_edge_constraints_two_normals(
                 V, E, P, normals, unconstrained_polylines_indices=None, 
                 scale=0.08, str="Grouped normal", block=True
@@ -2113,12 +2114,12 @@ if __name__ == "__main__":
 
             # plot_two_normals(V, E, normals)
 
-            export_sketch_normal_gltf(V, E, P, n1, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n0.gltf', arrow_color=(0, 1, 0) )
-            export_sketch_normal_gltf(V, E, P, n2, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n1.gltf', arrow_color= (1, 0, 0) )
+        export_sketch_normal_gltf(V, E, P, n1, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n0.gltf', arrow_color=(0, 1, 0) )
+        export_sketch_normal_gltf(V, E, P, n2, unconstrained_polylines_indices=None , filename='debug_normals/' + curve_name + '_n1.gltf', arrow_color= (1, 0, 0) )
 
 
 
-        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals/' + curve_name + '.gltf')
+        export_sketch_two_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename='debug_normals/' + curve_name + '_2n.gltf')
 
         write_two_normal(V, E, normals , normal_file)
 

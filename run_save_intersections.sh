@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INPUT_DIR="3d-sketches/flowrep"
+INPUT_DIR="3d-sketches/onshape"
 OUTPUT_DIR="3d-sketches-processing/intersections_png"
 
 mkdir -p "$OUTPUT_DIR"
