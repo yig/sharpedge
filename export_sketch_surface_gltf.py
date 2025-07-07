@@ -1,5 +1,20 @@
 """
 Convert sketch (.obj) and surface SDF (.csv) into a combined GLTF.
+
+This script loads a sketch from an .obj file (containing polylines),
+and a signed distance field (SDF) from a .csv file.
+It extracts an isosurface from the SDF using marching cubes,
+then visualizes both the sketch and the surface together in a single GLTF file.
+
+Inputs:
+  - A sketch .obj file with 3D polylines (vertices + lines)
+  - A CSV file with SDF values and coordinates (xCoord, yCoord, zCoord, SDF)
+
+Output:
+  - A single .gltf file visualizing both the sketch and surface mesh
+
+Usage:
+  python export_sketch_surface_gltf.py sketch.obj sdf.csv -o result.gltf
 """
 
 import pandas as pd
@@ -97,7 +112,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Export sketch with SDF surface as GLTF.')
     parser.add_argument('sketch_file', help='Sketch .obj file')
     parser.add_argument('sdf_file', help='CSV file containing SDF grid')
-    parser.add_argument('--output', default='output.gltf', help='Output GLTF file')
+    parser.add_argument('--output', '-o', default='output.gltf', help='Output GLTF file')
     args = parser.parse_args()
 
     # Load sketch data

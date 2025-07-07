@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLTF Model Viewer (5 Columns)</title>
+    <script type="module" src="https://cdnjs.cloudflare.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #333333;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+        .model-cell {
+            background: #444444;
+            padding: 15px;
+            border-radius: 8px;
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+        }
+        .model-title {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        model-viewer {
+            width: 100%;
+            height: 300px;
+            background-color: #555555;
+            --poster-color: #555555;
+            flex-grow: 1;
+            border-radius: 5px;
+        }
+        .object-title {
+            color: #cccccc;
+            margin: 30px 0 15px 0;
+            font-size: 1.2em;
+            text-align: center;
+            font-weight: normal;
+        }
+        .folder-nav {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        .folder-button {
+            padding: 12px 24px;
+            background-color: #444444;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            text-transform: capitalize;
+            transition: background-color 0.3s;
+        }
+        .folder-button:hover {
+            background-color: #555555;
+        }
+        .folder-button.active {
+            background-color: #666666;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .folder-section {
+            display: none;
+        }
+        .folder-section.active {
+            display: block;
+        }
+        @media (max-width: 1400px) {
+            .model-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 1000px) {
+            .model-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        @media (max-width: 768px) {
+            .model-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>GLTF Model Viewer (5 Columns)</h1>
+            <div class="folder-nav">
+                
+            <button class="folder-button" onclick="showFolder('t2f')">t2f</button>
+            <button class="folder-button" onclick="showFolder('haopan')">haopan</button>
+            </div>
+        </div>
+        
+        
+        <div id="t2f-section" class="folder-section">
+            <div class="object-title">blender_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/blender_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/blender_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/blender_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/blender_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/blender_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">box_bump_cut_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/box_bump_cut_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/box_bump_cut_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/box_bump_cut_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/box_bump_cut_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/box_bump_cut_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">car_97_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/car_97_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/car_97_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/car_97_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/car_97_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/car_97_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">car_97_rmCurves_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/car_97_rmCurves_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/car_97_rmCurves_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/car_97_rmCurves_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/car_97_rmCurves_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/car_97_rmCurves_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">cup_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/cup_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/cup_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/cup_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/cup_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/cup_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">fighter_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/fighter_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/fighter_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/fighter_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/fighter_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/fighter_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">gamepadnew_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/gamepadnew_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/gamepadnew_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/gamepadnew_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/gamepadnew_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/gamepadnew_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">guitar_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/guitar_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/guitar_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/guitar_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/guitar_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/guitar_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">iron_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/iron_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/iron_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/iron_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/iron_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/iron_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">new_camera_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/new_camera_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/new_camera_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/new_camera_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/new_camera_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/new_camera_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">Pencil_holder_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/Pencil_holder_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/Pencil_holder_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/Pencil_holder_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/Pencil_holder_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/Pencil_holder_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">plane_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/plane_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/plane_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/plane_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/plane_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/plane_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">race_car_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/race_car_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/race_car_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/race_car_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/race_car_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/race_car_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">ring_quarter_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/ring_quarter_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/ring_quarter_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/ring_quarter_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/ring_quarter_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/ring_quarter_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">sedan_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/sedan_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/sedan_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/sedan_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/sedan_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/sedan_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">sewing_machine_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/sewing_machine_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/sewing_machine_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/sewing_machine_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/sewing_machine_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/sewing_machine_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">tapeholder_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/tapeholder_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/tapeholder_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/tapeholder_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/tapeholder_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/tapeholder_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">toothpaste_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/toothpaste_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/toothpaste_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/toothpaste_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/toothpaste_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/toothpaste_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">vacuum2_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/vacuum2_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/vacuum2_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/vacuum2_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/vacuum2_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/vacuum2_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">vacuum_half_curves</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/t2f/vacuum_half_curves_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/t2f/vacuum_half_curves_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/t2f/vacuum_half_curves_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/t2f/vacuum_half_curves_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/t2f/vacuum_half_curves_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+        </div>
+        <div id="haopan-section" class="folder-section">
+            <div class="object-title">doghead</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/doghead_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/doghead_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/doghead_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/doghead_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/doghead_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">gamepad</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/gamepad_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/gamepad_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/gamepad_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/gamepad_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/gamepad_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">loftbug</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/loftbug_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/loftbug_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/loftbug_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/loftbug_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/loftbug_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">roadster</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/roadster_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/roadster_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/roadster_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/roadster_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/roadster_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">sga_torso</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/sga_torso_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/sga_torso_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/sga_torso_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/sga_torso_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/sga_torso_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">toothpaste</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/toothpaste_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/toothpaste_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/toothpaste_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/toothpaste_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/toothpaste_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+            <div class="object-title">trebol</div>
+            <div class="model-grid">
+                <div class="model-cell">
+                    <h3 class="model-title">Sketch</h3>
+                    <model-viewer src="gltf/haopan/trebol_sketch.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 0</h3>
+                    <model-viewer src="gltf/haopan/trebol_n0.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Normal 1</h3>
+                    <model-viewer src="gltf/haopan/trebol_n1.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">2 Normals</h3>
+                    <model-viewer src="gltf/haopan/trebol_2n.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+                <div class="model-cell">
+                    <h3 class="model-title">Surface</h3>
+                    <model-viewer src="gltf/haopan/trebol_surface.gltf" camera-controls auto-rotate shadow-intensity="1" 
+                                  camera-orbit="45deg 75deg 2m" field-of-view="30deg"></model-viewer>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showFolder(folder) {
+            // Hide all sections
+            document.querySelectorAll('.folder-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            // Show selected section
+            document.getElementById(folder + '-section').classList.add('active');
+            // Update button states
+            document.querySelectorAll('.folder-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.querySelector(`[onclick="showFolder('${folder}')"]`).classList.add('active');
+        }
+
+        // Show first folder section by default
+        document.addEventListener('DOMContentLoaded', () => {
+            const firstButton = document.querySelector('.folder-button');
+            if (firstButton) {
+                firstButton.click();
+            }
+        });
+    </script>
+</body>
+</html>

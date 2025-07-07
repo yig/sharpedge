@@ -1,5 +1,17 @@
 """
 Convert sketch (.obj) to GLTF.
+
+This script loads a 3D sketch in .obj format, extracts polyline data,
+and exports it as a GLTF file using cylinder strips for visualization.
+
+Input:
+  - A sketch .obj file with vertices and 'l' polyline lines.
+
+Output:
+  - A .gltf file where each polyline is rendered as a 3D cylinder strip.
+
+Usage:
+  python export_sketch_gltf.py input.obj -o output.gltf
 """
 
 
