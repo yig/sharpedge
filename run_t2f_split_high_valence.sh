@@ -1,6 +1,6 @@
 #!/bin/bash
 
-INPUT_DIR="3d-sketches-processing/haopan_no_dup"
+INPUT_DIR="3d-sketches-processing/edge_split"
 OUTPUT_DIR="3d-sketches-processing/haopan_intersection"
 
 mkdir -p "$OUTPUT_DIR"

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-INPUT_DIR="3d-sketches-processing/flowrep_no_dup"
-OUTPUT_DIR="3d-sketches-processing/flowrep_resample"
+INPUT_DIR="3d-sketches-processing/mingzou"
+OUTPUT_DIR="3d-sketches-processing/mingzou_resample"
 
 mkdir -p "$OUTPUT_DIR"
 
