@@ -429,7 +429,7 @@ def find_best_perpendicular_normal_on_polyline(vertices, edges, polyline_edge_da
     assert best_position != None , "This should not happen"
     return (best_position, best_normal)
 
-def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances):
+def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances, vertex_to_edges_map):
     '''
     Estimates initial normals for polylines using parallel transport.
     
@@ -458,7 +458,10 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     
     distances : array-like, shape (M, M)
         Matrix of minimum distances between all pairs of edges
-        
+    
+    vertex_to_edges_map: dict
+        Mapping from vertex index to list of edge indices
+
     Returns:
     --------
     normals : ndarray, shape (n_edges, 3)
@@ -471,7 +474,13 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
        - Find the normal vector most perpendicular to the polyline
        - Parallel transport this normal along the polyline to get initial angles
        
-    2. For polylines without normal constraints:
+    2. For polylines without normals:
+       - If any edge(polyline) connect to it has normal, also propogate them on the neighbor edges
+       - It could be both start and end edge of the polyline have neighboring edges, use one, also use the average normal.
+       - Parallel transport this normal along the polyline to get initial angles
+   
+       
+    3. For polylines still without normal constraints:
        - Locate the nearest polyline that has normal constraints
        - As long as the normal constraint are not parallel to the polyline
        - Try to locate a good one and parallel transport those normals to initialize angles
@@ -524,14 +533,6 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array( polyline_normals, len(E), polyline_to_edge_map), unconstrained_polylines_indices = None, filename = 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
     
-  
-    ## Third pass:
-    # now let me do this, for the polyline which does not have normals
-    # edge < epsilon edge_normals as constraints to propogate on those who does not have normal
-    # polylines
-
-    unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
-    # print("Polylines without normals:", unconstrained_polylines)
 
     # Update the edge-to-normal mapping 
     # with propagated normals from each polyline
@@ -544,8 +545,164 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
             edge_constraints_map_updated[edge_id] = propagated_normals[position]
 
     
-
+    ## Third pass:
     # Identify polylines without normals
+    unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
+    # print("Polylines without normals:", unconstrained_polylines)
+
+
+    # Propagate the normal from polyline who have normals to the connecting polylines
+    # 1. For the polylines that have normals, find their first and last edge indices. That's the frontier_edges set.
+    # 2. From frontier_edges, find their neighboring edges that do not have normals. That's the to_expand_edges set. I can use vertex_to_edge_map for this.
+    # 3. From the to_expand_edges set, find their neighboring edges and decide the normal on the to_expand_edges set.
+    # 4. Now from the to_expand_edges set, find which polylines they belong to, and propagate the normal on those polylines.
+    # 5. From the newly propagated polylines, find their first and last edge indices. Now that's the frontier_edges set.
+    # Repeat the above steps until the current normals cannot propagate any further. There may still be some polylines that do not have normals—now borrow.
+
+    frontier_edges = set()
+
+
+    for polyline_index in polyline_normals.keys():
+        edge_indices, _ = polyline_to_edge_map[polyline_index]
+        polyline_start_edge = edge_indices[0]
+        polyline_end_edge = edge_indices[-1]
+
+        frontier_edges.add( polyline_start_edge )
+        frontier_edges.add( polyline_end_edge )
+
+
+    while len(frontier_edges) != 0:
+
+        # 1. find which edges to expand.
+        to_expand_edges = set()
+        # to expand the edge on which direction
+        to_expand_vertex = {}
+
+        for f_edge in frontier_edges:
+            v0, v1 = E[f_edge] 
+
+            v0_neighbors = vertex_to_edges_map[v0]
+            v1_neighbors = vertex_to_edges_map[v1]
+
+            for edge in v0_neighbors:
+                if edge not in edge_constraints_map_updated:
+                    to_expand_edges.add( edge )
+            
+            for edge in v1_neighbors:
+                if edge not in edge_constraints_map_updated:
+                    to_expand_edges.add( edge )
+        
+        print('to_expand_edges', to_expand_edges)
+        
+        # 2. find which directions to expand.
+        for e_edge in to_expand_edges:
+            v0, v1 = E[e_edge] 
+            
+            v0_neighbors = vertex_to_edges_map[v0]
+            v1_neighbors = vertex_to_edges_map[v1]
+
+            for edge in v0_neighbors:
+                if edge in edge_constraints_map_updated:
+                    to_expand_vertex[e_edge] = v0
+            for edge in v1_neighbors:
+                if edge in edge_constraints_map_updated:
+                    to_expand_vertex[e_edge] = v1
+        
+        print('to_expand_vertex', to_expand_vertex)
+
+        # 3. now decide the expand edge normal
+        to_expand_normals = {}
+
+        for e_edge, e_vertex in to_expand_vertex.items():
+            e_normal = np.zeros(3)
+            neighbor_edges = vertex_to_edges_map[e_vertex]
+            for neighbor_edge in neighbor_edges:
+                if neighbor_edge in edge_constraints_map_updated:
+
+                    neighbor_normal = edge_constraints_map_updated[neighbor_edge]
+
+                    e_edge_vertices = E[e_edge]
+                    e_neighbor_vertices = E[neighbor_edge]
+
+                    e_edge_other_vertex = e_edge_vertices[0] if e_edge_vertices[0] != e_vertex else e_edge_vertices[1]
+                    e_neighbor_other_vertex = e_neighbor_vertices[0] if e_neighbor_vertices[0] != e_vertex else e_neighbor_vertices[1]
+
+                    vector_e_edge = V[e_vertex] - V[e_edge_other_vertex]
+                    vector_e_neighbor = V[e_neighbor_other_vertex] - V[e_vertex]
+
+                    rotation_matrix = rotation_matrix_from(vector_e_neighbor, vector_e_edge)
+
+
+                    rotated_neighbor_normal = rotation_matrix @ neighbor_normal
+                    # print('rotation_matrix', rotation_matrix)
+                    # print('neighbor_normal', neighbor_normal)
+                    # print('rotated_neighbor_normal', rotated_neighbor_normal)
+                    
+                    # filter out those normals when rotated almost parallel to the edge
+
+                    edge_tangent = compute_edge_tangent(V, E[e_edge])
+
+                    if are_parallel_cos(edge_tangent, rotated_neighbor_normal) :
+                        continue
+                    else:
+                        e_normal +=  rotation_matrix @ neighbor_normal
+            if np.linalg.norm(e_normal) > 1e-10:
+                to_expand_normals[e_edge] = e_normal / np.linalg.norm(e_normal)
+        
+
+        print('to_expand_normals', to_expand_normals)
+
+        if show_plot:
+            plot_edge_constraints(V, E, P, to_expand_normals, scale=0.15, str = 'propagate from nearby normals', filename= None, block = True)
+
+        # 4. now based on the to expand normals, propagate the the polylines which does not have normals
+        expand_polylines = set()
+        expand_polyline_normals = {}
+        for e_edge, e_normal in to_expand_normals.items():
+            polyline_idx = edge_to_polyline_map[e_edge]
+            edge_indices, _ = polyline_to_edge_map[polyline_idx]
+
+            expand_polylines.add( polyline_idx )
+
+            polyline_points = [V[index] for index in P[polyline_idx]]    
+            if e_edge == edge_indices[0]:
+                normal_vectors = parallel_transport_bi_direction(polyline_points, (0, e_normal))
+            elif e_edge == edge_indices[-1]:
+                normal_vectors = parallel_transport_bi_direction(polyline_points, (len(edge_indices)-1, e_normal))
+            else:
+                assert False, "should not happen"
+
+            polyline_normals[polyline_idx] = normal_vectors
+
+            # Associate each edge with its corresponding normal vector from the parallel transport
+            for position, edge_id in enumerate(edge_indices):
+                edge_constraints_map_updated[edge_id] = normal_vectors[position]
+                expand_polyline_normals[edge_id] = normal_vectors[position]
+
+        plot_edge_constraints(V, E, P, expand_polyline_normals, scale= 0.15, str= "expand polyline normals")
+
+        frontier_edges = set()
+        # 5. now update the frontier_edges
+        for polyline_index in expand_polylines:
+            edge_indices, _ = polyline_to_edge_map[polyline_index]
+            polyline_start_edge = edge_indices[0]
+            polyline_end_edge = edge_indices[-1]
+
+            frontier_edges.add( polyline_start_edge )
+            frontier_edges.add( polyline_end_edge )
+
+    if show_plot:    
+        plot_edge_constraints(V, E, P, edge_constraints_map_updated, scale= 0.08, str= "after propagate to nearby")
+    
+ 
+
+
+    ## now for the polylines without normls
+    ## we borrow from nearby edges, which edge to borrow how to borrow? 
+    ## think more about this, how to do this better? 
+
+    unconstrained_polylines = set(range(len(P))) - set(polyline_normals.keys())
+
     unconstrained_polyline_to_best_normal_map = {}
     for polyline_idx in unconstrained_polylines:
         unconstrained_polyline_to_best_normal_map[polyline_idx] = assign_normals_to_unconstrained_polylines(V, E, polyline_to_edge_map[polyline_idx], edge_constraints_map_updated, distances)
@@ -599,6 +756,16 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
         plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.08, str= "initial estimate")
 
     return edge_constraints_map_estimated
+
+
+def are_parallel_cos(v1, v2, cos_threshold=np.cos(np.radians(10))):
+    """Check if two vectors are parallel using cosine threshold"""
+    # Compute normalized dot product (cosine of angle between vectors)
+    cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+    
+    # Check if angle is less than 15 degrees (cosine value greater than threshold)
+    return abs(cos_angle) >= cos_threshold
+
 
 def estimate_initial_thetas(Us, Vs, estimated_normals):
     '''
@@ -930,9 +1097,6 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
         'has_rotation': jnp.array(has_rotation),
         'num_pairs': len(e1_indices)
     }
-
-
-
 
 def prepare_edge_constraints(edge_constraints):
     """
@@ -1716,9 +1880,7 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
     # Convert normals to dictionary for lookup
     estimate_normals = dict(estimate_normals)
     
-    # Keep track of normals per edge
-    edge_normals = {}
-    
+
     # For plotting: format (edge_idx, which_edge) -> normal
     plotting_normals = {}
     
@@ -1847,7 +2009,7 @@ if __name__ == "__main__":
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
     parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=2,
                     help='Number of normals per edge (1 or 2)')
-    parser.add_argument('--show_plot', type=str, choices=['true', 'false'], default='false',
+    parser.add_argument('-i','--show_plot', type=str, choices=['true', 'false'], default='false',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
                    help='Save the gltf files for debug (default: true)')    
@@ -1866,11 +2028,8 @@ if __name__ == "__main__":
 
 
     if curve_file is None:
-        curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
-        # curve_file = 'made_examples/sketch/cylinder.obj'
-        curve_file = 'sketches_split/onshape_simple_shape.obj'
-        curve_file = 'sketches_split/onshape_simple_mouse.obj'
-        curve_file = 'sketches_split/t2f_toothpaste.obj'
+        curve_file = '3d-sketches/t2f/sewing_machine_half_curves.obj'
+
 
 
     curve_name = Path(curve_file).stem
@@ -1967,7 +2126,7 @@ if __name__ == "__main__":
     
     distances = edge_distance_matrix(V, E)
 
-    estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances)
+    estimate_normals = estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map, edge_constraints_map, distances, vertex_to_edges_map)
 
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, convert_edge_normals_to_array(estimate_normals, len(E)), unconstrained_polylines_indices , filename = 'debug_normals_gltf/initial_estimate/' + curve_name + '.gltf')
