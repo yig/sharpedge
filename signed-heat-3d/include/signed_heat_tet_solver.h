@@ -2,6 +2,7 @@
 
 #include "geometrycentral/numerical/linear_solvers.h"
 #include "geometrycentral/surface/surface_mesh_factories.h"
+#include "edge_dual_normal_geometry.h"
 
 #include "polyscope/volume_mesh.h"
 
@@ -27,6 +28,9 @@ class SignedHeatTetSolver {
     Vector<double> computeDistance(pointcloud::PointPositionNormalGeometry& pointGeom,
                                    const SignedHeat3DOptions& options = SignedHeat3DOptions());
 
+    Vector<double> computeDistance(EdgeDualNormalGeometry& edgeGeom,
+                                   const SignedHeat3DOptions& options);
+    
     void isosurface(std::unique_ptr<SurfaceMesh>& isoMesh, std::unique_ptr<VertexPositionGeometry>& isoGeom,
                     const Vector<double>& phi, double isoval = 0.) const;
 
@@ -103,4 +107,12 @@ class SignedHeatTetSolver {
     std::vector<Vector3> buildCubeAroundSurface(const Vector3& centroid, const double& radius, double scale) const;
     void getTetmeshData(tetgenio& out);
     double computeMeanNodeSpacing() const;
+    
+    
+    // For edge dual normal
+    double calculateAverageEdgeLength(const EdgeDualNormalGeometry& edgeGeom);
+
+    
 };
+
+

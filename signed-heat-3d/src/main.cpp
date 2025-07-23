@@ -88,8 +88,20 @@ void solve() {
     if (MESH_MODE == MeshMode::Tet) {
         if (VERBOSE) std::cerr << "\nSolving on tet mesh..." << std::endl;
         t1 = high_resolution_clock::now();
-        PHI = (INPUT_MODE == InputMode::Mesh) ? tetSolver->computeDistance(*geometry, SHM_OPTIONS)
-                                              : tetSolver->computeDistance(*pointGeom, SHM_OPTIONS);
+        
+//        PHI = (INPUT_MODE == InputMode::Mesh) ? tetSolver->computeDistance(*geometry, SHM_OPTIONS)
+//                                              : tetSolver->computeDistance(*pointGeom, SHM_OPTIONS);
+        
+        if (INPUT_MODE == InputMode::Mesh) {
+            PHI = tetSolver->computeDistance(*geometry, SHM_OPTIONS);
+        } else if (INPUT_MODE == InputMode::EdgeNormals) {
+            std::cout << "Using Tet edge dual normal version of computeDistance" << std::endl;
+            PHI = tetSolver->computeDistance(*edgeGeometry, SHM_OPTIONS);
+        } else {
+            PHI = tetSolver->computeDistance(*pointGeom, SHM_OPTIONS);
+        }
+        
+        
         t2 = high_resolution_clock::now();
         ms_fp = t2 - t1;
         if (VERBOSE) std::cerr << "Solve time (s): " << ms_fp.count() / 1000. << std::endl;
@@ -423,23 +435,40 @@ int main(int argc, char** argv) {
             std::cout << "Successfully loaded edge dual normal geometry" << std::endl;
             
             // Optional: Resample the geometry to a target edge length
-            float targetEdgeLength = 0.05f; // Set your desired edge length here
             
-            EdgeDualNormalGeometry resampledGeometry;
-            if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
-                // Replace the original geometry with the resampled one
-                *edgeGeometry = resampledGeometry;
-                std::cout << "Geometry resampled to target edge length: " << targetEdgeLength << std::endl;
+            if (MESH_MODE == MeshMode::Tet)
+            {
+                // do not want resample when tet mode ?
+                
+//                float targetEdgeLength = 0.025f; // Set your desired edge length here
+//                
+//                EdgeDualNormalGeometry resampledGeometry;
+//                if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
+//                    // Replace the original geometry with the resampled one
+//                    *edgeGeometry = resampledGeometry;
+//                    std::cout << "Geometry resampled to target edge length: " << targetEdgeLength << std::endl;
+//                } else {
+//                    std::cout << "Warning: Resampling failed, using original geometry" << std::endl;
+//                }
+                
             } else {
-                std::cout << "Warning: Resampling failed, using original geometry" << std::endl;
+                
+                
+                float targetEdgeLength = 0.05f; // Set your desired edge length here
+                
+                EdgeDualNormalGeometry resampledGeometry;
+                if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
+                    // Replace the original geometry with the resampled one
+                    *edgeGeometry = resampledGeometry;
+                    std::cout << "Geometry resampled to target edge length: " << targetEdgeLength << std::endl;
+                } else {
+                    std::cout << "Warning: Resampling failed, using original geometry" << std::endl;
+                }
             }
-            
         } else {
             std::cerr << "Failed to read .normal file" << std::endl;
         }
-        
-        // Use grid
-        MESH_MODE = MeshMode::Grid;
+
 
         
     }else {

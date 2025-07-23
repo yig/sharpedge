@@ -548,7 +548,7 @@ Vector<double> SignedHeatGridSolver::computeDistance(EdgeDualNormalGeometry& edg
                     // Calculate dot products to determine which side of each plane the query point is on
                     double dot1 = dot(direction, n);
                     double dot2 = dot(direction, n_prime);
-
+                    
                     Vector3 normalToUse;
 
                     // Logic for choosing which normal to use (same as your point-based logic)

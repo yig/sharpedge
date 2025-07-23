@@ -158,6 +158,152 @@ Vector<double> SignedHeatTetSolver::computeDistance(pointcloud::PointPositionNor
     return phi;
 }
 
+// Modified computeDistance function for EdgeDualNormalGeometry
+Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edgeGeom,
+                                                    const SignedHeat3DOptions& options) {
+    
+    std::cout << "SignedHeatTetSolver with dual normals per edge" << std::endl;
+
+    if (options.rebuild || vertices.size() == 0) {
+        std::chrono::time_point<high_resolution_clock> t1, t2;
+        std::chrono::duration<double, std::milli> ms_fp;
+        t1 = high_resolution_clock::now();
+        if (VERBOSE) std::cerr << "Building tet mesh..." << std::endl;
+        
+        // Calculate mean edge length for area scaling
+        double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
+        double meanArea = meanEdgeLength; // Use edge length as proxy for area
+        double areaScale = std::pow(2, -options.hCoef);
+        TETFLAGS = TET_PREFIX + std::to_string(areaScale * meanArea);
+        TETFLAGS_PRESERVE = TET_PREFIX + std::to_string(areaScale * meanArea) + "Y";
+        
+        // Create point cloud from edge vertices for tetmesh generation
+        const auto& vertices_data = edgeGeom.getVertices();
+        size_t nPts = vertices_data.size();
+        cloud = std::unique_ptr<pointcloud::PointCloud>(new pointcloud::PointCloud(nPts));
+        pointcloud::PointData<Vector3> pointPositions = pointcloud::PointData<Vector3>(*cloud);
+        for (size_t i = 0; i < nPts; i++) {
+            pointPositions[i] = vertices_data[i];
+        }
+        pointPolyGeom = std::unique_ptr<pointcloud::PointPositionGeometry>(
+            new pointcloud::PointPositionGeometry(*cloud, pointPositions));
+        tetmeshPointCloud(*pointPolyGeom);
+        
+        if (VERBOSE) std::cerr << "Computing tet mesh data..." << std::endl;
+        meanNodeSpacing = computeMeanNodeSpacing();
+        shortTime = options.tCoef * meanNodeSpacing * meanNodeSpacing;
+        tetVolumes = computeTetVolumes();
+        if (VERBOSE) std::cerr << "Building Laplacian..." << std::endl;
+        laplaceMat = dualLaplacian();
+        if (VERBOSE) std::cerr << "Tet mesh (re)built" << std::endl;
+        t2 = high_resolution_clock::now();
+        ms_fp = t2 - t1;
+        if (VERBOSE) std::cerr << "Pre-compute time (s): " << ms_fp.count() / 1000. << std::endl;
+    }
+
+    if (VERBOSE) std::cerr << "Steps 1 & 2..." << std::endl;
+    
+    // Evaluate vectors at tet barycenters
+    Eigen::MatrixXd Yt = Eigen::MatrixXd::Zero(nTets, 3);
+    double lambda = std::sqrt(1. / shortTime);
+    
+    const auto& edges = edgeGeom.getEdges();
+    const auto& vertices_data = edgeGeom.getVertices();
+    const auto& normals1 = edgeGeom.getNormals1();
+    const auto& normals2 = edgeGeom.getNormals2();
+    size_t numEdges = edges.size();
+    
+    for (size_t i = 0; i < nTets; i++) {
+        // Compute tet barycenter (query point)
+        Vector3 q = {0, 0, 0};
+        for (int j = 0; j < 4; j++) {
+            for (int k = 0; k < 3; k++) q[k] += vertices(tets(i, j), k);
+        }
+        q /= 4.;
+        
+        // Integrate contributions from all edges
+        Vector3 X = {0, 0, 0};
+        for (size_t edgeIdx = 0; edgeIdx < numEdges; edgeIdx++) {
+            // Get edge endpoints
+            size_t v0Idx = edges[edgeIdx].first;
+            size_t v1Idx = edges[edgeIdx].second;
+            Vector3 v0 = vertices_data[v0Idx];
+            Vector3 v1 = vertices_data[v1Idx];
+            
+            // Calculate edge midpoint (sample point on edge)
+            Vector3 p = (v0 + v1) * 0.5;
+            
+            // Get dual normals for this edge
+            Vector3 n = normals1[edgeIdx];
+            Vector3 n_prime = normals2[edgeIdx];
+            
+            // Calculate edge length as area weight
+            double edgeLength = (v1 - v0).norm();
+            double A = edgeLength;
+            
+            // Direction from edge midpoint to query point
+            Vector3 direction = q - p;
+            
+            // Calculate dot products to determine which side of each plane the query point is on
+            double dot1 = dot(direction, n);
+            double dot2 = dot(direction, n_prime);
+            
+            Vector3 normalToUse;
+            
+            // Logic for choosing which normal to use
+            if (dot1 > 0 && dot2 < 0) {
+                normalToUse = n;
+            } else if (dot1 < 0 && dot2 > 0) {
+                normalToUse = n_prime;
+            } else if (dot1 > 0 && dot2 > 0) {
+                // Outside both n1 and n2
+                Vector3 bisector = (n_prime + n) / 2;
+                bisector = bisector.normalize();
+                
+                double dot_bisector = dot(direction, bisector);
+                assert(dot_bisector > 0);
+                
+                if (dot_bisector > dot1 && dot_bisector > dot2) {
+                    normalToUse = direction.normalize();
+                } else if (dot1 < dot2) {
+                    normalToUse = n_prime;
+                } else {
+                    normalToUse = n;
+                }
+            } else {
+                if (dot1 > dot2) {
+                    normalToUse = n;
+                } else {
+                    normalToUse = n_prime;
+                }
+            }
+            
+            X += yukawaPotential(p, q, lambda) * normalToUse * A;
+        }
+        
+        X /= X.norm();
+        for (int j = 0; j < 3; j++) Yt(i, j) = X[j];
+    }
+    if (VERBOSE) std::cerr << "\tCompleted." << std::endl;
+
+    if (VERBOSE) std::cerr << "Step 3..." << std::endl;
+    
+    // Use point cloud geometry for integration since we're working with non-conforming mesh
+    pointPolyGeom->requireTuftedTriangulation();
+    pointPolyGeom->tuftedGeom->requireVertexDualAreas();
+    
+    Vector<double> phi = options.fastIntegration ? integrateVectorFieldGreedily(*pointPolyGeom, Yt, options)
+                                                 : integrateVectorField(*pointPolyGeom, Yt, options);
+    
+    pointPolyGeom->tuftedGeom->unrequireVertexDualAreas();
+    pointPolyGeom->unrequireTuftedTriangulation();
+    
+    if (VERBOSE) std::cerr << "\tCompleted." << std::endl;
+
+    return phi;
+}
+
+
 Vector<double> SignedHeatTetSolver::integrateVectorField(VertexPositionGeometry& geometry, const Eigen::MatrixXd& Yt,
                                                          const SignedHeat3DOptions& options) {
 
@@ -1325,4 +1471,18 @@ double SignedHeatTetSolver::computeMeanNodeSpacing() const {
     }
     h /= 6 * nTets;
     return h;
+}
+
+double SignedHeatTetSolver::calculateAverageEdgeLength(const EdgeDualNormalGeometry& edgeGeom) {
+    const auto& edges = edgeGeom.getEdges();
+    const auto& vertices = edgeGeom.getVertices();
+    double totalLength = 0;
+
+    for (const auto& edge : edges) {
+        Vector3 v0 = vertices[edge.first];
+        Vector3 v1 = vertices[edge.second];
+        totalLength += (v1 - v0).norm();
+    }
+
+    return totalLength / edges.size();
 }
