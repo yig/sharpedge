@@ -170,6 +170,14 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
         t1 = high_resolution_clock::now();
         if (VERBOSE) std::cerr << "Building tet mesh..." << std::endl;
         
+        /*
+          Xue: Below are the steps using TetGen to tetrahedralize the input geometry:
+               1. Calculate mesh quality parameters and set TetGen FLAGS
+               2. Convert input edge geometry to point cloud format (required by TetGen)
+               3. Call tetmeshPointCloud() which handles the actual TetGen tetrahedralization
+               4. Post-process the generated tetrahedral mesh for numerical computation
+        */
+        
         // Calculate mean edge length for area scaling
         double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
         double meanArea = meanEdgeLength; // Use edge length as proxy for area
@@ -188,6 +196,9 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
         pointPolyGeom = std::unique_ptr<pointcloud::PointPositionGeometry>(
             new pointcloud::PointPositionGeometry(*cloud, pointPositions));
         tetmeshPointCloud(*pointPolyGeom);
+        
+        
+        
         
         if (VERBOSE) std::cerr << "Computing tet mesh data..." << std::endl;
         meanNodeSpacing = computeMeanNodeSpacing();
@@ -1161,6 +1172,9 @@ bool SignedHeatTetSolver::tetmeshDomain(VertexPositionGeometry& geometry) {
     return true;
 }
 
+/*
+ Xue: This is the actual tetrahedralize function
+ */
 void SignedHeatTetSolver::tetmeshPointCloud(pointcloud::PointPositionGeometry& pointGeom) {
 
     // First Delaunay triangulate the surface of the bounding cube.
@@ -1238,6 +1252,62 @@ void SignedHeatTetSolver::tetmeshPointCloud(pointcloud::PointPositionGeometry& p
     // Display the tetmesh in the GUI.
     polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
 }
+
+
+
+///*
+// Xue: Trying to switch to CDT to tetrahedralize
+// */
+//void SignedHeatTetSolver::tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeom, const SignedHeat3DOptions& options) {
+//    
+//    if (VERBOSE) std::cout << "Using CDT for EdgeDualNormalGeometry tetrahedralization..." << std::endl;
+//    
+//    // Step 1: Extract vertices and edges from EdgeDualNormalGeometry
+//    const auto& vertices_data = edgeGeom.getVertices();   // std::vector<Vector3>
+//    const auto& edges_data = edgeGeom.getEdges();        // std::vector<std::pair<size_t, size_t>>
+//    
+//    size_t nVertices = vertices_data.size();
+//    size_t nEdges = edges_data.size();
+//    
+//    if (VERBOSE) std::cout << "Input geometry: " << nVertices << " vertices, "
+//                          << nEdges << " edges" << std::endl;
+//    
+//    // Step 2: Create PLC object and initialize from dual edge object
+//    inputPLC plc;
+//    initPLCFromEdgeGeometryDirect(plc, vertices_data, edges_data);
+//    
+//    // Step 3: Add bounding box
+//    double bbox_expansion = options.scale;
+//    plc.addBoundingBoxVertices(bbox_expansion);
+//    
+//    if (VERBOSE) {
+//        std::cout << "Final PLC: "
+//                  << plc.numVertices() << " vertices, "
+//                  << plc.numEdges() << " edges" << std::endl;
+//    }
+//    
+//    // Step 4: Set CDT options and execute tetrahedralization
+//    std::string cdtOptions = setupCDTOptions();  // Renamed to avoid conflict!
+//    
+//    TetMesh* tetMesh = nullptr;
+//    try {
+//        tetMesh = createSteinerCDT(plc, cdtOptions, bbox_expansion);  // Use renamed variable
+//        if (VERBOSE) std::cout << "CDT tetrahedralization completed" << std::endl;
+//    } catch (const std::exception& e) {
+//        std::cout << "CDT failed: " << e.what() << std::endl;
+//        throw;
+//    }
+//    
+//    // Step 5: Convert result to internal format
+//    convertTetMeshToInternalFormat(tetMesh);
+//    
+//    // Step 6: Cleanup and display
+//    delete tetMesh;
+//    polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
+//    
+//    if (VERBOSE) std::cout << "CDT EdgeDualNormalGeometry tetrahedralization completed" << std::endl;
+//}
+
 
 /*
  * Generate a constrained Delaunay tetrahedralization of a cube surrounding the input surface mesh.

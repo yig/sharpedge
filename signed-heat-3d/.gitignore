@@ -4,4 +4,8 @@ build-xcode/
 data/
 export/
 media/
-deps/
+deps/**
+
+!deps/cdt/
+!deps/cdt/CMakeLists.txt
+

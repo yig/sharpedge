@@ -1,3 +1,0 @@
-[submodule "signed-heat-3d/deps/cdt"]
-	path = signed-heat-3d/deps/cdt
-	url = https://github.com/yig/CDT

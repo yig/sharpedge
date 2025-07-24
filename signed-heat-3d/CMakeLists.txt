@@ -21,8 +21,8 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STR
 
   # using Clang (linux or apple) or GCC
   message("Using clang/gcc compiler flags")
-  SET(CMAKE_CXX_STANDARD 11)
-  SET(BASE_CXX_FLAGS "-std=c++11 -Wall -Wextra") 
+  SET(CMAKE_CXX_STANDARD 20)
+  SET(BASE_CXX_FLAGS "-std=c++20 -Wall -Wextra") 
   SET(DISABLED_WARNINGS " -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function -Wno-deprecated-declarations -Wno-missing-braces -Wno-unused-label -Wno-register -Wno-sign-compare -Wno-unknown-pragmas -Wno-unused-result -Wno-narrowing -Wno-unused-but-set-variable -Wno-unused-lambda-capture -Wno-unused-local-typedefs")
   SET(TRACE_INCLUDES " -H -Wno-error=unused-command-line-argument")
 
@@ -38,15 +38,15 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" OR "${CMAKE_CXX_COMPILER_ID}" STR
     SET(DISABLED_WARNINGS "${DISABLED_WARNINGS} -Wno-maybe-uninitialized -Wno-format-zero-length -Wno-unused-but-set-parameter -Wno-unused-but-set-variable")
   endif()
   
-  SET(CMAKE_CXX_FLAGS "${BASE_CXX_FLAGS} ${DISABLED_WARNINGS} -std=c++11")
+  SET(CMAKE_CXX_FLAGS "${BASE_CXX_FLAGS} ${DISABLED_WARNINGS} -std=c++20")
 
   include(CheckCXXCompilerFlag)
   unset(COMPILER_SUPPORTS_MARCH_NATIVE CACHE)
   CHECK_CXX_COMPILER_FLAG(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
   if(COMPILER_SUPPORTS_MARCH_NATIVE)
-    SET(CMAKE_CXX_FLAGS_RELEASE        "-O3 -march=native -DNDEBUG -std=c++11")
+    SET(CMAKE_CXX_FLAGS_RELEASE        "-O3 -march=native -DNDEBUG -std=c++20")
   else()
-    SET(CMAKE_CXX_FLAGS_RELEASE        "-O3 -mcpu=apple-m1 -DNDEBUG -std=c++11") # Apple M1
+    SET(CMAKE_CXX_FLAGS_RELEASE        "-O3 -mcpu=apple-m1 -DNDEBUG -std=c++20") # Apple M1
   endif()
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
@@ -73,6 +73,7 @@ endif()
 add_subdirectory(deps/geometry-central)
 add_subdirectory(deps/polyscope)
 add_subdirectory(deps/tetgen)
+add_subdirectory(deps/cdt) # add cdt
 
 # == Build our project stuff
 
@@ -86,10 +87,13 @@ set(SRCS
 add_executable(main "${SRCS}")
 target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include/")
 target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/tetgen/")
+target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/cdt/src")    # add cdt
+target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/cdt/include")
+
 
 # add the args.hxx project which we use for command line args
 target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/polyscope/deps/args")
-target_link_libraries(main geometry-central polyscope tetgen)
+target_link_libraries(main geometry-central polyscope tetgen cdt)
 
 # Add libIGL in header-only mode.
 target_include_directories(main PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/deps/libigl/include")

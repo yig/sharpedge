@@ -14,6 +14,14 @@
 #define TETLIBRARY
 #include "tetgen.h"
 
+/*
+ Xue: for CDT
+ */
+#include "PLC.h"
+#include "delaunay.h" 
+#include "inputPLC.h"
+
+
 using namespace geometrycentral;
 using namespace geometrycentral::surface;
 
@@ -109,9 +117,13 @@ class SignedHeatTetSolver {
     double computeMeanNodeSpacing() const;
     
     
-    // For edge dual normal
+    /*
+     Xue : for dual normal per edge
+     */
     double calculateAverageEdgeLength(const EdgeDualNormalGeometry& edgeGeom);
 
+    // CDT version of tetrahedralization for EdgeDualNormalGeometry
+    void tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeom, const SignedHeat3DOptions& options);
     
 };
 
