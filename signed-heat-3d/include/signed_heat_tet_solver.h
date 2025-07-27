@@ -21,7 +21,6 @@
 #include "delaunay.h" 
 #include "inputPLC.h"
 
-
 using namespace geometrycentral;
 using namespace geometrycentral::surface;
 
@@ -125,6 +124,13 @@ class SignedHeatTetSolver {
     // CDT version of tetrahedralization for EdgeDualNormalGeometry
     void tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeom, const SignedHeat3DOptions& options);
     
+    bool convertEdgeGeomToPLC(const EdgeDualNormalGeometry& edgeGeom, inputPLC& plc, bool verbose);
+
+    TetMesh* createSteinerCDT(inputPLC& plc, const std::string& options, const std::string& bbox_expansion_fraction );
+    void convertTetMeshToTetgenio(TetMesh* tetMesh, tetgenio& out);
+
+    // Add this declaration to your .h file:
+    void convertTetMeshForVisualization(TetMesh* tetMesh);
 };
 
 

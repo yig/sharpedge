@@ -1,5 +1,6 @@
 #include "signed_heat_tet_solver.h"
 
+#define USETetgen 0
 SignedHeatTetSolver::SignedHeatTetSolver() {}
 
 // =============== ALGORITHM
@@ -177,14 +178,16 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
                3. Call tetmeshPointCloud() which handles the actual TetGen tetrahedralization
                4. Post-process the generated tetrahedral mesh for numerical computation
         */
-        
+
+
+#if USETetgen
         // Calculate mean edge length for area scaling
         double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
         double meanArea = meanEdgeLength; // Use edge length as proxy for area
         double areaScale = std::pow(2, -options.hCoef);
         TETFLAGS = TET_PREFIX + std::to_string(areaScale * meanArea);
         TETFLAGS_PRESERVE = TET_PREFIX + std::to_string(areaScale * meanArea) + "Y";
-        
+
         // Create point cloud from edge vertices for tetmesh generation
         const auto& vertices_data = edgeGeom.getVertices();
         size_t nPts = vertices_data.size();
@@ -196,8 +199,13 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
         pointPolyGeom = std::unique_ptr<pointcloud::PointPositionGeometry>(
             new pointcloud::PointPositionGeometry(*cloud, pointPositions));
         tetmeshPointCloud(*pointPolyGeom);
-        
-        
+
+#else
+        /*
+         Xue : switch to CDT
+         */
+        tetmeshEdgeGeometryCDT(edgeGeom, options);
+#endif
         
         
         if (VERBOSE) std::cerr << "Computing tet mesh data..." << std::endl;
@@ -1251,62 +1259,12 @@ void SignedHeatTetSolver::tetmeshPointCloud(pointcloud::PointPositionGeometry& p
 
     // Display the tetmesh in the GUI.
     polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
+    polyscope::show();
+
+    if (VERBOSE) std::cout << "tetmeshPointCloud tetrahedralization completed" << std::endl;
+    
+    
 }
-
-
-
-///*
-// Xue: Trying to switch to CDT to tetrahedralize
-// */
-//void SignedHeatTetSolver::tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeom, const SignedHeat3DOptions& options) {
-//    
-//    if (VERBOSE) std::cout << "Using CDT for EdgeDualNormalGeometry tetrahedralization..." << std::endl;
-//    
-//    // Step 1: Extract vertices and edges from EdgeDualNormalGeometry
-//    const auto& vertices_data = edgeGeom.getVertices();   // std::vector<Vector3>
-//    const auto& edges_data = edgeGeom.getEdges();        // std::vector<std::pair<size_t, size_t>>
-//    
-//    size_t nVertices = vertices_data.size();
-//    size_t nEdges = edges_data.size();
-//    
-//    if (VERBOSE) std::cout << "Input geometry: " << nVertices << " vertices, "
-//                          << nEdges << " edges" << std::endl;
-//    
-//    // Step 2: Create PLC object and initialize from dual edge object
-//    inputPLC plc;
-//    initPLCFromEdgeGeometryDirect(plc, vertices_data, edges_data);
-//    
-//    // Step 3: Add bounding box
-//    double bbox_expansion = options.scale;
-//    plc.addBoundingBoxVertices(bbox_expansion);
-//    
-//    if (VERBOSE) {
-//        std::cout << "Final PLC: "
-//                  << plc.numVertices() << " vertices, "
-//                  << plc.numEdges() << " edges" << std::endl;
-//    }
-//    
-//    // Step 4: Set CDT options and execute tetrahedralization
-//    std::string cdtOptions = setupCDTOptions();  // Renamed to avoid conflict!
-//    
-//    TetMesh* tetMesh = nullptr;
-//    try {
-//        tetMesh = createSteinerCDT(plc, cdtOptions, bbox_expansion);  // Use renamed variable
-//        if (VERBOSE) std::cout << "CDT tetrahedralization completed" << std::endl;
-//    } catch (const std::exception& e) {
-//        std::cout << "CDT failed: " << e.what() << std::endl;
-//        throw;
-//    }
-//    
-//    // Step 5: Convert result to internal format
-//    convertTetMeshToInternalFormat(tetMesh);
-//    
-//    // Step 6: Cleanup and display
-//    delete tetMesh;
-//    polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
-//    
-//    if (VERBOSE) std::cout << "CDT EdgeDualNormalGeometry tetrahedralization completed" << std::endl;
-//}
 
 
 /*
@@ -1555,4 +1513,386 @@ double SignedHeatTetSolver::calculateAverageEdgeLength(const EdgeDualNormalGeome
     }
 
     return totalLength / edges.size();
+}
+
+/*
+ Xue: Trying to switch to CDT to tetrahedralize
+ */
+void SignedHeatTetSolver::tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeom, const SignedHeat3DOptions& options) {
+    
+    if (VERBOSE) std::cout << "Using CDT for EdgeDualNormalGeometry tetrahedralization..." << std::endl;
+    
+    // Step 1: Extract vertices and edges from EdgeDualNormalGeometry
+    const auto& vertices_data = edgeGeom.getVertices();   // std::vector<Vector3>
+    const auto& edges_data = edgeGeom.getEdges();        // std::vector<std::pair<size_t, size_t>>
+    
+    size_t nVertices = vertices_data.size();
+    size_t nEdges = edges_data.size();
+    
+    if (VERBOSE) std::cout << "Input geometry: " << nVertices << " vertices, "
+                          << nEdges << " edges" << std::endl;
+    
+    // Step 2: Create PLC object and initialize from dual edge object
+    inputPLC plc;
+    bool success = convertEdgeGeomToPLC(edgeGeom, plc, true);
+    
+    if (success) {
+        printf("Conversion successful!\n");
+        printf("PLC has %u vertices and %u edges\n",
+               plc.numVertices(), plc.numEdges());
+    } else {
+        printf("Conversion failed!\n");
+    }
+    
+    // Step 3: Add bounding box
+    // there's conversion between 
+    double bbox_expansion = options.scale - 1;
+    plc.addBoundingBoxVertices(bbox_expansion);
+    
+    if (VERBOSE) {
+        std::cout << "Final PLC: "
+                  << plc.numVertices() << " vertices, "
+                  << plc.numEdges() << " edges" << std::endl;
+    }
+    
+    // Step 4: Set CDT options and execute tetrahedralization
+    std::string cdtOptions = "v";  // bounding box + verbose
+    
+
+    TetMesh* tetMesh = nullptr;
+    try {
+        tetMesh = createSteinerCDT(plc, cdtOptions, std::to_string(bbox_expansion));
+        std::cout << "CDT tetrahedralization completed " << std::endl;
+        if (VERBOSE) std::cout << "CDT tetrahedralization completed" << std::endl;
+    } catch (const std::exception& e) {
+        std::cout << "CDT failed: " << e.what() << std::endl;
+        throw;
+    }
+    
+    tetMesh->saveTET("cdt.tet", false);
+
+    convertTetMeshForVisualization(tetMesh);
+    delete tetMesh;
+
+
+    // Display the tetmesh in the GUI.
+    polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
+//    polyscope::show();
+    if (VERBOSE) std::cout << "CDT EdgeDualNormalGeometry tetrahedralization completed" << std::endl;
+    
+}
+
+
+/*
+ Xue :
+ */
+bool SignedHeatTetSolver::convertEdgeGeomToPLC(const geometrycentral::EdgeDualNormalGeometry& edgeGeom, inputPLC& plc, bool verbose = false) {
+    // 获取几何数据
+    const auto& vertices = edgeGeom.getVertices();
+    const auto& edges = edgeGeom.getEdges();
+    
+    // 验证输入
+    if (vertices.empty()) {
+        if (verbose) printf("Error: No vertices in EdgeDualNormalGeometry\n");
+        return false;
+    }
+    
+    // 转换顶点数据
+    size_t npts = vertices.size();
+    double* vertex_p = (double*)malloc(npts * 3 * sizeof(double));
+    for (size_t i = 0; i < npts; i++) {
+        vertex_p[i * 3 + 0] = vertices[i].x;
+        vertex_p[i * 3 + 1] = vertices[i].y;
+        vertex_p[i * 3 + 2] = vertices[i].z;
+    }
+    
+    // 转换边数据
+    size_t nedges = edges.size();
+    uint32_t* edge_vertices_p = nullptr;
+    if (nedges > 0) {
+        edge_vertices_p = (uint32_t*)malloc(nedges * 2 * sizeof(uint32_t));
+        for (size_t i = 0; i < nedges; i++) {
+            edge_vertices_p[i * 2 + 0] = (uint32_t)edges[i].first;
+            edge_vertices_p[i * 2 + 1] = (uint32_t)edges[i].second;
+        }
+    }
+    
+    // 初始化 PLC
+    plc.input_file_name = "";
+    plc.postProcess(vertex_p, (uint32_t)npts, nullptr, 0, edge_vertices_p, (uint32_t)nedges, verbose);
+    
+    // 清理内存
+    free(vertex_p);
+    if (edge_vertices_p) free(edge_vertices_p);
+    
+    return true;
+}
+
+
+TetMesh* SignedHeatTetSolver::createSteinerCDT(inputPLC& plc, const std::string& options, const std::string& bbox_expansion_fraction ) {
+    bool log = false, bbox = false, verbose = false, snap = false, logscreen = false;
+    //bool optimize = false;
+
+    for (int i = 0; i < options.size(); i++) switch (options[i]) {
+    case 'b':
+        bbox = true; break;
+    case 'v':
+        verbose = true; break;
+    //case 'o':
+    //    optimize = true; break;
+    } // Just ignore unknown options
+
+    if (bbox) plc.addBoundingBoxVertices( std::stod(bbox_expansion_fraction) );
+
+    if (logscreen) {
+        log = true;
+    }
+
+    // Build a delaunay tetrahedrization of the vertices
+    TetMesh  *tin = new TetMesh;
+    tin->init_vertices(plc.coordinates.data(), plc.numVertices());
+    tin->tetrahedrize();
+
+    if (verbose) printf("DT of the vertices built\n");
+
+    // Build a structured PLC linked to the Delaunay tetrahedrization
+    PLCx Steiner_plc(
+          *tin,
+          plc.triangle_vertices.data(),
+          plc.numTriangles(),
+          plc.edge_vertices.data(),
+          plc.numEdges());
+
+    // Recover segments by inserting Steiner points in both the PLC and the tetrahedrization
+    Steiner_plc.segmentRecovery_HSi(!verbose);
+
+
+    // Recover PLC faces by locally remeshing the tetrahedrization
+    bool sisMethodWorks = Steiner_plc.faceRecovery(!verbose);
+
+
+    // Mark the tets which are bounded by the PLC.
+    // If the PLC is not a valid polyhedron (i.e. it has odd-valency edges)
+    // all the tets but the ghosts are marked as "internal".
+    uint32_t num_inner_tets = (uint32_t)Steiner_plc.markInnerTets();
+
+
+
+    if (snap) {
+        if (!tin->optimizeNearDegenerateTets(verbose)) {
+            std::cerr << "Could not force FP representability.\n";
+        }
+    }
+
+    //if (optimize) tin->optimizeMesh();
+
+    return tin;
+}
+
+/*
+ Xue:
+ */
+
+void SignedHeatTetSolver::convertTetMeshToTetgenio(TetMesh* tetMesh, tetgenio& out) {
+    if (!tetMesh) {
+        std::cerr << "Error: TetMesh is null" << std::endl;
+        return;
+    }
+    
+    VERBOSE = true;
+    
+    if (VERBOSE) std::cout << "Converting TetMesh to tetgenio format..." << std::endl;
+    
+    // Initialize tetgenio
+    out.initialize();
+    
+    // Include necessary headers for map and algorithm
+    #include <map>
+    #include <algorithm>
+    #include <tuple>
+    #include <array>
+    
+    // Get basic counts
+    uint32_t nVertices = tetMesh->numVertices();
+    uint32_t nTets = tetMesh->countNonGhostTets();
+    
+    if (VERBOSE) {
+        std::cout << "TetMesh contains:" << std::endl;
+        std::cout << "  Vertices: " << nVertices << std::endl;
+        std::cout << "  Non-ghost Tetrahedra: " << nTets << std::endl;
+    }
+    
+    // Set vertex information
+    out.firstnumber = 0;  // 0-based indexing
+    out.numberofpoints = nVertices;
+    out.pointlist = new REAL[nVertices * 3];
+    
+    // Extract vertices from TetMesh
+    for (uint32_t i = 0; i < nVertices; i++) {
+        // Get vertex coordinates - need to check TetMesh API for correct method
+        double coords[3];
+        tetMesh->vertices[i]->getApproxXYZCoordinates(coords[0], coords[1], coords[2], true);
+        
+        out.pointlist[i * 3 + 0] = coords[0];
+        out.pointlist[i * 3 + 1] = coords[1];
+        out.pointlist[i * 3 + 2] = coords[2];
+    }
+    
+    // Set tetrahedra information
+    out.numberoftetrahedra = nTets;
+    out.tetrahedronlist = new int[nTets * 4];
+    
+    // Extract tetrahedra from TetMesh
+    uint32_t tetIdx = 0;
+    for (uint32_t i = 0; i < tetMesh->numTets(); i++) {
+        if (!tetMesh->isGhost(i)) {  // Only include non-ghost tets
+            // Get tetrahedron vertices - access tet_node array directly
+            const uint32_t* tetVertices = tetMesh->tet_node.data() + (i * 4);
+            
+            // Skip infinite vertices (ghost tetrahedra)
+            if (tetVertices[3] != INFINITE_VERTEX) {
+                out.tetrahedronlist[tetIdx * 4 + 0] = tetVertices[0];
+                out.tetrahedronlist[tetIdx * 4 + 1] = tetVertices[1];
+                out.tetrahedronlist[tetIdx * 4 + 2] = tetVertices[2];
+                out.tetrahedronlist[tetIdx * 4 + 3] = tetVertices[3];
+                tetIdx++;
+            }
+        }
+    }
+    
+    // Update the actual number of tetrahedra (might be less due to infinite vertices)
+    out.numberoftetrahedra = tetIdx;
+    
+    // Extract faces information
+    // We need to build the face list and tet2face mapping
+    std::map<std::tuple<int,int,int>, int> faceMap;  // face vertices -> face index
+    std::vector<std::array<int,3>> faceList;        // list of face vertices
+    std::vector<std::array<int,4>> tet2faceList;    // tet -> faces mapping
+    
+    // Process each tetrahedron to extract faces
+    tetIdx = 0;
+    for (uint32_t i = 0; i < tetMesh->numTets(); i++) {
+        if (!tetMesh->isGhost(i)) {
+            const uint32_t* tetVertices = tetMesh->tet_node.data() + (i * 4);
+            
+            if (tetVertices[3] != INFINITE_VERTEX) {
+                std::array<int,4> tetFaces;
+                
+                // Each tet has 4 faces: (0,1,2), (0,3,1), (0,2,3), (1,3,2)
+                int faceOrders[4][3] = {{0,1,2}, {0,3,1}, {0,2,3}, {1,3,2}};
+                
+                for (int f = 0; f < 4; f++) {
+                    int v0 = tetVertices[faceOrders[f][0]];
+                    int v1 = tetVertices[faceOrders[f][1]];
+                    int v2 = tetVertices[faceOrders[f][2]];
+                    
+                    // Sort vertices to create canonical face representation
+                    std::array<int,3> sortedFace = {v0, v1, v2};
+                    std::sort(sortedFace.begin(), sortedFace.end());
+                    auto faceKey = std::make_tuple(sortedFace[0], sortedFace[1], sortedFace[2]);
+                    
+                    // Check if face already exists
+                    auto it = faceMap.find(faceKey);
+                    if (it == faceMap.end()) {
+                        // New face
+                        int faceIdx = faceList.size();
+                        faceMap[faceKey] = faceIdx;
+                        faceList.push_back({v0, v1, v2});  // Keep original orientation
+                        tetFaces[f] = faceIdx;
+                    } else {
+                        // Existing face
+                        tetFaces[f] = it->second;
+                    }
+                }
+                
+                tet2faceList.push_back(tetFaces);
+                tetIdx++;
+            }
+        }
+    }
+    
+    // Set face information in tetgenio
+    out.numberoftrifaces = faceList.size();
+    out.trifacelist = new int[out.numberoftrifaces * 3];
+    
+    for (size_t i = 0; i < faceList.size(); i++) {
+        out.trifacelist[i * 3 + 0] = faceList[i][0];
+        out.trifacelist[i * 3 + 1] = faceList[i][1];
+        out.trifacelist[i * 3 + 2] = faceList[i][2];
+    }
+    
+    // Set tet2face mapping
+    out.tet2facelist = new int[out.numberoftetrahedra * 4];
+    for (size_t i = 0; i < tet2faceList.size(); i++) {
+        out.tet2facelist[i * 4 + 0] = tet2faceList[i][0];
+        out.tet2facelist[i * 4 + 1] = tet2faceList[i][1];
+        out.tet2facelist[i * 4 + 2] = tet2faceList[i][2];
+        out.tet2facelist[i * 4 + 3] = tet2faceList[i][3];
+    }
+    
+    // Set edge count (approximate, since we don't extract actual edges)
+    out.numberofedges = 0;  // You might need to compute this if required
+    
+    if (VERBOSE) {
+        std::cout << "tetgenio conversion completed:" << std::endl;
+        std::cout << "  Vertices: " << out.numberofpoints << std::endl;
+        std::cout << "  Tetrahedra: " << out.numberoftetrahedra << std::endl;
+        std::cout << "  Faces: " << out.numberoftrifaces << std::endl;
+    }
+}
+
+// Simple conversion function for visualization only
+
+void SignedHeatTetSolver::convertTetMeshForVisualization(TetMesh* tetMesh) {
+    if (!tetMesh) {
+        std::cerr << "Error: TetMesh is null" << std::endl;
+        return;
+    }
+    
+    // Get vertex count
+    uint32_t numVerts = tetMesh->numVertices();
+    
+    // Extract vertices
+    vertices.resize(numVerts, 3);
+    for (uint32_t i = 0; i < numVerts; i++) {
+        double coords[3];
+        tetMesh->vertices[i]->getApproxXYZCoordinates(coords[0], coords[1], coords[2], true);
+        
+        vertices(i, 0) = coords[0];
+        vertices(i, 1) = coords[1];
+        vertices(i, 2) = coords[2];
+    }
+    
+    // Count non-ghost tetrahedra
+    std::vector<std::array<int, 4>> tetList;
+    for (uint32_t i = 0; i < tetMesh->numTets(); i++) {
+        if (!tetMesh->isGhost(i)) {
+            const uint32_t* tetVertices = tetMesh->tet_node.data() + (i * 4);
+            
+            // Skip infinite vertices
+            if (tetVertices[3] != INFINITE_VERTEX) {
+                tetList.push_back({
+                    (int)tetVertices[0],
+                    (int)tetVertices[1],
+                    (int)tetVertices[2],
+                    (int)tetVertices[3]
+                });
+            }
+        }
+    }
+    
+    // Convert to Eigen matrix
+    tets.resize(tetList.size(), 4);
+    for (size_t i = 0; i < tetList.size(); i++) {
+        tets(i, 0) = tetList[i][0];
+        tets(i, 1) = tetList[i][1];
+        tets(i, 2) = tetList[i][2];
+        tets(i, 3) = tetList[i][3];
+    }
+    
+    if (VERBOSE) {
+        std::cout << "Prepared for visualization:" << std::endl;
+        std::cout << "  Vertices: " << vertices.rows() << std::endl;
+        std::cout << "  Tetrahedra: " << tets.rows() << std::endl;
+    }
 }

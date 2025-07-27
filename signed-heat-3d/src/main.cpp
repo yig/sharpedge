@@ -439,8 +439,8 @@ int main(int argc, char** argv) {
             if (MESH_MODE == MeshMode::Tet)
             {
                 // do not want resample when tet mode ?
-                
-//                float targetEdgeLength = 0.025f; // Set your desired edge length here
+//                
+//                float targetEdgeLength = 0.05f; // Set your desired edge length here
 //                
 //                EdgeDualNormalGeometry resampledGeometry;
 //                if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
