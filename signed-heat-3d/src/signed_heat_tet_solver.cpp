@@ -2208,14 +2208,12 @@ void SignedHeatTetSolver::feedTetMeshToTetGenOptimized(const TetMesh& tetMesh,
 
     } catch (const std::exception& e) {
         std::cerr << "TetGen post-processing error: " << e.what() << std::endl;
-        return nullptr;
     }
 
     
     // 5. 转换输出为 PointPositionGeometry
     if (tetgenOutput.numberofpoints == 0) {
         std::cerr << "TetGen produced no output points" << std::endl;
-        return nullptr;
     }
 
     getTetmeshData(tetgenOutput);
