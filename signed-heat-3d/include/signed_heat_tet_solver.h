@@ -131,6 +131,11 @@ class SignedHeatTetSolver {
 
     // Add this declaration to your .h file:
     void convertTetMeshForVisualization(TetMesh* tetMesh);
+    void feedTetMeshToTetGenOptimized(const TetMesh& tetMesh,
+                                   const EdgeDualNormalGeometry& edgeGeom,
+                                   const SignedHeat3DOptions& options,
+                                   double areaConstraint);
+    
 };
 
 

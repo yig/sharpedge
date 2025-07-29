@@ -439,18 +439,17 @@ int main(int argc, char** argv) {
             if (MESH_MODE == MeshMode::Tet)
             {
                 // do not want resample when tet mode ?
-//                
-//                float targetEdgeLength = 0.05f; // Set your desired edge length here
-//                
-//                EdgeDualNormalGeometry resampledGeometry;
-//                if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
-//                    // Replace the original geometry with the resampled one
-//                    *edgeGeometry = resampledGeometry;
-//                    std::cout << "Geometry resampled to target edge length: " << targetEdgeLength << std::endl;
-//                } else {
-//                    std::cout << "Warning: Resampling failed, using original geometry" << std::endl;
-//                }
                 
+                float targetEdgeLength = 0.05f; // Set your desired edge length here
+                
+                EdgeDualNormalGeometry resampledGeometry;
+                if (resampleEdgeDualNormalGeometry(*edgeGeometry, resampledGeometry, targetEdgeLength)) {
+                    // Replace the original geometry with the resampled one
+                    *edgeGeometry = resampledGeometry;
+                    std::cout << "Geometry resampled to target edge length: " << targetEdgeLength << std::endl;
+                } else {
+                    std::cout << "Warning: Resampling failed, using original geometry" << std::endl;
+                }
             } else {
                 
                 

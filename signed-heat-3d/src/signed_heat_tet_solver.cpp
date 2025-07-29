@@ -160,8 +160,12 @@ Vector<double> SignedHeatTetSolver::computeDistance(pointcloud::PointPositionNor
 }
 
 // Modified computeDistance function for EdgeDualNormalGeometry
+// 这是用来处理 dual normal per edge 的函数
+//
 Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edgeGeom,
                                                     const SignedHeat3DOptions& options) {
+    
+    bool VERBOSE = true;
     
     std::cout << "SignedHeatTetSolver with dual normals per edge" << std::endl;
 
@@ -180,7 +184,7 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
         */
 
 
-#if USETetgen
+
         // Calculate mean edge length for area scaling
         double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
         double meanArea = meanEdgeLength; // Use edge length as proxy for area
@@ -198,13 +202,16 @@ Vector<double> SignedHeatTetSolver::computeDistance(EdgeDualNormalGeometry& edge
         }
         pointPolyGeom = std::unique_ptr<pointcloud::PointPositionGeometry>(
             new pointcloud::PointPositionGeometry(*cloud, pointPositions));
+#if USETetgen
         tetmeshPointCloud(*pointPolyGeom);
 
 #else
         /*
          Xue : switch to CDT
          */
+        
         tetmeshEdgeGeometryCDT(edgeGeom, options);
+        
 #endif
         
         
@@ -1181,7 +1188,7 @@ bool SignedHeatTetSolver::tetmeshDomain(VertexPositionGeometry& geometry) {
 }
 
 /*
- Xue: This is the actual tetrahedralize function
+ Xue: This is the original/actual tetrahedralize function
  */
 void SignedHeatTetSolver::tetmeshPointCloud(pointcloud::PointPositionGeometry& pointGeom) {
 
@@ -1259,7 +1266,7 @@ void SignedHeatTetSolver::tetmeshPointCloud(pointcloud::PointPositionGeometry& p
 
     // Display the tetmesh in the GUI.
     polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
-    polyscope::show();
+//    polyscope::show();
 
     if (VERBOSE) std::cout << "tetmeshPointCloud tetrahedralization completed" << std::endl;
     
@@ -1547,7 +1554,12 @@ void SignedHeatTetSolver::tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeo
     // Step 3: Add bounding box
     // there's conversion between 
     double bbox_expansion = options.scale - 1;
-    plc.addBoundingBoxVertices(bbox_expansion);
+//    plc.addBoundingBoxVertices(bbox_expansion);
+//
+    double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
+    // Add face grid points
+        
+    
     
     if (VERBOSE) {
         std::cout << "Final PLC: "
@@ -1571,21 +1583,87 @@ void SignedHeatTetSolver::tetmeshEdgeGeometryCDT(EdgeDualNormalGeometry& edgeGeo
     
     tetMesh->saveTET("cdt.tet", false);
 
-    convertTetMeshForVisualization(tetMesh);
-    delete tetMesh;
-
-
-    // Display the tetmesh in the GUI.
-    polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
-//    polyscope::show();
-    if (VERBOSE) std::cout << "CDT EdgeDualNormalGeometry tetrahedralization completed" << std::endl;
     
+    convertTetMeshForVisualization(tetMesh);
+    polyscope::VolumeMesh* psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
+    polyscope::show();
+    
+//    tetgenio out;
+//    convertTetMeshToTetgenio(tetMesh, out);
+//    getTetmeshData(out);
+
+    
+    
+//   *** 新增部分：使用 TetGen 后处理 CDT 结果生成 pointPolyGeom ***
+   if (VERBOSE) std::cout << "Post-processing CDT result with TetGen..." << std::endl;
+   
+   // 使用与 USETetgen 分支相同的约束计算
+   double meanArea = meanEdgeLength; // Use edge length as proxy for area
+   double areaScale = std::pow(2, -options.hCoef);
+   
+   // 使用 TetGen 优化 CDT 结果
+   feedTetMeshToTetGenOptimized(*tetMesh, edgeGeom, options, areaScale * meanArea);
+   
+
+   // *** 新增部分结束 ***
+
+    
+    psVolumeMesh = polyscope::registerTetMesh("domain", vertices, tets);
+//    polyscope::show();
+    
+    if (VERBOSE) std::cout << "CDT EdgeDualNormalGeometry tetrahedralization completed" << std::endl;
+   
+    delete tetMesh;
 }
+
+
 
 
 /*
  Xue :
  */
+//bool SignedHeatTetSolver::convertEdgeGeomToPLC(const geometrycentral::EdgeDualNormalGeometry& edgeGeom, inputPLC& plc, bool verbose = false) {
+//    // 获取几何数据
+//    const auto& vertices = edgeGeom.getVertices();
+//    const auto& edges = edgeGeom.getEdges();
+//
+//    // 验证输入
+//    if (vertices.empty()) {
+//        if (verbose) printf("Error: No vertices in EdgeDualNormalGeometry\n");
+//        return false;
+//    }
+//
+//    // 转换顶点数据
+//    size_t npts = vertices.size();
+//    double* vertex_p = (double*)malloc(npts * 3 * sizeof(double));
+//    for (size_t i = 0; i < npts; i++) {
+//        vertex_p[i * 3 + 0] = vertices[i].x;
+//        vertex_p[i * 3 + 1] = vertices[i].y;
+//        vertex_p[i * 3 + 2] = vertices[i].z;
+//    }
+//
+//    // 转换边数据
+//    size_t nedges = edges.size();
+//    uint32_t* edge_vertices_p = nullptr;
+//    if (nedges > 0) {
+//        edge_vertices_p = (uint32_t*)malloc(nedges * 2 * sizeof(uint32_t));
+//        for (size_t i = 0; i < nedges; i++) {
+//            edge_vertices_p[i * 2 + 0] = (uint32_t)edges[i].first;
+//            edge_vertices_p[i * 2 + 1] = (uint32_t)edges[i].second;
+//        }
+//    }
+//
+//    // 初始化 PLC
+//    plc.input_file_name = "";
+//    plc.postProcess(vertex_p, (uint32_t)npts, nullptr, 0, edge_vertices_p, (uint32_t)nedges, verbose);
+//
+//    // 清理内存
+//    free(vertex_p);
+//    if (edge_vertices_p) free(edge_vertices_p);
+//
+//    return true;
+//}
+
 bool SignedHeatTetSolver::convertEdgeGeomToPLC(const geometrycentral::EdgeDualNormalGeometry& edgeGeom, inputPLC& plc, bool verbose = false) {
     // 获取几何数据
     const auto& vertices = edgeGeom.getVertices();
@@ -1625,6 +1703,87 @@ bool SignedHeatTetSolver::convertEdgeGeomToPLC(const geometrycentral::EdgeDualNo
     free(vertex_p);
     if (edge_vertices_p) free(edge_vertices_p);
     
+    // 添加边界框
+    double bbox_expansion = 0.5; // 或者从参数传入
+    plc.addBoundingBoxVertices(bbox_expansion);
+    
+    // 添加网格点
+    double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
+    
+    // Calculate bounding box bounds (similar to addBoundingBoxVertices logic)
+    double bbmin[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
+    double bbmax[3] = { -DBL_MAX, -DBL_MAX, -DBL_MAX };
+    for (uint32_t i = 0; i < npts; i++) { // use original vertices only
+        const auto& v = vertices[i];
+        if (v.x < bbmin[0]) bbmin[0] = v.x;
+        if (v.x > bbmax[0]) bbmax[0] = v.x;
+        if (v.y < bbmin[1]) bbmin[1] = v.y;
+        if (v.y > bbmax[1]) bbmax[1] = v.y;
+        if (v.z < bbmin[2]) bbmin[2] = v.z;
+        if (v.z > bbmax[2]) bbmax[2] = v.z;
+    }
+    const double bbox[3] = { bbmax[0] - bbmin[0], bbmax[1] - bbmin[1], bbmax[2] - bbmin[2] };
+    for (int j = 0; j < 3; j++) {
+        bbmin[j] -= bbox[j] * bbox_expansion;
+        bbmax[j] += bbox[j] * bbox_expansion;
+    }
+    
+    // Calculate grid divisions based on mean edge length
+    double box_length = std::max({bbox[0], bbox[1], bbox[2]}); // use largest dimension
+    int N = std::max(2, (int)(box_length / meanEdgeLength * 0.8));
+
+    if (verbose) {
+        printf("Grid divisions: %d (box_length: %f, meanEdgeLength: %f)\n",
+               N, box_length, meanEdgeLength);
+    }
+
+    double x_grid_size = (bbmax[0] - bbmin[0]) / N;
+    double y_grid_size = (bbmax[1] - bbmin[1]) / N;
+    double z_grid_size = (bbmax[2] - bbmin[2]) / N;
+//
+//    int added_grid_points = 0;
+//    for (int i = 0; i < N; i++) {
+//        for (int j = 0; j < N; j++) {
+//            for (int k = 0; k < N; k++) {
+//                // Calculate grid cell bounds
+//                double cell_x_min = bbmin[0] + i * x_grid_size;
+//                double cell_y_min = bbmin[1] + j * y_grid_size;
+//                double cell_z_min = bbmin[2] + k * z_grid_size;
+//                double cell_x_max = bbmin[0] + (i + 1) * x_grid_size;
+//                double cell_y_max = bbmin[1] + (j + 1) * y_grid_size;
+//                double cell_z_max = bbmin[2] + (k + 1) * z_grid_size;
+//
+//                // Check if any existing vertex is in this cell
+//                bool has_existing_point = false;
+//                for (const auto& vertex : vertices) {
+//                    if (vertex.x >= cell_x_min && vertex.x <= cell_x_max &&
+//                        vertex.y >= cell_y_min && vertex.y <= cell_y_max &&
+//                        vertex.z >= cell_z_min && vertex.z <= cell_z_max) {
+//                        has_existing_point = true;
+//                        break;
+//                    }
+//                }
+//
+//                // If no existing point in this cell, add a point at cell center
+//                if (!has_existing_point) {
+//                    double grid_x = cell_x_min + (cell_x_max - cell_x_min) * 0.5;
+//                    double grid_y = cell_y_min + (cell_y_max - cell_y_min) * 0.5;
+//                    double grid_z = cell_z_min + (cell_z_max - cell_z_min) * 0.5;
+//
+//                    // Add vertex to PLC coordinates directly
+//                    plc.coordinates.push_back(grid_x);
+//                    plc.coordinates.push_back(grid_y);
+//                    plc.coordinates.push_back(grid_z);
+//                    added_grid_points++;
+//                }
+//            }
+//        }
+//    }
+//
+//    if (verbose) {
+//        printf("Added %d grid points to bounding box\n", added_grid_points);
+//    }
+
     return true;
 }
 
@@ -1641,7 +1800,8 @@ TetMesh* SignedHeatTetSolver::createSteinerCDT(inputPLC& plc, const std::string&
     //case 'o':
     //    optimize = true; break;
     } // Just ignore unknown options
-
+    
+    bbox = false;
     if (bbox) plc.addBoundingBoxVertices( std::stod(bbox_expansion_fraction) );
 
     if (logscreen) {
@@ -1895,4 +2055,196 @@ void SignedHeatTetSolver::convertTetMeshForVisualization(TetMesh* tetMesh) {
         std::cout << "  Vertices: " << vertices.rows() << std::endl;
         std::cout << "  Tetrahedra: " << tets.rows() << std::endl;
     }
+}
+
+// 专门用于 CDT 后处理的 TetGen 函数
+void SignedHeatTetSolver::feedTetMeshToTetGenOptimized(const TetMesh& tetMesh,
+                            const EdgeDualNormalGeometry& edgeGeom,
+                            const SignedHeat3DOptions& options,
+                            double areaConstraint) {
+    
+    bool VERBOSE = true;
+    tetgenio tetgenInput, tetgenOutput;
+    
+
+    
+    // 1. 设置顶点（使用与 convertTetMeshForVisualization 相同的方法）
+    uint32_t numVertices = tetMesh.numVertices();
+    tetgenInput.numberofpoints = numVertices;
+    tetgenInput.pointlist = new REAL[numVertices * 3];
+    tetgenInput.pointmarkerlist = new int[numVertices];
+    
+    for (uint32_t i = 0; i < numVertices; i++) {
+        double coords[3];
+        tetMesh.vertices[i]->getApproxXYZCoordinates(coords[0], coords[1], coords[2], true);
+        
+        tetgenInput.pointlist[i * 3 + 0] = coords[0];
+        tetgenInput.pointlist[i * 3 + 1] = coords[1];
+        tetgenInput.pointlist[i * 3 + 2] = coords[2];
+        
+        tetgenInput.pointmarkerlist[i] = tetMesh.isOnBoundary(i) ? 1 : 0;
+    }
+    
+    // 2. 设置四面体（使用与 convertTetMeshForVisualization 相同的逻辑）
+    std::vector<std::array<uint32_t, 4>> validTetList;
+    
+    for (uint32_t i = 0; i < tetMesh.numTets(); i++) {
+        if (!tetMesh.isGhost(i)) {
+            const uint32_t* tetVertices = tetMesh.tet_node.data() + (i * 4);
+            
+            // Skip infinite vertices
+            if (tetVertices[3] != INFINITE_VERTEX) {
+                validTetList.push_back({
+                    tetVertices[0],
+                    tetVertices[1],
+                    tetVertices[2],
+                    tetVertices[3]
+                });
+            }
+        }
+    }
+    
+    tetgenInput.numberoftetrahedra = validTetList.size();
+    tetgenInput.tetrahedronlist = new int[validTetList.size() * 4];
+    tetgenInput.tetrahedronattributelist = new REAL[validTetList.size()];
+    tetgenInput.numberoftetrahedronattributes = 1;
+    
+    for (size_t i = 0; i < validTetList.size(); i++) {
+        for (int j = 0; j < 4; j++) {
+            tetgenInput.tetrahedronlist[i * 4 + j] = validTetList[i][j];
+        }
+        
+        tetgenInput.tetrahedronattributelist[i] = 1.0;
+    }
+    
+    // 3. 设置边界面（使用相同的四面体遍历逻辑）
+    std::vector<std::array<uint32_t, 3>> boundaryFaces;
+    
+    for (uint32_t t = 0; t < tetMesh.numTets(); t++) {
+        if (tetMesh.isGhost(t)) continue;
+        
+        const uint32_t* nodes = tetMesh.tet_node.data() + (t * 4);
+        const uint64_t* neighs = tetMesh.tet_neigh.data() + (t * 4);
+        
+        // Skip if has infinite vertex
+        if (nodes[3] == INFINITE_VERTEX) continue;
+        
+        for (int face = 0; face < 4; face++) {
+            uint64_t neighTet = neighs[face] >> 2;
+            
+            if (tetMesh.isGhost(neighTet)) {
+                std::array<uint32_t, 3> faceNodes;
+                
+                switch (face) {
+                    case 0: faceNodes = {nodes[1], nodes[2], nodes[3]}; break;
+                    case 1: faceNodes = {nodes[0], nodes[3], nodes[2]}; break;
+                    case 2: faceNodes = {nodes[0], nodes[1], nodes[3]}; break;
+                    case 3: faceNodes = {nodes[0], nodes[2], nodes[1]}; break;
+                }
+                
+                boundaryFaces.push_back(faceNodes);
+            }
+        }
+    }
+    
+    if (!boundaryFaces.empty()) {
+        tetgenInput.numberoffacets = boundaryFaces.size();
+        tetgenInput.facetlist = new tetgenio::facet[boundaryFaces.size()];
+        tetgenInput.facetmarkerlist = new int[boundaryFaces.size()];
+        
+        for (size_t i = 0; i < boundaryFaces.size(); i++) {
+            tetgenio::facet* f = &tetgenInput.facetlist[i];
+            f->numberofpolygons = 1;
+            f->polygonlist = new tetgenio::polygon[1];
+            f->numberofholes = 0;
+            f->holelist = nullptr;
+            
+            tetgenio::polygon* p = &f->polygonlist[0];
+            p->numberofvertices = 3;
+            p->vertexlist = new int[3];
+            
+            p->vertexlist[0] = boundaryFaces[i][0];
+            p->vertexlist[1] = boundaryFaces[i][1];
+            p->vertexlist[2] = boundaryFaces[i][2];
+            
+            tetgenInput.facetmarkerlist[i] = 1;
+        }
+    }
+    
+    // Calculate mean edge length for area scaling (same as tetmeshPointCloud)
+    double meanEdgeLength = calculateAverageEdgeLength(edgeGeom);
+    meanEdgeLength = 0.05f;
+    double meanArea = meanEdgeLength; // Use edge length as proxy for area
+    double areaScale = std::pow(2, -options.hCoef);
+    
+    // Build TetGen flags using the same logic as tetmeshPointCloud
+//    std::string TETFLAGS = "rfennz";
+//    std::string TETFLAGS = "rfennzq1.414";
+    std::string TETFLAGS = "rYzfenna"; // 不加体积约束，只做质量改进
+
+//    std::string TETFLAGS = "rq1.414a" + std::to_string(areaScale * meanArea) + "zfennaY";
+
+//    std::string TETFLAGS = "rYq1.414a" + std::to_string(areaScale * meanArea) + "zfenna";
+
+    if (VERBOSE) {
+        std::cout << "Using TetGen flags: " << TETFLAGS << std::endl;
+        std::cout << "Mean edge length: " << meanEdgeLength << std::endl;
+        std::cout << "Area scale: " << areaScale << std::endl;
+        std::cout << "Final area constraint: " << (areaScale * meanArea) << std::endl;
+    }
+
+    // 4. 调用 TetGen
+    try {
+        if (VERBOSE) std::cout << "Calling TetGen with constraint flags: " << TETFLAGS << std::endl;
+        tetrahedralize(const_cast<char*>(TETFLAGS.c_str()), &tetgenInput, &tetgenOutput);
+
+        if (VERBOSE) {
+            std::cout << "TetGen post-processing completed!" << std::endl;
+            std::cout << "Input: " << tetgenInput.numberofpoints << " vertices, "
+                      << tetgenInput.numberoftetrahedra << " tetrahedra" << std::endl;
+            std::cout << "Output: " << tetgenOutput.numberofpoints << " vertices, "
+                      << tetgenOutput.numberoftetrahedra << " tetrahedra" << std::endl;
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "TetGen post-processing error: " << e.what() << std::endl;
+        return nullptr;
+    }
+
+    
+    // 5. 转换输出为 PointPositionGeometry
+    if (tetgenOutput.numberofpoints == 0) {
+        std::cerr << "TetGen produced no output points" << std::endl;
+        return nullptr;
+    }
+
+    getTetmeshData(tetgenOutput);
+    
+    
+    // 6. 设置可视化数据 (vertices 和 tets 作为类成员变量)
+    if (tetgenOutput.numberofpoints > 0 && tetgenOutput.numberoftetrahedra > 0) {
+        // 设置 vertices
+        vertices.resize(tetgenOutput.numberofpoints, 3);
+        for (int i = 0; i < tetgenOutput.numberofpoints; i++) {
+            vertices(i, 0) = tetgenOutput.pointlist[i * 3 + 0];
+            vertices(i, 1) = tetgenOutput.pointlist[i * 3 + 1];
+            vertices(i, 2) = tetgenOutput.pointlist[i * 3 + 2];
+        }
+        
+        // 设置 tets
+        tets.resize(tetgenOutput.numberoftetrahedra, 4);
+        for (int i = 0; i < tetgenOutput.numberoftetrahedra; i++) {
+            tets(i, 0) = tetgenOutput.tetrahedronlist[i * 4 + 0];
+            tets(i, 1) = tetgenOutput.tetrahedronlist[i * 4 + 1];
+            tets(i, 2) = tetgenOutput.tetrahedronlist[i * 4 + 2];
+            tets(i, 3) = tetgenOutput.tetrahedronlist[i * 4 + 3];
+        }
+        
+        if (VERBOSE) {
+            std::cout << "Updated visualization data:" << std::endl;
+            std::cout << "  Vertices: " << vertices.rows() << std::endl;
+            std::cout << "  Tetrahedra: " << tets.rows() << std::endl;
+        }
+    }
+    
 }
