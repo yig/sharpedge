@@ -51,7 +51,7 @@ if [ "$STEP" = "step2" ] || [ "$STEP" = "all" ]; then
     for filepath in "$INPUT_DIR"/*.obj; do
         filename=$(basename "$filepath" .obj)
         echo "Running opt_edges on: $filepath"
-        python opt_edges.py "$filepath"
+        python opt_edges.py "$filepath" "-i" "false"
 
         # Move normal gltfs
         for suffix in n0 n1 2n; do
@@ -103,16 +103,16 @@ if [ "$STEP" = "step4" ] || [ "$STEP" = "all" ]; then
         filename=$(basename "$filepath" .obj)
 
         obj_file="3d-sketches/$SUBFOLDER/${filename}.obj"
-        sdf_file="signed-heat-3d/export/${filename}_2n.csv"
+        surface_file="signed-heat-3d/export/${filename}_2n_isosurface.obj"
         output_file="${OUTPUT_DIR}/${filename}_surface.gltf"
 
-        if [ -f "$obj_file" ] && [ -f "$sdf_file" ]; then
+        if [ -f "$obj_file" ] && [ -f "$surface_file" ]; then
             echo "Exporting surface for $filename"
-            python export_sketch_surface_gltf.py "$obj_file" "$sdf_file" --output "$output_file"
+            python export_sketch_surface_gltf.py "$obj_file" "$surface_file" --output "$output_file"
         else
             echo "Warning: Missing file(s) for $filename:"
-            [ ! -f "$obj_file" ] && echo "  ❌ $obj_file not found"
-            [ ! -f "$sdf_file" ] && echo "  ❌ $sdf_file not found"
+            [ ! -f "$obj_file" ] && echo "  ❌ $obj_file obj not found"
+            [ ! -f "$sdf_file" ] && echo "  ❌ $surface_file  surface not found"
         fi
     done
 fi

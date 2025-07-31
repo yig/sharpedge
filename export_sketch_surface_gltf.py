@@ -1,128 +1,119 @@
 """
-Convert sketch (.obj) and surface SDF (.csv) into a combined GLTF.
+Convert sketch (.obj) and surface (.obj) into a combined GLTF.
 
 This script loads a sketch from an .obj file (containing polylines),
-and a signed distance field (SDF) from a .csv file.
-It extracts an isosurface from the SDF using marching cubes,
-then visualizes both the sketch and the surface together in a single GLTF file.
+and a surface mesh from another .obj file (containing vertices and faces).
+It then visualizes both the sketch and the surface together in a single GLTF file.
 
 Inputs:
   - A sketch .obj file with 3D polylines (vertices + lines)
-  - A CSV file with SDF values and coordinates (xCoord, yCoord, zCoord, SDF)
+  - A surface .obj file (vertices + faces)
 
 Output:
   - A single .gltf file visualizing both the sketch and surface mesh
 
 Usage:
-  python export_sketch_surface_gltf.py sketch.obj sdf.csv -o result.gltf
+  python export_sketch_surface_gltf.py sketch.obj surface.obj -o result.gltf
 """
 
-import pandas as pd
 import numpy as np
-from skimage import measure
-
 import argparse
 
 from plot2gltf import GLTFGeometryExporter
 from utility_io import load_sketch_polyline_data
 
-def extract_mesh_from_sdf(csv_file, iso_value=0.0):
+def load_surface_mesh_from_obj(obj_file):
     """
-    Extract mesh (vertices and faces) from SDF CSV data
+    Load surface mesh (vertices and faces) from OBJ file
     
     Args:
-        csv_file: Path to CSV file with columns xCoord, yCoord, zCoord, SDF
-        iso_value: Isosurface level to extract (default: 0.0)
+        obj_file: Path to OBJ file with vertices and faces
     
     Returns:
-        sv: numpy array of vertices (N x 3)
-        sf: numpy array of faces (M x 3)
+        vertices: numpy array of vertices (N x 3)
+        faces: numpy array of faces (M x 3)
     """
     
-    # Read CSV data
-    df = pd.read_csv(csv_file)
+    vertices = []
+    faces = []
     
-    # Extract coordinates and SDF values
-    x_coords = df['xCoord'].values
-    y_coords = df['yCoord'].values
-    z_coords = df['zCoord'].values
-    sdf_values = df['SDF'].values
+    with open(obj_file, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+                
+            parts = line.split()
+            if not parts:
+                continue
+                
+            if parts[0] == 'v':  # Vertex
+                # Parse vertex coordinates
+                x, y, z = map(float, parts[1:4])
+                vertices.append([x, y, z])
+                
+            elif parts[0] == 'f':  # Face
+                # Parse face indices (convert from 1-based to 0-based)
+                face_indices = []
+                for part in parts[1:]:
+                    # Handle different face formats: v, v/vt, v/vt/vn, v//vn
+                    vertex_index = int(part.split('/')[0]) - 1
+                    face_indices.append(vertex_index)
+                
+                # Only handle triangular faces
+                if len(face_indices) == 3:
+                    faces.append(face_indices)
+                else:
+                    print(f"Warning: Skipping non-triangular face with {len(face_indices)} vertices")
     
-    # Determine grid dimensions
-    x_unique = np.sort(np.unique(x_coords))
-    y_unique = np.sort(np.unique(y_coords))
-    z_unique = np.sort(np.unique(z_coords))
+    vertices = np.array(vertices)
+    faces = np.array(faces)
     
-    nx, ny, nz = len(x_unique), len(y_unique), len(z_unique)
-    
-    # Reshape SDF values into 3D grid
-    try:
-        # Try standard ordering: for k in nz: for j in ny: for i in nx
-        sdf_grid = sdf_values.reshape((nz, ny, nx))
-    except ValueError:
-        try:
-            # Try alternative ordering: for i in nx: for j in ny: for k in nz
-            sdf_grid = sdf_values.reshape((nx, ny, nz))
-            sdf_grid = np.transpose(sdf_grid, (2, 1, 0))  # Reorder to (nz, ny, nx)
-        except ValueError:
-            raise ValueError("Cannot reshape data into regular grid")
-    
-    # Grid spacing
-    dx = x_unique[1] - x_unique[0] if len(x_unique) > 1 else 1.0
-    dy = y_unique[1] - y_unique[0] if len(y_unique) > 1 else 1.0
-    dz = z_unique[1] - z_unique[0] if len(z_unique) > 1 else 1.0
-    spacing = (dx, dy, dz)
-    
-    # Extract isosurface using marching cubes
-    vertices, faces, normals, values = measure.marching_cubes(
-        sdf_grid, 
-        level=iso_value, 
-        spacing=spacing
-    )
-    
-    # Translate vertices to correct world coordinates
-    vertices[:, 0] += x_unique[0]
-    vertices[:, 1] += y_unique[0]
-    vertices[:, 2] += z_unique[0]
+    print(f"Loaded surface mesh: {len(vertices)} vertices, {len(faces)} faces")
     
     return vertices, faces
 
-def export_sketch_surface_gltf(polylines, SV, SF, filename):
-    '''
+def export_sketch_surface_gltf(polylines, surface_vertices, surface_faces, filename):
+    """
     Export the sketch and the surface to file, as gltf.
 
-    polylines: polyline of the sketch 
-    SV: surface vertices
-    SF: surface faces
-    
-    '''
+    Args:
+        polylines: list of polylines from the sketch 
+        surface_vertices: surface mesh vertices (N x 3)
+        surface_faces: surface mesh faces (M x 3)
+        filename: output GLTF filename
+    """
     # Initialize exporter
     exporter = GLTFGeometryExporter()
 
     POLYLINE_RADIUS = 0.002
 
+    # Add sketch polylines as cylinder strips
     for polyline in polylines:
-        exporter.add_cylinder_strips(polyline, radius=POLYLINE_RADIUS,add_spheres=False)
-    exporter.add_triangles(SV, SF, color=(0.5, 0.5, 0.5)) 
+        exporter.add_cylinder_strips(polyline, radius=POLYLINE_RADIUS, add_spheres=False)
+    
+    # Add surface mesh as triangles
+    exporter.add_triangles(surface_vertices, surface_faces, color=(0.5, 0.5, 0.5)) 
 
     exporter.save(filename)
     print(f"GLTF file saved as: {filename}")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Export sketch with SDF surface as GLTF.')
-    parser.add_argument('sketch_file', help='Sketch .obj file')
-    parser.add_argument('sdf_file', help='CSV file containing SDF grid')
+    parser = argparse.ArgumentParser(description='Export sketch with surface mesh as GLTF.')
+    parser.add_argument('sketch_file', help='Sketch .obj file (with polylines)')
+    parser.add_argument('surface_file', help='Surface .obj file (with mesh faces)')
     parser.add_argument('--output', '-o', default='output.gltf', help='Output GLTF file')
     args = parser.parse_args()
 
     # Load sketch data
+    print(f"Loading sketch from: {args.sketch_file}")
     V, E, P = load_sketch_polyline_data(args.sketch_file)
-
     polylines = [[V[index] for index in p] for p in P]
+    print(f"Loaded sketch: {len(polylines)} polylines")
 
-    # Extract surface mesh from SDF
-    sv, sf = extract_mesh_from_sdf(args.sdf_file)
+    # Load surface mesh from OBJ
+    print(f"Loading surface mesh from: {args.surface_file}")
+    surface_vertices, surface_faces = load_surface_mesh_from_obj(args.surface_file)
 
     # Export to GLTF
-    export_sketch_surface_gltf(polylines, sv, sf, args.output)
-
+    export_sketch_surface_gltf(polylines, surface_vertices, surface_faces, args.output)
