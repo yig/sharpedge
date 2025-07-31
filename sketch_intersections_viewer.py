@@ -73,6 +73,12 @@ def plot_intersection_vertices(V, E, P, valence_threshold=2, show_plot=True):
         ax.scatter(points[:, 0], points[:, 1], points[:, 2], 
                   color=color, s=10, alpha=0.7)
     
+        # Add a text label at the midpoint of the polyline
+        # mid_idx = len(points) // 2
+        # mid_point = points[mid_idx]
+        # ax.text(mid_point[0], mid_point[1], mid_point[2], 
+        #         f'{poly_idx}', fontsize=9, color=color)
+
     # Note: Regular vertices are already plotted as part of polylines above
     
     # Plot intersection vertices (high valence) in red - HIGHLIGHTED
@@ -87,13 +93,13 @@ def plot_intersection_vertices(V, E, P, valence_threshold=2, show_plot=True):
                   label=f'Intersection vertices (>{valence_threshold})', zorder=10)
         
         # Add labels for intersection vertices
-        # for v_idx in intersection_vertices:
-        #     coord = V[v_idx]
-        #     valence = vertex_valence[v_idx]
-        #     ax.text(coord[0] + 0.02, coord[1] + 0.02, coord[2] + 0.02, 
-        #            f'{v_idx}({valence})',
-        #            fontsize=10, color='darkred', weight='bold',
-        #            bbox=dict(boxstyle="round,pad=0.3", facecolor='yellow', alpha=0.7))
+        for v_idx in intersection_vertices:
+            coord = V[v_idx]
+            valence = vertex_valence[v_idx]
+            ax.text(coord[0] + 0.02, coord[1] + 0.02, coord[2] + 0.02, 
+                   f'{v_idx}({valence})',
+                   fontsize=10, color='darkred', weight='bold',
+                   bbox=dict(boxstyle="round,pad=0.3", facecolor='yellow', alpha=0.7))
     
     # Set labels and title
     ax.set_xlabel('X')
