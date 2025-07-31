@@ -452,6 +452,7 @@ def plot_3d_geometry(vertices, edges, triangles, polylines,
                color=color, linewidth=2, label=f'Polyline {len(polyline)} points')
     
     plt.axis('off')
+    plt.axis('equal')
     plt.tight_layout()
     plt.show()
 
@@ -834,6 +835,7 @@ def plot_hull_with_normals(vertices, edges, faces, vertex_normals, edge_normals,
                      arrow_length_ratio=0.2, linewidth=1)
     
     plt.axis('off')
+    plt.axis('equal')
     plt.tight_layout()
     plt.show()
 
@@ -1155,9 +1157,9 @@ if __name__ == "__main__":
     # gltf_normal_path = 'files_starter/gltfs/edge_normals/'
 
 
-    gltf_sketch_path = 'files_starter/gltfs/convex_hull/'
-    gltf_hull_path = 'files_starter/gltfs/convex_hull/'
-    gltf_normal_path = 'files_starter/gltfs/convex_hull/'
+    # gltf_sketch_path = 'files_starter/gltfs/convex_hull/'
+    # gltf_hull_path = 'files_starter/gltfs/convex_hull/'
+    # gltf_normal_path = 'files_starter/gltfs/convex_hull/'
     
     curve_name = Path(curve_file).stem
 

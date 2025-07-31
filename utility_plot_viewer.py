@@ -620,3 +620,108 @@ def plot_edge_constraints_two_normals(V, E, P, constraints, unconstrained_polyli
         plt.pause(0.1)  # Increased pause time for better visibility
 
     return fig, ax
+
+
+
+def plot_constraints_around_vertex(vertex_idx, V, E, P, plotting_normals, unconstrained_polylines_indices=None, scale=0.08, str_title=None, filename=None, block=False):
+    """
+    Plot 3D visualization of normals only around a specific vertex.
+    Shows the vertex, its incident edges, and any normals on those edges.
+    plotting_normals: dict with keys (edge_idx, which_normal) and values as normal vectors
+    """
+    # Setup figure
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+    
+    # Find all edges incident to the vertex
+    incident_edges = []
+    for ei, (v1, v2) in enumerate(E):
+        if v1 == vertex_idx or v2 == vertex_idx:
+            incident_edges.append(ei)
+    
+    # Plot all edges in very light gray first
+    for ei, (v1, v2) in enumerate(E):
+        edge_pts = np.array([V[v1], V[v2]])
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color='gray', alpha=0.3, linewidth=1)
+    
+    # Plot all vertices in light gray
+    ax.scatter(V[:,0], V[:,1], V[:,2], color='lightgray', s=20, alpha=0.5)
+    
+    # Highlight the central vertex
+    vertex_pos = V[vertex_idx]
+    ax.scatter(*vertex_pos, color='red', s=100, label=f'Central vertex {vertex_idx}')
+    
+    # Highlight incident edges with colors
+    colors = plt.cm.tab10(np.linspace(0, 1, len(incident_edges)))
+    for i, ei in enumerate(incident_edges):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        edge_pts = np.array([vertex_pos, V[other_idx]])
+        
+        # Plot the incident edge with color
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color=colors[i], linewidth=3)
+        
+        # Highlight the connected vertex
+        ax.scatter(*V[other_idx], color=colors[i], s=60)
+        
+        # Label the edge
+        # mid = (vertex_pos + V[other_idx]) / 2
+        # ax.text(*mid, f'{ei}', fontsize=10, color='black',
+        #         bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+    
+    
+    # Plot normal vectors only for incident edges
+    normal_count = 0
+    for edge_key, normal in plotting_normals.items():
+        edge_idx, which_normal = edge_key
+        
+        # Only plot if this edge is incident to our vertex
+        if edge_idx in incident_edges:
+            normal_count += 1
+            e = E[edge_idx]
+            e0, e1 = e
+            start = V[e0]
+            end = V[e1]
+            
+            # Calculate midpoint with offset
+            mid = (start + end) / 2
+            
+            # Add a small offset to separate the two normal vectors visually
+            offset = 0.01 * (which_normal - 0.5)
+            edge_dir = end - start
+            edge_dir_norm = edge_dir / np.linalg.norm(edge_dir)
+            # Offset perpendicular to both edge and normal
+            offset_dir = np.cross(edge_dir_norm, normal)
+            if np.linalg.norm(offset_dir) > 1e-6:
+                offset_dir = offset_dir / np.linalg.norm(offset_dir)
+                mid = mid + offset * offset_dir
+            
+            # Choose color based on which normal (0 or 1)
+            color = 'green' if which_normal == 0 else 'red'
+            
+            # Plot the normal vector
+            ax.quiver(mid[0], mid[1], mid[2],
+                     normal[0], normal[1], normal[2],
+                     color=color, length=scale, normalize=True,
+                     arrow_length_ratio=0.2)
+    
+    # Set title if provided
+    if str_title is not None:
+        ax.set_title(str_title)
+    
+    plt.axis('off')
+    plt.axis('equal')
+    
+    if filename:
+        plt.savefig(filename, dpi=300, bbox_inches='tight', pad_inches=0.1)
+        if not block:
+            plt.close()
+    
+    plt.show()
+    
+    return fig, ax

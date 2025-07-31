@@ -1,4 +1,7 @@
 import numpy as np
+import argparse
+
+
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from collections import defaultdict
@@ -116,6 +119,58 @@ def plot_sorted_edges(vertex_idx, ordered_edge_indices, E, V, ax=None):
 
     ax.set_title(f"Circulation around vertex {vertex_idx}")
     ax.legend()
+    
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+def plot_sorted_edges_v1(vertex_idx, ordered_edge_indices, E, V, ax=None):
+    """
+    Plot the ordered edges around a vertex in 3D, labeling each edge with its edge index.
+    All edges are shown in very light gray, with sorted edges highlighted in color.
+    """
+    if ax is None:
+        fig = plt.figure(figsize=(8,8))
+        ax = fig.add_subplot(111, projection='3d')
+
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot all edges in very light gray first
+    for ei, (v1, v2) in enumerate(E):
+        edge_pts = np.array([V[v1], V[v2]])
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color='gray', alpha=0.3, linewidth=1)
+
+    # Plot all vertices
+    ax.scatter(V[:,0], V[:,1], V[:,2], color='lightgray', s=20, alpha=0.5)
+
+    # Highlight the central vertex
+    vertex_pos = V[vertex_idx]
+    ax.scatter(*vertex_pos, color='red', s=100, label=f'Central vertex {vertex_idx}')
+
+    # Plot the sorted edges with colors
+    colors = plt.cm.tab10(np.linspace(0, 1, len(ordered_edge_indices)))
+    
+    for i, ei in enumerate(ordered_edge_indices):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        edge_pts = np.array([vertex_pos, V[other_idx]])
+        
+        # Plot the sorted edge with color
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color=colors[i], linewidth=3)
+        
+        # Highlight the connected vertex
+        ax.scatter(*V[other_idx], color=colors[i], s=60)
+
+        # Annotate with actual edge index
+        mid = (vertex_pos + V[other_idx]) / 2
+        ax.text(*mid, f'{ei}', fontsize=10, color='black', 
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8))
+
+    # ax.set_title(f"Circulation around vertex {vertex_idx}")
+    # ax.legend()
     
     plt.axis('off')
     plt.axis('equal')
@@ -389,11 +444,19 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V, auto_detect
     plt.tight_layout()
     return fig, ax
 
-# Example usage
-# Example usage
+
 if __name__ == "__main__":
-    curve_file = 'sketches/onshape/onshape_simple_mouse.obj'
-    curve_file = 'sketches_split/onshape_simple_shape.obj'
+
+     
+    parser = argparse.ArgumentParser(description='Optimize edges to get normals')
+    parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
+
+    args = parser.parse_args()
+
+    curve_file = args.curve_file
+
+    if curve_file is None:
+        curve_file = '3d-sketches/good/onshape_simple_mouse.obj'
     V, E, P = load_sketch_polyline_data(curve_file)
     
     vertex_to_edges_map = build_vertex_to_edges_map(E)
@@ -413,7 +476,7 @@ if __name__ == "__main__":
         # First plot: show the sorted edges
         fig1 = plt.figure(figsize=(8, 8))
         ax1 = fig1.add_subplot(111, projection='3d')
-        plot_sorted_edges(vertex_idx, sorted_edges, E, V, ax=ax1)
+        plot_sorted_edges_v1(vertex_idx, sorted_edges, E, V, ax=ax1)
         plt.tight_layout()
         plt.show()
         

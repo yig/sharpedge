@@ -253,7 +253,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Split polylines at high valence vertices')
     parser.add_argument('curve_file', help='Input OBJ file with polylines')
     parser.add_argument('output_file', nargs='?', help='Output OBJ file')
-    parser.add_argument('--min_valence', type=int, default=2,
+    parser.add_argument('--min_valence', type=int, default=3,
                        help='Minimum valence to consider as "high" (default: 3)')
     parser.add_argument('--preview', action='store_true',
                        help='Show preview without splitting')
