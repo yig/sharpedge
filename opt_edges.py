@@ -528,7 +528,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     # print('polyline_normals', polyline_normals)
 
     if show_plot:
-        plot_polyline_normals(V, E, P, polyline_normals, str = 'parallel transport most perpendicular normal')
+        plot_polyline_normals(V, E, P, polyline_normals, scale=0.05, str = 'parallel transport most perpendicular normal')
 
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array( polyline_normals, len(E), polyline_to_edge_map), unconstrained_polylines_indices = None, filename = 'debug_normals_gltf/initial_parallel_transport/' + curve_name + '.gltf' )
@@ -572,6 +572,8 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
 
     while len(frontier_edges) != 0:
+
+        print('frontier_edges', frontier_edges)
 
         # 1. find which edges to expand.
         to_expand_edges = set()
@@ -653,7 +655,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
         print('to_expand_normals', to_expand_normals)
 
         if show_plot:
-            plot_edge_constraints(V, E, P, to_expand_normals, scale=0.15, str = 'propagate from nearby normals', filename= None, block = True)
+            plot_edge_constraints(V, E, P, to_expand_normals, scale=0.08, str = 'propagate from nearby normals', filename= None, block = True)
 
         # 4. now based on the to expand normals, propagate the the polylines which does not have normals
         expand_polylines = set()
@@ -679,7 +681,8 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
                 edge_constraints_map_updated[edge_id] = normal_vectors[position]
                 expand_polyline_normals[edge_id] = normal_vectors[position]
 
-        plot_edge_constraints(V, E, P, expand_polyline_normals, scale= 0.15, str= "expand polyline normals")
+        if show_plot:
+            plot_edge_constraints(V, E, P, expand_polyline_normals, scale= 0.05, str= "expand polyline normals")
 
         frontier_edges = set()
         # 5. now update the frontier_edges
@@ -692,7 +695,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
             frontier_edges.add( polyline_end_edge )
 
     if show_plot:    
-        plot_edge_constraints(V, E, P, edge_constraints_map_updated, scale= 0.08, str= "after propagate to nearby")
+        plot_edge_constraints(V, E, P, edge_constraints_map_updated, scale= 0.05, str= "after propagate to nearby")
     
  
 
@@ -711,7 +714,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     # print('unconstrained_polyline_to_best_normal_map', unconstrained_polyline_to_best_normal_map)
 
     if show_plot:
-        plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.08, str = 'borrow nearby edge normal')
+        plot_polyline_best_constraints(V, E, P, unconstrained_polyline_to_best_normal_map, scale=0.05, str = 'borrow nearby edge normal')
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array(unconstrained_polyline_to_best_normal_map, len(E), polyline_to_edge_map), unconstrained_polylines, 'debug_normals_gltf/borrowed_normal/' + curve_name + '.gltf')
     
@@ -724,7 +727,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     ## how about just use random normals for those who are unconstrainted? no, not good!
 
     if show_plot:
-        plot_polyline_normals(V, E, P, unconstrained_polyline_normals, scale=0.08,  str = 'parallel transport of the polyline with borrowed normal')
+        plot_polyline_normals(V, E, P, unconstrained_polyline_normals, scale=0.05,  str = 'parallel transport of the polyline with borrowed normal')
     if save_debug_gltf:
         export_sketch_normal_gltf(V, E, P, convert_edge_dict_to_array( unconstrained_polyline_normals, len(E), polyline_to_edge_map), unconstrained_polylines,  'debug_normals_gltf/borrowed_parallel_transport/' + curve_name + '.gltf')
 
@@ -753,7 +756,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     assert len( polyline_normals.keys() ) == len(P), "Some polylines do not have normals"
     
     if show_plot:
-        plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.08, str= "initial estimate")
+        plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.05, str= "initial estimate")
 
     return edge_constraints_map_estimated
 
@@ -1433,7 +1436,6 @@ def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_norma
     E_constraint += compute_one_normal_constraint_energy(normals1, constraints['normal1']) * 0.5
 
     # ===== One Normal Energy =====
-    E_one_normal = compute_two_normals_coherence_energy(thetas, one_normal)
     
     # ===== Pairwise Energy =====
     E_pairwise = compute_two_normal_pairwise_energy(
@@ -1444,7 +1446,7 @@ def compute_two_normal_total_energy(thetas, Us, Vs, constraints, data, one_norma
     
     # Return weighted sum of energies
     # return 1e-2 * E_constraint + 1e4 * E_pairwise + 1e6 * E_one_normal
-    return 1e0 * E_constraint + 1e0 * E_pairwise + 1e2 * E_one_normal
+    return 1e0 * E_constraint + 1e0 * E_pairwise 
 
 @jit
 def compute_one_normal_total_energy(thetas, Us, Vs, constraints, data):
@@ -1522,7 +1524,7 @@ def create_callback(Us, Vs, E, P, V, mode='two'):
             plot_edge_constraints(
                 V, E, P, normals_now, 
                 unconstrained_polylines_indices=None,
-                scale=0.08,
+                scale=0.05,
                 str=f"One-Normal Optimization: Iteration {current_iter}",
                 block=False
             )
@@ -1562,9 +1564,9 @@ def create_callback(Us, Vs, E, P, V, mode='two'):
             plot_edge_constraints_two_normals(
                 V, E, P, normals_now, 
                 unconstrained_polylines_indices=None,
-                scale=0.08,
+                scale=0.05,
                 str=f"Two-Normal Optimization: Iteration {current_iter}",
-                block=False
+                block=True
             )
             
             return False
@@ -1678,6 +1680,34 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, rotations_data, ve
         thetas_2d[:, 1] += 1e-3  # Small perturbation for second normal
         initial_thetas = thetas_2d.flatten()
         
+        # # TODO
+        # # If an edge has zero constrained normals, the initial guess is fine.
+        # # If an edge has two constrained normals, the initial guess is essentially overridden and doesn't matter.
+        # # If an edge has exactly one constrained normal, let's update the initial guess so that the perturbation
+        # # implies positive rather than negative curvature.
+        # # This only applies to high-valence junctions where there is a "straight across" edge.
+        # for edge_index in len(edges):
+        #     e0_is_constrained = ( edge_index, 0 ) in corner_constraints
+        #     e1_is_constrained = ( edge_index, 1 ) in corner_constraints
+        #     if e0_is_constrained and not e1_is_constrained:
+        #         # Extract the initial guess directly from the constraint for the constrained edge.
+        #         thetas_2d[ edge_index, 0 ] = corner_constraints[ ( edge_index, 0 ) ]
+        #         ## UPDATE: We need circulation order here. We need to know whether normal 1 is to the "right" or "left" or normal 0.
+        #         ## UPDATE 2: Do we know that because we always circulate 0 to 1?
+        #         thetas_2d[ edge_index, 1 ] = thetas_2d[ edge_index, 0 ] + 1e-3
+        #     elif e1_is_constrained and not e0_is_constrained:
+        #         # Extract the initial guess directly from the constraint for the constrained edge.
+        #         thetas_2d[ edge_index, 1 ] = corner_constraints[ ( edge_index, 1 ) ]
+        #         ## UPDATE: We need circulation order here. We need to know whether normal 1 is to the "right" or "left" or normal 0.
+        #         ## UPDATE 2: Do we know that because we always circulate 0 to 1? No, because we circulated CW or CCW based on
+        #         ##           the mean curvature at the vertex. Here, we either want to add or subtract the perturbation
+        #         ##           depending on that order so that the edge flap ends up with positive curvature.
+        #         ##           The solution is either to reverse the order of normal constraint assignment so that it's always
+        #         ##           CCW or else recompute the circulation order here (only one endpoint can be high valence)
+        #         ##           and compare it to the one normal guess.
+        #         thetas_2d[ edge_index, 0 ] = thetas_2d[ edge_index, 1 ] - 1e-3
+
+
         if one_normal is None:
             one_normal = []
         one_normal_jax = jnp.array(one_normal)
@@ -2009,7 +2039,7 @@ if __name__ == "__main__":
     parser.add_argument('gltf_file', nargs='?', help='The normal gltf file to save.')
     parser.add_argument('-p', '--normal_per_edge', type=int, choices=[1, 2], default=2,
                     help='Number of normals per edge (1 or 2)')
-    parser.add_argument('-i','--show_plot', type=str, choices=['true', 'false'], default='false',
+    parser.add_argument('-i','--show_plot', type=str, choices=['true', 'false'], default='true',
                    help='Whether to show the visualization plot (default: true)')    
     parser.add_argument('--save_debug_gltf', type=str, choices=['true', 'false'], default='false',
                    help='Save the gltf files for debug (default: true)')    
@@ -2079,7 +2109,7 @@ if __name__ == "__main__":
     # edge normal from convex hull
     # edge_constraints : [ (edge_idx, normal) ]
     # only the ones with normal will be in the list 
-    edge_constraints = get_sketch_edge_constraints(V, E)
+    edge_constraints = get_sketch_edge_constraints(V, E, tol=2e-2, epsilon=5e-3)
     # print('edge_constraints', edge_constraints)
     print('len(edge_constraints)', len(edge_constraints))
     
@@ -2108,7 +2138,7 @@ if __name__ == "__main__":
 
     # plot and save debug gltf
     if show_plot:
-        plot_edge_constraints(V, E, P, edge_constraints, scale=0.08, str = 'edge constraints from convex hull', filename= None, block= True)
+        plot_edge_constraints(V, E, P, edge_constraints, scale=0.05, str = 'edge constraints from convex hull', filename= None, block= True)
         write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
     
     if save_debug_gltf:
@@ -2140,7 +2170,7 @@ if __name__ == "__main__":
     
     # show the frame on each edge
     # if show_plot:
-    #     plot_edge_frames(V, E, P, Us, Vs, scale=0.08)
+        # plot_edge_frames(V, E, P, Us, Vs, scale=0.05)
     
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
     # print('thetas0', thetas0)
@@ -2200,11 +2230,14 @@ if __name__ == "__main__":
         )
 
         estimate_normals = recover_normals(result, Us, Vs, mode='one')
+        # still want to save this one normal optimization result for debug
+        export_sketch_normal_gltf(V, E, P, estimate_normals, unconstrained_polylines_indices, filename = f"debug_normals/{curve_name}_1n.gltf"
+)
 
         if show_plot:
             plot_edge_constraints(
                 V, E, P, estimate_normals, unconstrained_polylines_indices=None, 
-                scale=0.08, str="One-Normal Optimization Result", block=True
+                scale=0.05, str="One-Normal Optimization Result", block=True
             )
             
         corner_constraints = vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals)
@@ -2213,6 +2246,8 @@ if __name__ == "__main__":
 
         if show_plot:
             plot_edge_constraints_two_normals(V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', filename='debug_normals/' + curve_name + '.png', block=True)
+            # from utility_plot_viewer import plot_constraints_around_vertex
+            # plot_constraints_around_vertex(39, V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, scale=0.08, str_title=None, filename=None, block=True)
         
         
         thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
@@ -2250,7 +2285,7 @@ if __name__ == "__main__":
         if show_plot:
             plot_edge_constraints(
                 V, E, P, normals, unconstrained_polylines_indices=None, 
-                scale=0.08, str="One-Normal Optimization Result", block=True
+                scale=0.05, str="One-Normal Optimization Result", block=True
             )
         
         export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
@@ -2262,13 +2297,28 @@ if __name__ == "__main__":
         if show_plot:
             plot_edge_constraints_two_normals(
                 V, E, P, normals, unconstrained_polylines_indices=None, 
-                scale=0.08, str="Two-Normal Optimization Result", block=True
+                scale=0.05, str="Two-Normal Optimization Result", block=True
             )
 
 
             plot_edge_constraints_two_normals(
                 V, E, P, normals, unconstrained_polylines_indices=None, 
-                scale=0.08, str="Grouped normal", block=True
+                scale=0.05, str="Grouped normal", block=True
+            )
+
+            normals_view_0 = {k: v if k[1] == 0 else np.zeros(3) for k, v in normals.items()}
+            normals_view_1 = {k: v if k[1] == 1 else np.zeros(3) for k, v in normals.items()}
+
+
+
+            plot_edge_constraints_two_normals(
+                V, E, P, normals_view_0, unconstrained_polylines_indices=None, 
+                scale=0.05, str="Grouped normal", block=True
+            )
+
+            plot_edge_constraints_two_normals(
+                V, E, P, normals_view_1, unconstrained_polylines_indices=None, 
+                scale=0.05, str="Grouped normal", block=True
             )
 
             # plot_two_normals(V, E, normals)
