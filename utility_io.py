@@ -103,7 +103,7 @@ def load_normal_data(filename):
     Args:
         filename (str): Path to input OBJ file containing:
             - v x y z: vertex coordinates
-            - e v1 v2: edge between vertices v1 and v2 (1-based indices)
+            - l v1 v2: edge between vertices v1 and v2 (1-based indices)
             - vn nx ny nz: normal vector components
         
     Returns:
@@ -163,7 +163,7 @@ def write_normal_data(V, E, N, filename):
         
     File format:
         v x y z     # vertex coordinates
-        e i j       # edge between vertices i and j (1-based indices)
+        l i j       # edge between vertices i and j (1-based indices)
         vn nx ny nz # normal vector for edge
         
     Note:
