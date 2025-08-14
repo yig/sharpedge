@@ -1,78 +1,7 @@
 import numpy as np
 import polyscope as ps
 
-def read_two_normal(filename):
-    """
-    Read vertices, edges, and dual normal data from an OBJ file.
-    """
-    import numpy as np
-    
-    V = []  # Vertices
-    E = []  # Edges
-    normals = {}  # Dictionary to store normals
-    normal_vectors = []  # Temporary list to store normal vectors
-    
-    with open(filename, 'r') as f:
-        for line in f:
-            parts = line.strip().split()
-            if not parts:
-                continue
-                
-            if parts[0] == 'v':  # Vertex
-                V.append([float(parts[1]), float(parts[2]), float(parts[3])])
-            elif parts[0] == 'l':  # Edge
-                # Convert from 1-based to 0-based indexing
-                E.append([int(parts[1])-1, int(parts[2])-1])
-            elif parts[0] == 'vn':  # Normal vector
-                normal_vectors.append([float(parts[1]), float(parts[2]), float(parts[3])])
-    
-    # Associate normals with edges
-    for i, _ in enumerate(E):
-        normals[(i, 0)] = normal_vectors[2*i]
-        normals[(i, 1)] = normal_vectors[2*i + 1]
-    
-    # Convert lists to numpy arrays
-    V = np.array(V)
-    E = np.array(E)
-    
-    print(f"Read from {filename}:")
-    print(f"- {len(V)} vertices")
-    print(f"- {len(E)} edges")
-    print(f"- {len(normal_vectors)} normal vectors")
-    
-    return V, E, normals
-
-def load_mesh_obj(filename):
-    """
-    Load mesh from OBJ file (vertices and faces)
-    """
-    vertices = []
-    faces = []
-    
-    with open(filename, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-                
-            parts = line.split()
-            if not parts:
-                continue
-                
-            if parts[0] == 'v':  # Vertex
-                x, y, z = map(float, parts[1:4])
-                vertices.append([x, y, z])
-                
-            elif parts[0] == 'f':  # Face
-                face_indices = []
-                for part in parts[1:]:
-                    vertex_index = int(part.split('/')[0]) - 1
-                    face_indices.append(vertex_index)
-                
-                if len(face_indices) == 3:
-                    faces.append(face_indices)
-    
-    return np.array(vertices), np.array(faces)
+from utility_io import read_two_normal, load_mesh_obj
 
 def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
     """
@@ -175,14 +104,13 @@ def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
     print("Loading normal file...")
     original_vertices, original_edges, original_normals = read_two_normal(normal_file)
 
-    print(f"\n=== Resampling processing ===")
+    print("Resampling processing...")
     sketch_vertices, sketch_edges, normals = resample_edge_dual_normal(
         original_vertices, original_edges, original_normals, target_edge_length)
     
-
     print("Loading mesh file...")
     mesh_vertices, mesh_faces = load_mesh_obj(mesh_file)
-    
+
     # 简单的验证：计算 sketch 顶点到 mesh 顶点的最近距离
     from scipy.spatial import cKDTree
     
@@ -215,21 +143,15 @@ def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
         
         if v1_distance <= tolerance and v2_distance <= tolerance:
             edges_on_mesh += 1
-    
-    print(f"容忍距离: {tolerance}")
-    print(f"顶点在 mesh 上: {vertices_on_mesh}/{len(sketch_vertices)} "
-          f"({100*vertices_on_mesh/len(sketch_vertices):.1f}%)")
-    print(f"边在 mesh 上: {edges_on_mesh}/{len(sketch_edges)} "
-          f"({100*edges_on_mesh/len(sketch_edges):.1f}%)")
-    print(f"最大顶点距离: {max_distance:.6f}")
-    print(f"平均顶点距离: {total_distance/len(sketch_vertices):.6f}")
-    
+
     # 初始化 polyscope
     ps.init()
     
     # 添加 mesh - 不透明
     ps_mesh = ps.register_surface_mesh("mesh", mesh_vertices, mesh_faces)
     ps_mesh.set_color([0.8, 0.8, 0.8])
+    ps_mesh.set_edge_color([0, 0, 0])
+    ps_mesh.set_edge_width(1.0)
     # 移除透明度设置，保持不透明
     
     # 添加 sketch 的顶点

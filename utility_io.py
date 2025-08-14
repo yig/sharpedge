@@ -432,7 +432,7 @@ def export_obj(vertices, faces, filename):
     print(f"- {len(vertices)} vertices")
     print(f"- {len(faces)} faces")
 
-def load_obj(filename):
+def load_mesh_obj(filename):
     """
     Load vertices and faces from an OBJ file.
     
@@ -475,7 +475,7 @@ def load_obj(filename):
     print(f"- {len(vertices)} vertices")
     print(f"- {len(faces)} faces")
     
-    return vertices, faces
+    return np.asarray(vertices), np.asarray(faces)
 
 def write_string_to_file(content, filename, encoding='utf-8'):
     """
