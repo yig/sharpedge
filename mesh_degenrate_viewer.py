@@ -69,6 +69,45 @@ def view_degenerate_triangles(V, F):
     ps.show()
 
 
+def find_point_faces(V, F, eps=1e-15):
+    '''
+    find that triangles that is actual a point
+    '''
+    deg_faces = []
+    for i, f in enumerate(F):
+        v0, v1, v2 = V[f]
+        if np.allclose(v0, v1, atol= eps) and np.allclose(v0, v2, atol=eps):
+            deg_faces.append(i)
+
+    return np.array(deg_faces)
+ 
+def view_point_triangles(V, F):
+    '''
+    '''
+
+    ps.init()
+
+    # 假设 V, F 是 mesh
+    ps_mesh = ps.register_surface_mesh("mesh", V, F)
+    ps_mesh.set_edge_color((0, 0, 0))
+    ps_mesh.set_edge_width(1.0)
+
+    deg_faces = find_point_faces(V, F)
+
+    print(deg_faces)
+    print(F[0])
+    print(V[0])
+    print(V[1])
+    print(V[2])
+
+
+    # 收集所有三角形涉及到的顶点索引
+    unique_vs, new_index = np.unique(F[deg_faces].flatten(), return_inverse=True)
+
+    # 子集顶点
+    deg_V = V[unique_vs]
+
+    ps.register_point_cloud("point triangles", deg_V, radius=0.005, color=(1, 0, 0))
 
 
 
@@ -85,6 +124,7 @@ if __name__ == "__main__":
     V = np.asarray(mesh_vertices)
     F = np.asarray(mesh_faces)
 
+    view_point_triangles(V, F)
     view_degenerate_triangles(V, F)
 
         
