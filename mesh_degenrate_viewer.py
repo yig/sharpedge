@@ -25,6 +25,51 @@ def find_degenerate_faces(V, F, eps=1e-15):
             deg_faces.append(i)
     return np.array(deg_faces)
 
+def view_degenerate_triangles(V, F):
+    
+    ps.init()
+
+    # 假设 V, F 是 mesh
+    ps_mesh = ps.register_surface_mesh("mesh", V, F)
+    ps_mesh.set_edge_color((0, 0, 0))
+    ps_mesh.set_edge_width(1.0)
+
+    deg_faces = find_degenerate_faces(V, F)
+
+    print(deg_faces)
+    print(F[0])
+    print(V[0])
+    print(V[1])
+    print(V[2])
+
+
+    # 收集所有退化三角形涉及到的顶点索引
+    unique_vs, new_index = np.unique(F[deg_faces].flatten(), return_inverse=True)
+
+    # 子集顶点
+    deg_V = V[unique_vs]
+
+    # 重新映射 deg_edges
+    deg_edges = []
+    for i in range(0, len(new_index), 3):
+        a, b, c = new_index[i:i+3]
+        deg_edges.append([a, b])
+        deg_edges.append([b, c])
+        deg_edges.append([c, a])
+    deg_edges = np.array(deg_edges)
+
+    # 用子集顶点注册 curve network
+    ps.register_curve_network(
+        "degenerate edges", deg_V, deg_edges, radius=0.002, color=(1.0, 0.0, 0.0)
+    )
+
+
+    ps.set_ground_plane_mode("none")
+
+    ps.show()
+
+
+
 
 
 
@@ -40,29 +85,10 @@ if __name__ == "__main__":
     V = np.asarray(mesh_vertices)
     F = np.asarray(mesh_faces)
 
+    view_degenerate_triangles(V, F)
+
+        
 
 
-    ps.init()
 
-    # 假设 V, F 是 mesh
-    ps_mesh = ps.register_surface_mesh("mesh", V, F)
-    ps_mesh.set_edge_color((0, 0, 0))
-    ps_mesh.set_edge_width(1.0)
 
-    deg_faces = find_degenerate_faces(V, F)
-
-    # 显示退化三角形的 barycenter
-    centroids = np.mean(V[F[deg_faces]], axis=1)
-    ps.register_point_cloud("degenerate face centers", centroids, radius=0.005, color=(1.0, 0.0, 0.0))
-
-    # 或者显示退化三角形的边
-    deg_edges = []
-    for f in F[deg_faces]:
-        deg_edges.append([f[0], f[1]])
-        deg_edges.append([f[1], f[2]])
-        deg_edges.append([f[2], f[0]])
-    deg_edges = np.array(deg_edges)
-    ps.register_curve_network("degenerate edges", V, deg_edges, radius=0.002, color=(1.0, 0.0, 0.0))
-    ps.set_ground_plane_mode("none")
-
-    ps.show()
