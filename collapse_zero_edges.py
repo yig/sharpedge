@@ -10,6 +10,7 @@
 import numpy as np
 from scipy.cluster.hierarchy import DisjointSet
 import igl
+from pprint import pprint
 # Optional dependency
 # import polyscope as ps
 
@@ -91,6 +92,66 @@ def collapse_zero_edges( V, F, threshold=1e-6, return_max_displacement=False ):
     else:
         return collapsed_V, collapsed_F
 
+def degenerate_statistics( V, F, short_edge_threshold=1e-6 ):
+    """
+    Compute statistics about degenerate faces in the mesh.
+    
+    Parameters:
+    V : np.ndarray
+        Vertex positions of the mesh.
+    F : np.ndarray
+        Faces of the mesh.
+    
+    Returns:
+    stats : dict
+        Dictionary containing statistics about degenerate faces.
+    """
+    E = igl.edges(F)
+    edge_lengths = np.linalg.norm(V[E[:, 0]] - V[E[:, 1]], axis=1)
+    
+    # Count degenerate edges
+    short_edges = np.sum(edge_lengths <= short_edge_threshold)
+    
+    # Euler characteristic (V - E + F)
+    euler = len(V) - len(E) + len(F)
+
+    # Count edges with more than two faces
+    edge_flap_counts = {}
+    # Count faces with repeated vertices
+    faces_with_repeated_vertices = 0
+    for face in F:
+        vs = frozenset(face)
+
+        assert len(face) == 3, "Only triangular faces are supported."
+
+        # Check for repeated vertices
+        if len( vs ) != 3: faces_with_repeated_vertices += 1
+
+        i, j, k = sorted(face)
+
+        edge_flap_counts.setdefault((i, j), 0)
+        edge_flap_counts.setdefault((j, k), 0)
+        edge_flap_counts.setdefault((i, k), 0)
+
+        edge_flap_counts[(i, j)] += 1
+        edge_flap_counts[(j, k)] += 1
+        edge_flap_counts[(i, k)] += 1
+    
+    edge_flap_histo = {}
+    for x in edge_flap_counts.values():
+        edge_flap_histo.setdefault(x, 0)
+        edge_flap_histo[x] += 1
+
+    return {
+        'short_edge_threshold': short_edge_threshold,
+        'short_edges': short_edges,
+        'total_edges': len(E),
+        'short_edge_ratio': short_edges / len(E) if len(E) > 0 else 0.0,
+        'euler_characteristic': euler,
+        'faces_with_repeated_vertices': faces_with_repeated_vertices,
+        'edge_flap_histo': edge_flap_histo,
+    }
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser( description = 'Collapse zero-length edges' )
@@ -107,12 +168,18 @@ if __name__ == "__main__":
     
     V = np.asarray( V )
     F = np.asarray( F )
+
+    print( "Loaded mesh with {} vertices and {} faces.".format( len(V), len(F) ) )
+    print( "Degenerate statistics before collapsing:" )
+    pprint( degenerate_statistics( V, F, short_edge_threshold=args.threshold ) )
     
     collapsed_V, collapsed_F, max_displacement = collapse_zero_edges(V, F, args.threshold, return_max_displacement=True)
 
-    print( "Collapsed from {} vertices and {} faces to {} vertices and {} faces.".format(
-        len(V), len(F), len(collapsed_V), len(collapsed_F) ) )
+    print( "Collapsed mesh has {} vertices and {} faces.".format(
+        len(collapsed_V), len(collapsed_F) ) )
     print( "Maximum displacement of collapsed vertices:", max_displacement )
+    print( "Degenerate statistics after collapsing:" )
+    pprint( degenerate_statistics( collapsed_V, collapsed_F, short_edge_threshold=args.threshold ) )
 
     if( len( collapsed_F ) == 0 ): print( "WARNING: No faces left after collapsing edges." )
 
