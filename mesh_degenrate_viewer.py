@@ -5,7 +5,7 @@ import argparse
 from utility_io import load_mesh_obj
 
 
-def find_degenerate_faces(V, F, eps=1e-15):
+def find_degenerate_faces(V, F, eps=1e-8):
     """
     V: (n,3) 顶点坐标
     F: (m,3) 面索引
@@ -23,7 +23,7 @@ def find_degenerate_faces(V, F, eps=1e-15):
         area = 0.5 * np.linalg.norm(np.cross(v1 - v0, v2 - v0))
         if area < eps:
             deg_faces.append(i)
-    return np.array(deg_faces)
+    return np.array(deg_faces, dtype=int)
 
 def view_degenerate_triangles(V, F):
     
@@ -36,7 +36,8 @@ def view_degenerate_triangles(V, F):
 
     deg_faces = find_degenerate_faces(V, F)
 
-    print(deg_faces)
+    print('len(deg_faces)', len(deg_faces))
+    print('deg_faces', deg_faces)
     print(F[0])
     print(V[0])
     print(V[1])
@@ -45,6 +46,9 @@ def view_degenerate_triangles(V, F):
 
     # 收集所有退化三角形涉及到的顶点索引
     unique_vs, new_index = np.unique(F[deg_faces].flatten(), return_inverse=True)
+
+    print('unique_vs', unique_vs)
+    print('new_index', new_index)
 
     # 子集顶点
     deg_V = V[unique_vs]
@@ -58,18 +62,20 @@ def view_degenerate_triangles(V, F):
         deg_edges.append([c, a])
     deg_edges = np.array(deg_edges)
 
-    # 用子集顶点注册 curve network
-    ps.register_curve_network(
-        "degenerate edges", deg_V, deg_edges, radius=0.002, color=(1.0, 0.0, 0.0)
-    )
+    print('deg_edges', deg_edges)
+
+    if unique_vs.size > 0:
+        # 用子集顶点注册 curve network
+        ps.register_curve_network(
+            "degenerate edges", deg_V, deg_edges, radius=0.002, color=(1.0, 0.0, 0.0)
+        )
 
 
     ps.set_ground_plane_mode("none")
 
     ps.show()
 
-
-def find_point_faces(V, F, eps=1e-15):
+def find_point_faces(V, F, eps=1e-8):
     '''
     find that triangles that is actual a point
     '''
@@ -79,39 +85,38 @@ def find_point_faces(V, F, eps=1e-15):
         if np.allclose(v0, v1, atol= eps) and np.allclose(v0, v2, atol=eps):
             deg_faces.append(i)
 
-    return np.array(deg_faces)
+    return np.array(deg_faces, dtype=int)
  
 def view_point_triangles(V, F):
     '''
     '''
-
     ps.init()
 
-    # 假设 V, F 是 mesh
     ps_mesh = ps.register_surface_mesh("mesh", V, F)
     ps_mesh.set_edge_color((0, 0, 0))
     ps_mesh.set_edge_width(1.0)
 
     deg_faces = find_point_faces(V, F)
 
-    print(deg_faces)
-    print(F[0])
-    print(V[0])
-    print(V[1])
-    print(V[2])
-
+    print('deg_faces',deg_faces)
 
     # 收集所有三角形涉及到的顶点索引
-    unique_vs, new_index = np.unique(F[deg_faces].flatten(), return_inverse=True)
+    # unique_vs, new_index = np.unique(F[deg_faces].flatten(), return_inverse=True)
+    # deg_V = V[unique_vs]
 
-    # 子集顶点
-    deg_V = V[unique_vs]
+    deg_V = V[F[deg_faces].flatten()]
 
-    ps.register_point_cloud("point triangles", deg_V, radius=0.005, color=(1, 0, 0))
+    face_indices = []
+    for fi in deg_faces:
+        face_indices.extend([fi, fi, fi])  # 每个三角形3个顶点
+    face_indices = np.array(face_indices)
+
+    pc = ps.register_point_cloud("point triangles", deg_V, radius=0.005, color=(1, 0, 0))
+    pc.add_scalar_quantity("face index", face_indices, enabled=True)
 
 
 
-
+  
 # 使用示例
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Mesh degenerate viewer')
@@ -124,7 +129,7 @@ if __name__ == "__main__":
     V = np.asarray(mesh_vertices)
     F = np.asarray(mesh_faces)
 
-    view_point_triangles(V, F)
+    # view_point_triangles(V, F)
     view_degenerate_triangles(V, F)
 
         

@@ -19,7 +19,7 @@ eps = 1e-12 * (Lmean**2)
 degenerate = np.where(areas < eps)[0]
 
 # 2) 重复顶点（焊接前后对比）
-V_round = np.round(V / 1e-6) * 1e-6  # 容差 1e-6
+V_round = np.round(V / 1e-15) * 1e-15  # 容差 1e-6
 _, idx_unique = np.unique(V_round, axis=0, return_index=True)
 dup_verts_count = V.shape[0] - len(idx_unique)
 
@@ -81,7 +81,7 @@ print("=== Mesh Diagnostics ===")
 print(f"Vertices: {len(V)}  Faces: {len(F)}")
 print(f"Area min/mean/max: {areas.min():.3e} / {areas.mean():.3e} / {areas.max():.3e}")
 print(f"Degenerate faces: {len(degenerate)}")
-print(f"Duplicate vertices (tol=1e-6): {dup_verts_count}")
+print(f"Duplicate vertices (tol=1e-15): {dup_verts_count}")
 print(f"Min angle (deg): {mins.min():.2f},  %<10°: {(mins<10).mean()*100:.2f}%")
 print(f"Quality Q median/5%: {np.median(Qvals):.3f} / {np.percentile(Qvals,5):.3f}")
 print(f"Slivers: by angle<10° => {len(sliver_by_angle)}, by Q<0.2 => {len(sliver_by_Q)}")
