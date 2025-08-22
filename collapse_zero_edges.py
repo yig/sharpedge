@@ -15,7 +15,7 @@ import igl
 
 from utility_io import load_mesh_obj
 
-def collapse_zero_edges( V, F, threshold=1e-6 ):
+def collapse_zero_edges( V, F, threshold=1e-6, return_max_displacement=False ):
     """
     Collapse edges in the mesh that are shorter than the specified threshold.
     
@@ -58,13 +58,20 @@ def collapse_zero_edges( V, F, threshold=1e-6 ):
         vertex_sets.merge(v0, v1)
 
     # Re-map vertices based on the mapping.
+    # Average subsets.
+    max_displacement = 0.0
     vertex_map = np.arange(len(V))
-    for i in range(len(V)):
-        try:
-            vertex_map[i] = vertex_sets[i]
-        except KeyError:
-            # If the vertex is not in the disjoint set, it wasn't part of a short edge.
-            pass
+    for subset in vertex_sets.subsets():
+        assert len(subset) != 0, "Subset should not be empty."
+
+        center = np.mean(V[list(subset)], axis=0)
+        subset_max_displacement = np.max(np.linalg.norm(V[list(subset)] - center, axis=1))
+        max_displacement = max(max_displacement, subset_max_displacement)
+
+        ## Map all vertices in the subset to the root vertex index.
+        for i in subset: vertex_map[i] = vertex_sets[i]
+        ## Update the root vertex position to the average of the subset.
+        V[vertex_sets[i]] = center
     
     # Remove unused vertices and re-map again to reflect that.
     vertices_unique, vertex_map2 = np.unique( vertex_map, return_inverse=True )
@@ -76,8 +83,13 @@ def collapse_zero_edges( V, F, threshold=1e-6 ):
     
     # Skip collapsed faces
     collapsed_F = np.asarray([ face for face in remapped_F if len(frozenset(face)) == 3 ])
+    # Handle the case where all edges are collapsed
+    if len(collapsed_F) == 0: collapsed_F = np.empty((0, 3), dtype=int)
 
-    return collapsed_V, collapsed_F
+    if return_max_displacement:
+        return collapsed_V, collapsed_F, max_displacement
+    else:
+        return collapsed_V, collapsed_F
 
 if __name__ == "__main__":
     import argparse
@@ -96,10 +108,13 @@ if __name__ == "__main__":
     V = np.asarray( V )
     F = np.asarray( F )
     
-    collapsed_V, collapsed_F = collapse_zero_edges(V, F, args.threshold)
+    collapsed_V, collapsed_F, max_displacement = collapse_zero_edges(V, F, args.threshold, return_max_displacement=True)
 
     print( "Collapsed from {} vertices and {} faces to {} vertices and {} faces.".format(
         len(V), len(F), len(collapsed_V), len(collapsed_F) ) )
+    print( "Maximum displacement of collapsed vertices:", max_displacement )
+
+    if( len( collapsed_F ) == 0 ): print( "WARNING: No faces left after collapsing edges." )
 
     if not args.output: args.output = args.mesh.rsplit('.obj',1)[0] + '-collapsed.obj'
     igl.writeOBJ(args.output, collapsed_V, collapsed_F)
