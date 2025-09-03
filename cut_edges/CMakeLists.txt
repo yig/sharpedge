@@ -29,8 +29,21 @@ find_package(Eigen3 3.3 REQUIRED)
 #     message(FATAL_ERROR "Eigen3 not found. Please install Eigen3 or set EIGEN3_INCLUDE_DIR")
 # endif()
 
-# 创建可执行文件
-add_executable(cut_mesh_test cut_mesh_along_edges_test.cpp)
+# 收集所有源文件
+set(SOURCES
+    main.cpp
+    edge_dual_normal.cpp          # 添加这个源文件
+)
+
+# 收集头文件（可选，但有助于IDE识别）
+set(HEADERS
+    cut_mesh_along_edges.h
+    edge_dual_normal.h
+    simple_obj_reader.h           # 如果是header-only，只需要包含头文件
+)
+
+# 创建可执行文件，包含所有必要的源文件
+add_executable(cut_mesh_test ${SOURCES} ${HEADERS})
 
 # 链接Eigen库
 target_link_libraries(cut_mesh_test Eigen3::Eigen)
@@ -51,7 +64,7 @@ target_compile_definitions(cut_mesh_test PRIVATE
 
 # 启用测试（可选）
 enable_testing()
-add_test(NAME cut_mesh_basic_test COMMAND cut_mesh_test)
+add_test(NAME cut_mesh_basic_test COMMAND cut_mesh_test test_normal.txt test_mesh.obj)
 
 # 安装规则（可选）
 install(TARGETS cut_mesh_test
@@ -62,6 +75,8 @@ install(TARGETS cut_mesh_test
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "C++ flags: ${CMAKE_CXX_FLAGS}")
+message(STATUS "Sources: ${SOURCES}")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(STATUS "Debug flags: ${CMAKE_CXX_FLAGS_DEBUG}")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
