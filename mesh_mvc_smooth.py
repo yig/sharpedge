@@ -284,7 +284,7 @@ def compute_curvature_stanko( V, F, N, method = 'EG' ):
     # Return Hn and H
     return Hn, H
 
-def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = True, curvature_method = 'EG' ):
+def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = True, curvature_method = 'C&G' ):
     print( "smooth_stanko() called with parameters:" )
     pprint( locals() )
 
@@ -299,8 +299,7 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
     if N is None: N = igl.per_vertex_normals(V, F)
     
     # A = (L.T@Minv@L).tocsc()
-    # 双调和算子应该是 L²，不是 L^T M^(-1) L
-    A = (L @ Minv @ L @ Minv @ L).tocsc()  # L²
+    A = (L @ Minv @ L @ Minv @ L).tocsc() 
 
     B = np.zeros(N.shape)
     N_star = solve_system_with_constraints_hard( A, B, constrained, N[constrained] )
@@ -312,6 +311,7 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
 
     # Step 3: Compute target curvatures
     Hn, H = compute_curvature_stanko( V_star, F, N_star, method = curvature_method )
+    # plot(V, F, H)
 
     if target_curvature_paper:
         target_LM = -2 * ( L.T @ (np.abs(H[:,None]) * N_star) )
@@ -494,7 +494,7 @@ def plot_normal(v, f, n):
     ps_mesh.add_vector_quantity("vertex normals", n, defined_on="vertices", enabled=True)
     ps.set_ground_plane_mode('none')
     ps.show()
-    
+
 def extract_boundary_vertices(vertices, faces):
     """直接提取网格的边界顶点"""
     # 统计每条边被多少个面使用
@@ -521,6 +521,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Laplacian magnitude smoothing based on FiberMesh')
     parser.add_argument('mesh_file', help='Mesh .obj file with faces')
+    parser.add_argument('--output', '-o', type=str, help='Output file path for smoothed mesh')
     args = parser.parse_args()
 
     v, f = igl.read_triangle_mesh(args.mesh_file)
@@ -561,6 +562,9 @@ if __name__ == "__main__":
     ## This one works well:
     v_smoothed = smooth_stanko(v, f, constrained = constrained, target_curvature_paper = True)
     
+    if args.output:
+        igl.write_triangle_mesh(args.output, v_smoothed, f)
+
     ## Flows, explicit:
     ## They all get spiky because of poor mesh elements.
     # v_smoothed = smooth_flow(v, f, constrained = constrained, iterations=4000, order = 1, step_size = 0.0001, step_mode = 'explicit', plot_every=1, save_every=1, save_base='steps/flow_', threshold=1e-5, recompute_matrices = True)
