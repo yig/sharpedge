@@ -130,7 +130,7 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
     # Step 1: Smooth normals
     if N is None: N = igl.per_vertex_normals(V, F)
 
-    plot_constraint_normals(v, f, constrained, N)
+    plot_constraint_normals(V, F, constrained, N)
     
     A = (L.T@Minv@L).tocsc()
     # A = (L @ Minv @ L @ Minv @ L).tocsc()  
@@ -507,6 +507,98 @@ def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
     return new_V, new_E, new_normals
 
 
+def add_boundary_flaps_without_normals(v, f, boundary_edges, edge_to_face):
+    """
+    在没有边法向量约束的情况下添加边界翼片, use face_normal
+    
+    Args:
+        v: 顶点坐标 (n_vertices, 3)
+        f: 面索引 (n_faces, 3)
+        boundary_edges: 边界边列表
+        edge_to_face: 边到面的映射
+        
+    
+    Returns:
+        v_new: 包含翼片顶点的新顶点数组
+        f_new: 包含翼片面的新面数组
+        flap_vertex_indices: 新添加的翼片顶点索引
+        flap_normals: 翼片顶点的法向量
+    """
+    
+    face_normals = igl.per_face_normals(v, f, np.array([0.0, 0.0, 1.0]))
+    vertex_normals = igl.per_vertex_normals(v, f)
+    
+    v_extra = []
+    f_extra = []
+    n_extra = []
+    
+    
+    for edge in boundary_edges:
+        v0, v1 = edge
+        p0 = v[v0]
+        p1 = v[v1]
+        edge_vec = p1 - p0
+        edge_length = np.linalg.norm(edge_vec)
+        
+        if edge_length < 1e-8:
+            print(f"Warning: Skipping degenerate edge {edge} (length: {edge_length})")
+            continue
+        
+        # 获取相邻面的信息
+        f_idx = edge_to_face[edge]
+        face = f[f_idx]
+        face_normal = face_normals[f_idx]
+        
+        # 找到面的第三个顶点
+        v2 = list(frozenset(face) - frozenset(edge))[0]
+        p2 = v[v2]
+        
+        
+        flap_normal = face_normal.copy()
+            
+        
+        # 计算翼片偏移方向
+        flap_offset = np.cross(edge_vec, flap_normal)
+        flap_offset_norm = np.linalg.norm(flap_offset)
+        
+        if flap_offset_norm < 1e-8:
+            # 如果叉积为零，使用面法向量作为备选
+            print(f"Warning: Cross product near zero for edge {edge}, using face normal")
+            flap_offset = face_normal
+        else:
+            flap_offset /= flap_offset_norm
+        
+        # 确保翼片朝向远离原网格的方向
+        edge_midpoint = 0.5 * (p0 + p1)
+        if np.dot(flap_offset, p2 - edge_midpoint) > 0:
+            flap_offset = -flap_offset
+        
+        # 计算翼片顶点位置
+        flap_height = (np.sqrt(3)/2) * edge_length
+        p_flap = edge_midpoint + flap_height * flap_offset
+        
+        # 添加新顶点
+        flap_vertex_idx = len(v) + len(v_extra)
+        v_extra.append(p_flap)
+        n_extra.append(flap_normal)
+        
+        # 创建翼片面（与原面相反的方向）
+        new_face = list(face)
+        new_face[new_face.index(v2)] = flap_vertex_idx
+        new_face.reverse()  # 反向以保持一致的方向
+        f_extra.append(new_face)
+    
+    # 合并几何体
+    v_new = np.vstack([v, np.array(v_extra)]) if v_extra else v
+    f_new = np.vstack([f, np.array(f_extra)]) if f_extra else f
+    flap_vertex_indices = np.arange(len(v), len(v_new)) if v_extra else np.array([])
+    flap_normals = np.array(n_extra) if n_extra else np.array([]).reshape(0, 3)
+    
+    print(f"Added {len(v_extra)} flap vertices and {len(f_extra)} flap faces")
+    
+    return v_new, f_new, flap_vertex_indices, flap_normals
+
+
 if __name__ == "__main__":
     import argparse
     import os
@@ -529,7 +621,40 @@ if __name__ == "__main__":
     constrained = np.asarray(boundary_vertices)
 
     if args.normal_file is None:
-        v_smoothed = smooth_stanko(v, f, N = None, constrained = constrained, target_curvature_paper = args.target_curvature_paper, curvature_method = 'EG')
+
+        if args.add_boundary_flaps:
+
+            v_with_flaps, f_with_flaps, flap_indices, flap_normals = add_boundary_flaps_without_normals(
+                    v, f, boundary_edges, edge_to_face
+                )
+            
+            constrained_with_flaps = np.concatenate([constrained, flap_indices]) if len(flap_indices) > 0 else constrained
+            
+            
+            N_with_flaps = igl.per_vertex_normals(v_with_flaps, f_with_flaps)
+        
+            if len(flap_normals) > 0:
+                N_with_flaps[flap_indices] = flap_normals
+
+            
+
+            print(constrained_with_flaps.shape)
+            print(N_with_flaps.shape)
+
+                
+            v_smoothed = smooth_stanko(
+                v_with_flaps, f_with_flaps, 
+                N=N_with_flaps, 
+                constrained=constrained_with_flaps,
+                target_curvature_paper=args.target_curvature_paper,
+                curvature_method='EG'
+            )
+                
+            v_smoothed = v_smoothed[:len(v_original)]
+            f = f_original
+        else:
+            v_smoothed = smooth_stanko(v, f, N = None, constrained = constrained, target_curvature_paper = args.target_curvature_paper, curvature_method = 'EG')
+
 
     else:
         original_vertices, original_edges, original_normals = read_two_normal(args.normal_file, average_per_edge=args.average)
@@ -635,43 +760,6 @@ if __name__ == "__main__":
             constrained_normals[boundary_vertex] =  normal
 
         
-        
-        
-        
-        print('boundary_vertices', boundary_vertices)
-        
-        
-        plot_constraint_normals(v, f, constrained, constrained_normals)
-        for i, (n, c) in enumerate(zip(N, constrained_normals)):
-            if not np.allclose(n, c, atol=1e-6):
-                print(f"Vertex {i}:")
-                print(f"   N                = {n}")
-                print(f"   constrained_norm = {c}")
-        
-        ps.init()
-    
-        ps_mesh = ps.register_surface_mesh("mesh", v, f)
-        ps_mesh.set_edge_width(1)
-        
-        # extract constrained vertices and normals
-        cons_v = v[constrained]
-        cons_n = constrained_normals[constrained]
-        
-    
-        
-        # add point cloud for constrained vertices
-        ps_points = ps.register_point_cloud("constrained_vertices", cons_v, radius=0.005, color=(1.0, 0.0, 0.0))
-        
-    
-        # add vector quantity for constrained normals
-        ps_points.add_vector_quantity("constrained_normals", constrained_normals[constrained], length = 0.1, enabled=True, color=(0.0, 1.0, 0.0))
-        ps_points.add_vector_quantity("per_vertex_normals", N[constrained], length = 0.1, enabled=True, color=(1.0, 0.0, 0.0))
-        
-    
-    
-        ps.set_ground_plane_mode("none")
-        ps.show()
-    
 
         v_smoothed = smooth_stanko(v, f, N = constrained_normals, constrained = constrained, target_curvature_paper = args.target_curvature_paper, curvature_method = 'EG')
 
