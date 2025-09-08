@@ -1,3 +1,12 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "libigl",
+#     "numpy",
+#     "polyscope",
+#     "scipy",
+# ]
+# ///
 import igl
 import numpy as np
 import scipy as sp
@@ -123,8 +132,8 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
 
     plot_constraint_normals(v, f, constrained, N)
     
-    # A = (L.T@Minv@L).tocsc()
-    A = (L @ Minv @ L @ Minv @ L).tocsc()  
+    A = (L.T@Minv@L).tocsc()
+    # A = (L @ Minv @ L @ Minv @ L).tocsc()  
 
     B = np.zeros(N.shape)
     N_star = solve_system_with_constraints_hard( A, B, constrained, N[constrained] )
@@ -133,6 +142,10 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
 
     # Step 2: Smooth positions
     V_star = solve_system_with_constraints_hard( A, np.zeros(V.shape), constrained, V[constrained] )
+
+    # Plot smooth positions and normals
+    print( "Plot smooth positions and normals" )
+    plot_normal( V_star, F, N_star )
 
     # Step 3: Compute target curvatures
     Hn, H = compute_curvature_stanko( V_star, F, N_star, method = curvature_method )
@@ -149,10 +162,10 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
     
     print(f"max displacement: {max_disp:.6f}")
 
+    print( "Plot Stanko output" )
     plot(V, F, H)
 
     return V
-
 
 def plot(v, f, k, title="Curvature"):
     ps.init()
@@ -330,9 +343,8 @@ def average_vertex_normals(edge_solver_normals):
 
     return vertex_normals
 
-
 # put here so do not need import
-def read_two_normal(filename):
+def read_two_normal(filename, average_per_edge=False):
     """
     Read vertices, edges, and dual normal data from an OBJ file.
     Each edge has exactly two normal vectors.
@@ -381,8 +393,14 @@ def read_two_normal(filename):
     
     # Associate normals with edges
     for i, _ in enumerate(E):
-        normals[(i, 0)] = normal_vectors[2*i]
-        normals[(i, 1)] = normal_vectors[2*i + 1]
+        if average_per_edge:
+            n = np.asarray( normal_vectors[2*i] ) + np.asarray( normal_vectors[2*i + 1] )
+            n /= np.linalg.norm(n)
+            normals[(i, 0)] = n
+            normals[(i, 1)] = n
+        else:
+            normals[(i, 0)] = normal_vectors[2*i]
+            normals[(i, 1)] = normal_vectors[2*i + 1]
     
     # Convert lists to numpy arrays
     V = np.array(V)
@@ -496,18 +514,25 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Laplacian magnitude smoothing based on FiberMesh')
     parser.add_argument('mesh_file', help='Mesh .obj file with faces')
     parser.add_argument('normal_file', nargs= '?', help='normal .normal file with dual normals')
+    parser.add_argument('--average', '-a', help='Average two normals per edge', default=False, action='store_true')
+    parser.add_argument('--target-curvature-paper', help='Whether to compute target curvature as in the paper', default=False, action='store_true')
+    parser.add_argument('--add-boundary-flaps', help='Whether to add boundary face flaps according to the edge normal', default=False, action='store_true')
     parser.add_argument('--output', '-o', type=str, help='Output file path for smoothed mesh')
     args = parser.parse_args()
 
     v, f = igl.read_triangle_mesh(args.mesh_file)
+    print(f"Read mesh {args.mesh_file}: {len(v)} vertices, {len(f)} faces")
+    v_original = v.copy()
+    f_original = f.copy()
 
     boundary_vertices, boundary_edges, edge_to_face = extract_boundary_info(f.tolist())
     constrained = np.asarray(boundary_vertices)
 
     if args.normal_file is None:
-        v_smoothed = smooth_stanko(v, f, N = None, constrained = constrained, target_curvature_paper = True, curvature_method = 'EG')
+        v_smoothed = smooth_stanko(v, f, N = None, constrained = constrained, target_curvature_paper = args.target_curvature_paper, curvature_method = 'EG')
+
     else:
-        original_vertices, original_edges, original_normals = read_two_normal(args.normal_file)
+        original_vertices, original_edges, original_normals = read_two_normal(args.normal_file, average_per_edge=args.average)
         sketch_vertices, sketch_edges, edge_normals = resample_edge_dual_normal(
             original_vertices, original_edges, original_normals, target_edge_length = 0.05)
         
@@ -520,7 +545,11 @@ if __name__ == "__main__":
 
 
         face_normals = igl.per_face_normals(v, f, np.array([0.0,0.0,1.0]))  # dummy up dir
-
+        
+        f_extra = []
+        v_extra = []
+        n_extra = []
+        
         edge_solver_normals = {}
         for edge in boundary_edges:
             f_idx = edge_to_face[edge]
@@ -529,7 +558,9 @@ if __name__ == "__main__":
             # print('f_idx, face_n', f_idx, face_n)
 
             sketch_edge_idx = boundary_to_sketch[edge]
-            candidates = [edge_normals[(sketch_edge_idx,0)],edge_normals[(sketch_edge_idx,1)] ]
+            sketch_normal_0 = edge_normals[(sketch_edge_idx,0)]
+            sketch_normal_1 = edge_normals[(sketch_edge_idx,1)]
+            candidates = [sketch_normal_0, sketch_normal_1]
             # print('sketch_edge_idx', sketch_edge_idx)
             # print('sketch_edge_normals', candidates)
             
@@ -538,17 +569,116 @@ if __name__ == "__main__":
             dots = [np.dot(face_n, cand) for cand in candidates]
             best_idx = np.argmax(dots)  # larger dot = smaller angle
             edge_solver_normals[edge] = candidates[best_idx]
+
+            if args.add_boundary_flaps:
+                # Add an equilateral flap face along this edge using the chosen edge normal.
+                v0, v1 = edge
+                p0 = v[v0]
+                p1 = v[v1]
+                edge_vec = p1 - p0
+                edge_length = np.linalg.norm(edge_vec)
+                if edge_length < 1e-8:
+                    print(f"Warning: Skipping degenerate edge {edge} (length: {edge_length})")
+                    continue
+                edge_normal = candidates[best_idx]
+                # An equilateral triangle has height sqrt(3)/2 * edge_length
+                flap_height = (np.sqrt(3)/2) * edge_length
+                # The cross product of the edge vector and the edge normal gives a direction for the flap
+                flap_offset = np.cross( edge_vec, edge_normal )
+                # Normalize it
+                flap_offset /= np.linalg.norm(flap_offset)
+                # I'm not sure it's safe to rely on the right-hand rule to get the orientation correct.
+                # Instead, we'll offset in the direction opposite the third vertex of the boundary face.
+                # Let's find the third vertex of the face.
+                face = f[ f_idx ]
+                assert len( frozenset(face) - frozenset(edge) ) == 1
+                v2 = list(frozenset(face) - frozenset(edge))[0]
+                p2 = v[v2]
+                # We offset from the midpoint.
+                edge_midpoint = 0.5 * (p0 + p1)
+                # If the flap offset points in the same direction as p2 from the edge midpoint, flip it.
+                if np.dot( flap_offset, p2 - edge_midpoint ) > 0:
+                    flap_offset = -flap_offset
+                # The new flap triangle third vertex is `p_flap`.
+                p_flap = edge_midpoint + flap_height * flap_offset
+                # The index for this new vertex is:
+                flap_vertex_idx = len(v) + len(v_extra)
+                v_extra.append(p_flap)
+                n_extra.append(edge_normal)
+                # The new face is (v1, v0, flap_vertex_idx) or (v0, v1, flap_vertex_idx).
+                # We want it to have the opposite orientation of the original face,
+                # so v0 and v1 should be in reverse order.
+                # Let's get the original face, replace v2 with the flap vertex, and then reverse it.
+                new_face = list( face )
+                new_face[ new_face.index( v2 ) ] = flap_vertex_idx
+                new_face.reverse() # make it consistent orientation
+                f_extra.append( new_face )
         
         boundary_vertex_normals = average_vertex_normals(edge_solver_normals)
-    
 
-        constrained_normals = igl.per_vertex_normals(v, f)
+        if args.add_boundary_flaps:
+            v = np.vstack( [v, np.array(v_extra)] )
+            f = np.vstack( [f, np.array(f_extra)] )
+            N_extra = np.array(n_extra)
+            constrained = np.concatenate( [constrained, np.arange(len(v)-len(v_extra), len(v))] )
+            print(f"Added {len(v_extra)} flap vertices and {len(f_extra)} flap faces")
+        
+        N = igl.per_vertex_normals(v, f)
+
+        if args.add_boundary_flaps:
+            # Set the flap normals directly.
+            N[len(v)-len(N_extra):] = N_extra
+        
+        # Override boundary vertex normals with the computed ones.
+        constrained_normals = N.copy()
         for boundary_vertex, normal in boundary_vertex_normals.items():
             constrained_normals[boundary_vertex] =  normal
 
+        
+        
+        
+        
+        print('boundary_vertices', boundary_vertices)
+        
+        
+        plot_constraint_normals(v, f, constrained, constrained_normals)
+        for i, (n, c) in enumerate(zip(N, constrained_normals)):
+            if not np.allclose(n, c, atol=1e-6):
+                print(f"Vertex {i}:")
+                print(f"   N                = {n}")
+                print(f"   constrained_norm = {c}")
+        
+        ps.init()
+    
+        ps_mesh = ps.register_surface_mesh("mesh", v, f)
+        ps_mesh.set_edge_width(1)
+        
+        # extract constrained vertices and normals
+        cons_v = v[constrained]
+        cons_n = constrained_normals[constrained]
+        
+    
+        
+        # add point cloud for constrained vertices
+        ps_points = ps.register_point_cloud("constrained_vertices", cons_v, radius=0.005, color=(1.0, 0.0, 0.0))
+        
+    
+        # add vector quantity for constrained normals
+        ps_points.add_vector_quantity("constrained_normals", constrained_normals[constrained], length = 0.1, enabled=True, color=(0.0, 1.0, 0.0))
+        ps_points.add_vector_quantity("per_vertex_normals", N[constrained], length = 0.1, enabled=True, color=(1.0, 0.0, 0.0))
+        
+    
+    
+        ps.set_ground_plane_mode("none")
+        ps.show()
+    
 
-        v_smoothed = smooth_stanko(v, f, N = constrained_normals, constrained = constrained, target_curvature_paper = True, curvature_method = 'EG')
+        v_smoothed = smooth_stanko(v, f, N = constrained_normals, constrained = constrained, target_curvature_paper = args.target_curvature_paper, curvature_method = 'EG')
+
+        # Remove extra flap vertices if added
+        v_smoothed = v_smoothed[:len(v_original)]
+        f = f_original
 
     if args.output:
         igl.write_triangle_mesh(args.output, v_smoothed, f)
-
+        print(f"Wrote smoothed mesh: {args.output}")
