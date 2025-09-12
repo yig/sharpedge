@@ -135,8 +135,10 @@ void test_case(){
 
 
 int main(int argc, char** argv) {
-    if (argc != 3) {
-        std::cerr << "Usage: " << argv[0] << " <normal_file> <surface_file.obj>" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0]
+                  << " <normal_file> <surface_file.obj> [-t targetEdgeLength]"
+                  << std::endl;
         return 1;
     }
 
@@ -147,8 +149,21 @@ int main(int argc, char** argv) {
     EdgeDualNormalGeometry geometry;
     readEdgeDualNormal(normal_file, geometry);
 
+    // 默认值
+    float targetEdgeLength = 0.05f;
+    
+    // 解析可选参数
+    for (int i = 3; i < argc; i++) {
+        if (std::strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
+            targetEdgeLength = std::atof(argv[i + 1]);
+            i++; // 跳过数值
+        }
+    }
+    
+    std::cout << "Using targetEdgeLength = " << targetEdgeLength << std::endl;
+
     EdgeDualNormalGeometry resampled;
-    resampleEdgeDualNormalGeometry(geometry, resampled, 0.05);
+    resampleEdgeDualNormalGeometry(geometry, resampled, targetEdgeLength);
 
     Eigen::MatrixXd V;
     Eigen::MatrixXi F;
