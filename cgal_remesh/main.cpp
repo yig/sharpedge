@@ -49,13 +49,15 @@ int main(int argc, char** argv) {
         float targetEdgeLength = 0.05f;
 
         // 解析可选参数
-        for (int i = 3; i < argc; i++) {
+        for (int i = 2; i < argc; i++) {
             if (std::strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
                 targetEdgeLength = std::atof(argv[i + 1]);
                 i++; // 跳过数值
             }
         }
         
+        std::cout << "  TargetEdgeLength: " << targetEdgeLength << std::endl;
+
 
         // 统计每条边被多少个面使用
         std::map<std::pair<size_t, size_t>, int> edge_use_count;
