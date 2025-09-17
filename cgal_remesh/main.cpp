@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
         std::cout << "  Edges: " << mesh.number_of_edges() << std::endl;
         std::cout << "  Faces: " << mesh.number_of_faces() << std::endl;
 
-        float targetEdgeLength = 0.05f;
+        float targetEdgeLength = 0.015f;
 
         // 解析可选参数
         for (int i = 2; i < argc; i++) {

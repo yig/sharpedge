@@ -504,7 +504,7 @@ def write_string_to_file(content, filename, encoding='utf-8'):
         print(f"Error writing to file {filename}: {str(e)}")
         return False
     
-def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
+def resample_edge_dual_normal(V, E, normals, target_edge_length=0.04):
     """
     Resample edge dual normal geometry to achieve target edge length.
     

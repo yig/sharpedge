@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     if( len( collapsed_F ) == 0 ): print( "WARNING: No faces left after collapsing edges." )
 
-    if not args.output: args.output = args.mesh.rsplit('.obj',1)[0] + '-collapsed.obj'
+    if not args.output: args.output = args.mesh.rsplit('.obj',1)[0] + '_collapsed.obj'
     igl.writeOBJ(args.output, collapsed_V, collapsed_F)
     print(f"Collapsed mesh saved to: {args.output}")
 

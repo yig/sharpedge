@@ -1,9 +1,10 @@
 import numpy as np
 import polyscope as ps
+from collections import defaultdict
 
 from utility_io import read_two_normal, load_mesh_obj
 
-def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
+def resample_edge_dual_normal(V, E, normals, target_edge_length=0.04):
     """
     Resample edge dual normal geometry to achieve target edge length.
     
@@ -95,7 +96,82 @@ def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
     
     return new_V, new_E, new_normals
 
-def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
+def match_mesh_to_sketch(mesh_vertices, mesh_edges, sketch_vertices, sketch_edges, tol=1e-5):
+    """
+    vectorize map mesh_edges to sketch_edges。
+    
+    parameters:
+        mesh_vertices: (n_mesh_vertices, 3) ndarray
+        mesh_edges: list of tuples or (n_mesh_edges, 2) array
+        sketch_vertices: (n_sketch_vertices, 3) ndarray
+        sketch_edges: (n_sketch_edges, 2) ndarray
+        tol: tolerance
+    
+    return:
+        mesh_sketch_edges: dict {mesh_edge_idx: sketch_edge_idx}
+        sketch_to_mesh: dict {sketch_edge_idx: list of mesh_edge_idx}
+    """
+    # 确保输入是 numpy 数组
+    mesh_vertices = np.asarray(mesh_vertices)
+    mesh_edges = np.asarray(mesh_edges)
+    sketch_vertices = np.asarray(sketch_vertices)
+    sketch_edges = np.asarray(sketch_edges)
+    
+    # 获取所有 mesh edge 的顶点坐标
+    # mesh_edges: (n_mesh_edges, 2), mesh_vertices: (n_mesh_vertices, 3)
+    # mesh_edge_vertices: (n_mesh_edges, 2, 3)
+    mesh_edge_vertices = mesh_vertices[mesh_edges]
+    
+    # 获取所有 sketch edge 的顶点坐标
+    # sketch_edge_vertices: (n_sketch_edges, 2, 3)
+    sketch_edge_vertices = sketch_vertices[sketch_edges]
+    
+    # 为了向量化比较，我们需要比较每个 mesh edge 与每个 sketch edge
+    # 使用广播来创建 (n_mesh_edges, n_sketch_edges, 2, 3) 的形状
+    
+    # mesh_edge_vertices_expanded: (n_mesh_edges, 1, 2, 3)
+    mesh_edge_vertices_expanded = mesh_edge_vertices[:, np.newaxis, :, :]
+    # sketch_edge_vertices_expanded: (1, n_sketch_edges, 2, 3)
+    sketch_edge_vertices_expanded = sketch_edge_vertices[np.newaxis, :, :, :]
+    
+    # 正向匹配: mesh_edge[0] <-> sketch_edge[0], mesh_edge[1] <-> sketch_edge[1]
+    # 计算距离差: (n_mesh_edges, n_sketch_edges, 2, 3)
+    forward_diff = mesh_edge_vertices_expanded - sketch_edge_vertices_expanded
+    # 计算每个顶点对的欧几里得距离: (n_mesh_edges, n_sketch_edges, 2)
+    forward_distances = np.linalg.norm(forward_diff, axis=3)
+    # 检查两个顶点是否都匹配: (n_mesh_edges, n_sketch_edges)
+    forward_match = np.all(forward_distances < tol, axis=2)
+    
+    # 反向匹配: mesh_edge[0] <-> sketch_edge[1], mesh_edge[1] <-> sketch_edge[0]
+    # 交换 sketch edge 的顶点顺序
+    sketch_edge_vertices_reversed = sketch_edge_vertices[:, [1, 0], :]  # 交换第1维的0和1
+    sketch_edge_vertices_reversed_expanded = sketch_edge_vertices_reversed[np.newaxis, :, :, :]
+    
+    backward_diff = mesh_edge_vertices_expanded - sketch_edge_vertices_reversed_expanded
+    backward_distances = np.linalg.norm(backward_diff, axis=3)
+    backward_match = np.all(backward_distances < tol, axis=2)
+    
+    # 总匹配: 正向或反向匹配
+    # match_matrix: (n_mesh_edges, n_sketch_edges) 布尔矩阵
+    match_matrix = forward_match | backward_match
+    
+    # 找到每个 mesh edge 的匹配 sketch edge
+    mesh_sketch_edges = {}
+    for mesh_idx in range(len(mesh_edges)):
+        # 找到与当前 mesh edge 匹配的所有 sketch edges
+        matching_sketch_indices = np.where(match_matrix[mesh_idx])[0]
+        if len(matching_sketch_indices) > 0:
+            # 如果有多个匹配，取第一个
+            mesh_sketch_edges[mesh_idx] = matching_sketch_indices[0]
+    
+    # 构建 sketch_to_mesh 映射
+    sketch_to_mesh = defaultdict(list)
+    for mesh_edge, sketch_edge in mesh_sketch_edges.items():
+        sketch_to_mesh[sketch_edge].append(mesh_edge)
+    
+    return mesh_sketch_edges, sketch_to_mesh
+
+def simple_viewer(normal_file, mesh_file, target_edge_length=0.04):
     """
     简单显示 normal 文件和 mesh 文件，包含验证统计
     """
@@ -136,19 +212,36 @@ def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
     
     # 统计边
     edges_on_mesh = 0
-    for edge in sketch_edges:
-        v1_idx, v2_idx = edge
-        v1_distance, _ = mesh_tree.query(sketch_vertices[v1_idx])
-        v2_distance, _ = mesh_tree.query(sketch_vertices[v2_idx])
-        
-        if v1_distance <= tolerance and v2_distance <= tolerance:
-            edges_on_mesh += 1
+    mesh_edges = find_mesh_edges(mesh_faces)
+
+    mesh_sketch_edges, sketch_to_mesh = match_mesh_to_sketch(mesh_vertices, mesh_edges, sketch_vertices, sketch_edges)
+
+
+
+    duplicates = {sketch: meshes for sketch, meshes in sketch_to_mesh.items() if len(meshes) > 1}
+    print('len(mesh_sketch_edges)', len(mesh_sketch_edges))
+    print('len(sketch_to_mesh)', len(sketch_to_mesh))
+
+    # print('duplicates', duplicates)
+    # for key, mesh_dups in duplicates.items():
+    #     print([mesh_edges[i] for i in mesh_dups])
+    print(f"容忍距离: {tolerance}")
+    print(f"顶点在 mesh 上: {vertices_on_mesh}/{len(sketch_vertices)} "
+          f"({100*vertices_on_mesh/len(sketch_vertices):.1f}%)")
+    print(f"边在 mesh 上: {len(mesh_sketch_edges) }/{len(sketch_edges)} "
+          f"({100*len(mesh_sketch_edges)/len(sketch_edges):.1f}%)")
+    print(f"最大顶点距离: {max_distance:.6f}")
+    print(f"平均顶点距离: {total_distance/len(sketch_vertices):.6f}")
+    
+    # V = mesh_vertices
+    # print('V[460], V[815], V[435]', V[460], V[815], V[435])
+    # print('V[278], V[543], V[666]', V[278], V[543], V[666])
 
     # 初始化 polyscope
     ps.init()
     
     # 添加 mesh - 不透明
-    ps_mesh = ps.register_surface_mesh("mesh", mesh_vertices, mesh_faces)
+    ps_mesh = ps.register_surface_mesh("mesh", np.asarray(mesh_vertices), np.asarray(mesh_faces))
     ps_mesh.set_color([0.8, 0.8, 0.8])
     ps_mesh.set_edge_color([0, 0, 0])
     ps_mesh.set_edge_width(1.0)
@@ -162,7 +255,9 @@ def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
     sketch_edges = np.array(sketch_edges)
     
     # 添加 sketch 的边
+    edge_mapping_counts = np.array([len(sketch_to_mesh[i]) for i in range(len(sketch_edges))])
     ps_edges = ps.register_curve_network("sketch_edges", sketch_vertices, sketch_edges)
+    ps_edges.add_scalar_quantity("mapping_count", edge_mapping_counts, defined_on='edges', enabled=True)
     ps_edges.set_radius(0.002)
     
     # 显示 normal 向量 - 分别用不同颜色
@@ -225,6 +320,25 @@ def simple_viewer(normal_file, mesh_file, target_edge_length=0.05):
     # 显示
     ps.show()
 
+def find_mesh_edges(F):
+    '''
+    '''
+    
+    edges = set()
+    
+    for face in F:
+        face_edges = [
+            (face[0], face[1]),
+            (face[1], face[2]), 
+            (face[2], face[0])
+        ]
+        
+        for v1, v2 in face_edges:
+            edge = (min(v1, v2), max(v1, v2))
+            edges.add(edge)
+    
+    return list(edges)
+    
 # 使用示例
 if __name__ == "__main__":
     import argparse
@@ -232,8 +346,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Simple viewer for normal and mesh files with resampling')
     parser.add_argument('normal_file', help='Normal .obj file with edges and normals')
     parser.add_argument('mesh_file', help='Mesh .obj file with faces')
-    parser.add_argument('--target-length', '-t', type=float, default=0.05,
-                       help='Target edge length for resampling (default: 0.05)')
+    parser.add_argument('--target-length', '-t', type=float, default=0.04,
+                       help='Target edge length for resampling (default: 0.04)')
     
     args = parser.parse_args()
     

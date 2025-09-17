@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
     readEdgeDualNormal(normal_file, geometry);
 
     // 默认值
-    float targetEdgeLength = 0.05f;
+    float targetEdgeLength = 0.015f;
     
     // 解析可选参数
     for (int i = 3; i < argc; i++) {

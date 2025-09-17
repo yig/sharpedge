@@ -43,31 +43,28 @@ set(HEADERS
 )
 
 # 创建可执行文件，包含所有必要的源文件
-add_executable(cut_mesh_test ${SOURCES} ${HEADERS})
+add_executable(cut_mesh ${SOURCES} ${HEADERS})
 
 # 链接Eigen库
-target_link_libraries(cut_mesh_test Eigen3::Eigen)
+target_link_libraries(cut_mesh Eigen3::Eigen)
 
 # 如果使用手动设置的Eigen路径：
-# target_include_directories(cut_mesh_test PRIVATE ${EIGEN3_INCLUDE_DIR})
+# target_include_directories(cut_mesh PRIVATE ${EIGEN3_INCLUDE_DIR})
 
 # 设置输出目录
-set_target_properties(cut_mesh_test PROPERTIES
+set_target_properties(cut_mesh PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
 # 添加编译定义（可选）
-target_compile_definitions(cut_mesh_test PRIVATE 
+target_compile_definitions(cut_mesh PRIVATE 
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
 )
 
-# 启用测试（可选）
-enable_testing()
-add_test(NAME cut_mesh_basic_test COMMAND cut_mesh_test test_normal.txt test_mesh.obj)
 
 # 安装规则（可选）
-install(TARGETS cut_mesh_test
+install(TARGETS cut_mesh
     RUNTIME DESTINATION bin
 )
 
