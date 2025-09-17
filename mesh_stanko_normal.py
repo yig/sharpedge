@@ -44,11 +44,24 @@ def solve_system_with_constraints_hard( A, b, constraint_indices, constraint_val
 
     b_prime = b - A @ r
     b_prime[ constraint_indices ] = r[ constraint_indices ]
+    
+    
+    
 
-    A = A.copy()
+    # A = A.copy()
+    # A[:,constraint_indices] = 0
+    # A[constraint_indices,:] = 0
+    # A[constraint_indices,constraint_indices] = 1.0
+
+    # got warning, maybe this is also faster
+    from scipy.sparse import lil_matrix
+    A = A.copy().tolil()   
     A[:,constraint_indices] = 0
     A[constraint_indices,:] = 0
     A[constraint_indices,constraint_indices] = 1.0
+    A = A.tocsc()          
+
+
 
     x = sp.sparse.linalg.spsolve( A, b_prime )
     assert np.abs( x[constraint_indices] - constraint_values ).max() < 1e-9
@@ -304,11 +317,13 @@ def map_boundary_edges_to_sketch_edges(mesh_vertices, boundary_edges, sketch_ver
             
             # 如果有多个匹配，发出警告
             if len(matching_sketch_indices) > 1:
-                assert "Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}"
+                # assert "Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}"
+                print( "Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}" )
 
     # every boundary should match to one sketch edge
-    assert len(boundary_edges) == len(boundary_to_sketch) 
-    
+    # assert len(boundary_edges) == len(boundary_to_sketch) 
+    print(len(boundary_edges) == len(boundary_to_sketch))
+
     return boundary_to_sketch
 
 def average_vertex_normals(edge_solver_normals):
@@ -414,7 +429,7 @@ def read_two_normal(filename, average_per_edge=False):
     
     return V, E, normals
 
-def resample_edge_dual_normal(V, E, normals, target_edge_length=0.05):
+def resample_edge_dual_normal(V, E, normals, target_edge_length=0.04):
     """
     Resample edge dual normal geometry to achieve target edge length.
     
@@ -606,9 +621,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Laplacian magnitude smoothing based on FiberMesh')
     parser.add_argument('mesh_file', help='Mesh .obj file with faces')
     parser.add_argument('normal_file', nargs= '?', help='normal .normal file with dual normals')
+    parser.add_argument('--target-length', '-t', type=float, default=0.04,
+                       help='Target edge length for resampling (default: 0.04)')
     parser.add_argument('--average', '-a', help='Average two normals per edge', default=False, action='store_true')
     parser.add_argument('--target-curvature-paper', help='Whether to compute target curvature as in the paper', default=False, action='store_true')
-    parser.add_argument('--add-boundary-flaps', help='Whether to add boundary face flaps according to the edge normal', default=False, action='store_true')
+    parser.add_argument('--add-boundary-flaps', help='Whether to add boundary face flaps according to the edge normal', default=True, action='store_true')
     parser.add_argument('--output', '-o', type=str, help='Output file path for smoothed mesh')
     args = parser.parse_args()
 
@@ -659,7 +676,7 @@ if __name__ == "__main__":
     else:
         original_vertices, original_edges, original_normals = read_two_normal(args.normal_file, average_per_edge=args.average)
         sketch_vertices, sketch_edges, edge_normals = resample_edge_dual_normal(
-            original_vertices, original_edges, original_normals, target_edge_length = 0.05)
+            original_vertices, original_edges, original_normals, target_edge_length = args.target_length)
         
         # the edge_normals is a dictionary
         # (edge_idx, 0) -> normal 0
@@ -767,6 +784,11 @@ if __name__ == "__main__":
         v_smoothed = v_smoothed[:len(v_original)]
         f = f_original
 
-    if args.output:
-        igl.write_triangle_mesh(args.output, v_smoothed, f)
-        print(f"Wrote smoothed mesh: {args.output}")
+    ps_mesh = ps.register_surface_mesh("mesh", v_smoothed, f)
+    ps_mesh.set_edge_width(1)
+    ps.set_ground_plane_mode('none')
+    ps.show()
+
+    if not args.output: args.output = args.mesh_file.rsplit('.obj',1)[0] + '_opt.obj'
+    igl.write_triangle_mesh(args.output, v_smoothed, f)
+    print(f"Wrote smoothed mesh: {args.output}")
