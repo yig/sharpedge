@@ -66,6 +66,7 @@ pushd data > /dev/null
 popd > /dev/null
 echo "Generated mesh: $REMESHED_MESH"
 
+
 # 5. optimize the mesh
 python mesh_stanko_normal.py "$REMESHED_MESH" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH" 
 
@@ -113,22 +114,4 @@ OPTIMIZED_MESH="$OUTPUT_FOLDER/$(basename "$OPTIMIZED_MESH")"
 python sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
 
 
-
-# # Create a folder and move all the mesh to the folder 
-# NAME_PREFIX=$(echo "$BASENAME" | sed 's/_2n$//')
-# OUTPUT_FOLDER="data/${NAME_PREFIX}"
-# mkdir -p "$OUTPUT_FOLDER"
-# OUTPUT_FOLDER=$(realpath "$OUTPUT_FOLDER")
-
-# mkdir -p "$OUTPUT_FOLDER"
-# mv "$SURFACE_MESH" "$OUTPUT_FOLDER/"
-# mv "$COLLAPSED_MESH" "$OUTPUT_FOLDER/"
-# mv "$CUTTED_MESH" "$OUTPUT_FOLDER/"
-# mv "$REMESHED_MESH" "$OUTPUT_FOLDER/"
-# mv "$OPTIMIZED_MESH" "$OUTPUT_FOLDER/"
-
-# OPTIMIZED_MESH="$OUTPUT_FOLDER/$(basename "$OPTIMIZED_MESH")"
-
-# # 6. Finally viusalize 
-# python sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
 
