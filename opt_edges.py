@@ -54,7 +54,6 @@ def edge_distance_matrix(V, E):
     return distances
 
 # Only extract the distance 0 edges. No thresholds.
-# weight = |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
 def extract_pairwise_weight(V, E, distances):
     """
     Extract the n highest pairwise edge weights for each edge from the weight matrix,
@@ -78,65 +77,27 @@ def extract_pairwise_weight(V, E, distances):
                 ej = E[j]
 
 
-                # Compute tangent vectors for both edges
-                # This could be vectorized, not now
-                ei_vec = compute_edge_tangent(V, ei)
-                ej_vec = compute_edge_tangent(V, ej)
+                # # Compute tangent vectors for both edges
+                # # This could be vectorized, not now
+                # ei_vec = compute_edge_tangent(V, ei)
+                # ej_vec = compute_edge_tangent(V, ej)
 
-                # Calculate the absolute cosine similarity
-                dot_product = np.abs(np.dot(ei_vec, ej_vec))
+                # # Calculate the absolute cosine similarity
+                # dot_product = np.abs(np.dot(ei_vec, ej_vec))
             
-                # Calculate weight using the formula: |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
-                # Since vectors are normalized, we just need dot_product * 0.5 + 0.5
-                weight = dot_product * 0.5 + 0.5
-            
+                # # Calculate weight using the formula: |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
+                # # Since vectors are normalized, we just need dot_product * 0.5 + 0.5
+                # weight = dot_product * 0.5 + 0.5
+
+                # this weight = |e1·e2|/||e1||·||e2|| * 0.5 + 0.5
+                # almost make no difference. 
+                # I also usee 1 in the dual normal case.
+                 
                 # Add to the set of pairwise weights
-                pairwise.add((i, j, weight))
+                pairwise.add((i, j, 1))
 
     return pairwise
    
-def create_pairwise_weight(V, E, vertex_to_edges_map):
-    '''
-    now only create pairwise between share vertices
-    will add 0 distance ones later
-    '''
-    pairwise = set()
-    
-    for vertex_index, edge_indices in vertex_to_edges_map.items():
-        if len(edge_indices) == 2:
-            ei0, ei1 = edge_indices
-            
-            e0 = E[ei0]
-            e1 = E[ei1]
-
-            e0_vec = compute_edge_tangent(V, e0)
-            e1_vec = compute_edge_tangent(V, e1)
-
-            dot_product = np.abs(np.dot(e0_vec, e1_vec))
-            weight = dot_product * 0.5 + 0.5
-            pairwise.add((ei0, ei1, weight))
-        
-        elif len(edge_indices) > 2:
-            
-            sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
-            n_sorted_edges = len(sorted_edges)
-            sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
-
-
-            for ei0, ei1 in sorted_pairs:
-                e0 = E[ei0]
-                e1 = E[ei1]
-
-                e0_vec = compute_edge_tangent(V, e0)
-                e1_vec = compute_edge_tangent(V, e1)
-
-                dot_product = np.abs(np.dot(e0_vec, e1_vec))
-                weight = dot_product * 0.5 + 0.5
-                pairwise.add((ei0, ei1, weight))
-    
-
-    return pairwise
-
 def build_vertex_to_edges_map(edges):
     '''
     Create a mapping from each vertex to all edges that contain it.
@@ -683,6 +644,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
         if show_plot:
             plot_edge_constraints(V, E, P, expand_polyline_normals, scale= 0.05, str= "expand polyline normals")
+            # plot_edge_constraints(V, E, P, expand_polyline_normals, scale=0.05, filename= 'sewing_machine_06_extended_propagation.png', block = True)
 
         frontier_edges = set()
         # 5. now update the frontier_edges
@@ -696,7 +658,8 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
 
     if show_plot:    
         plot_edge_constraints(V, E, P, edge_constraints_map_updated, scale= 0.05, str= "after propagate to nearby")
-    
+        plot_edge_constraints(V, E, P, to_expand_normals, scale=0.08, filename= 'sewing_machine_06_extended_propagation.png', block = True)
+
  
 
 
@@ -757,6 +720,7 @@ def estimate_initial_normals(V, E, P, polyline_to_edge_map, edge_to_polyline_map
     
     if show_plot:
         plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale= 0.05, str= "initial estimate")
+        # plot_edge_constraints(V, E, P, edge_constraints_map_estimated, scale=0.05, filename= 'sewing_machine_08_initial_estimate.png', block= True)
 
     return edge_constraints_map_estimated
 
@@ -1566,7 +1530,7 @@ def create_callback(Us, Vs, E, P, V, mode='two'):
                 unconstrained_polylines_indices=None,
                 scale=0.05,
                 str=f"Two-Normal Optimization: Iteration {current_iter}",
-                block=True
+                block=False
             )
             
             return False
@@ -2139,6 +2103,7 @@ if __name__ == "__main__":
     # plot and save debug gltf
     if show_plot:
         plot_edge_constraints(V, E, P, edge_constraints, scale=0.05, str = 'edge constraints from convex hull', filename= None, block= True)
+        plot_edge_constraints(V, E, P, edge_constraints, scale=0.05, filename= 'sewing_machine_03_hull_constraints.png', block= True)
         write_normal_data(V, E, convert_edge_normals_to_array(edge_constraints, len(E)) , 'debug_normals_gltf/edge_normals/' + curve_name + '.normal')
     
     if save_debug_gltf:
@@ -2186,12 +2151,6 @@ if __name__ == "__main__":
   
 
     # print('weight_matrix', weight_matrix)
-    # pairwise = extract_pairwise_weight(V, E, distances)
-
-    # print('pairwise_orignal', pairwise)
-    
-    # pairwise = create_pairwise_weight(V, E, vertex_to_edges_map)
-    # print('pairwise', pairwise)
     # Create JAX-friendly edge rotation map
     rotations_data = precompute_edge_rotation_map(V, E)
 
@@ -2231,8 +2190,15 @@ if __name__ == "__main__":
 
         estimate_normals = recover_normals(result, Us, Vs, mode='one')
         # still want to save this one normal optimization result for debug
-        export_sketch_normal_gltf(V, E, P, estimate_normals, unconstrained_polylines_indices, filename = f"debug_normals/{curve_name}_1n.gltf"
-)
+        export_sketch_normal_gltf(V, E, P, estimate_normals, unconstrained_polylines_indices, filename = f"debug_normals/{curve_name}_1n.gltf")
+        write_normal_data(V, E, estimate_normals, filename = f'debug_normals/{curve_name}_1n.normal')
+
+        # two_normals_format = {}
+        # for idx, normal in estimate_normals.items():
+        #     two_normals_format[(idx,0)] = normal
+        #     two_normals_format[(idx,1)] = normal
+
+        # write_two_normal(V, E, two_normals_format, filename = f'debug_normals/{curve_name}_1n.normal')
 
         if show_plot:
             plot_edge_constraints(
@@ -2306,20 +2272,25 @@ if __name__ == "__main__":
                 scale=0.05, str="Grouped normal", block=True
             )
 
+            plot_edge_constraints_two_normals(
+                V, E, P, normals, unconstrained_polylines_indices=None, 
+                scale=0.05, block=True, filename="sewing_machine_normal", 
+            )
+
             normals_view_0 = {k: v if k[1] == 0 else np.zeros(3) for k, v in normals.items()}
             normals_view_1 = {k: v if k[1] == 1 else np.zeros(3) for k, v in normals.items()}
 
 
 
-            plot_edge_constraints_two_normals(
-                V, E, P, normals_view_0, unconstrained_polylines_indices=None, 
-                scale=0.05, str="Grouped normal", block=True
-            )
+            # plot_edge_constraints_two_normals(
+            #     V, E, P, normals_view_0, unconstrained_polylines_indices=None, 
+            #     scale=0.05, str="Grouped normal", block=True
+            # )
 
-            plot_edge_constraints_two_normals(
-                V, E, P, normals_view_1, unconstrained_polylines_indices=None, 
-                scale=0.05, str="Grouped normal", block=True
-            )
+            # plot_edge_constraints_two_normals(
+            #     V, E, P, normals_view_1, unconstrained_polylines_indices=None, 
+            #     scale=0.05, str="Grouped normal", block=True
+            # )
 
             # plot_two_normals(V, E, normals)
 
