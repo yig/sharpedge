@@ -2,43 +2,43 @@ cmake_minimum_required(VERSION 3.16)
 
 project(cgal_boundary_remesh)
 
-# C++ 标准
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# 设置默认构建类型为 Release
+# Set default build type to Release if not specified
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-        "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+        "Choose the type of build: Debug, Release, RelWithDebInfo, or MinSizeRel."
         FORCE)
 endif()
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-# 查找 CGAL
+# Find CGAL
 find_package(CGAL REQUIRED)
 message(STATUS "Found CGAL version: ${CGAL_VERSION}")
 
-# 查找 Boost (CGAL 的依赖)
+# Find Boost (required by CGAL)
 find_package(Boost REQUIRED)
 
-# 创建可执行文件
+# Create executable
 add_executable(cgal_remesh 
     main.cpp
 )
 
-# 只链接 CGAL
+# Link CGAL only
 target_link_libraries(cgal_remesh 
     CGAL::CGAL
 )
 
-# 设置包含目录
+# Include directories
 target_include_directories(cgal_remesh PRIVATE 
     ${CGAL_INCLUDE_DIRS}
     ${Boost_INCLUDE_DIRS}
 )
 
-# 编译器标志
+# Compiler warning options
 if(MSVC)
     target_compile_options(cgal_remesh PRIVATE /W4)
 else()
@@ -46,4 +46,4 @@ else()
 endif()
 
 message(STATUS "Configuration complete.")
-message(STATUS "Run 'make' to build cgal_remesh executable.")
+message(STATUS "Run 'make' to build the cgal_remesh executable.")

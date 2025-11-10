@@ -8,12 +8,12 @@
 #include <map>
 #include <limits>
 
+// Define kernel and mesh types
 typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
 typedef CGAL::Surface_mesh<K::Point_3> Mesh;
 typedef boost::graph_traits<Mesh>::edge_descriptor edge_descriptor;
 
-
-
+// Add a suffix before file extension (e.g., file.obj → file_remesh.obj)
 std::string add_suffix_before_extension(const std::string& filename, const std::string& suffix) {
     size_t dot_pos = filename.find_last_of('.');
     if (dot_pos == std::string::npos) {
@@ -22,9 +22,9 @@ std::string add_suffix_before_extension(const std::string& filename, const std::
     return filename.substr(0, dot_pos) + suffix + filename.substr(dot_pos);
 }
 
-
 int main(int argc, char** argv) {
 
+    // Check command-line arguments
     if (argc < 2) {
         std::cout << "Usage: " << argv[0] << " <input.obj> [-t targetEdgeLength]" << std::endl;
         return 0;
@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
         Mesh mesh;
         std::cout << "Loading OBJ mesh from: " << input_file << std::endl;
 
+        // Load mesh
         if (!CGAL::IO::read_OBJ(input_file, mesh)) {
             std::cerr << "Error: cannot read OBJ file " << input_file << std::endl;
             return 1;
@@ -46,20 +47,20 @@ int main(int argc, char** argv) {
         std::cout << "  Edges: " << mesh.number_of_edges() << std::endl;
         std::cout << "  Faces: " << mesh.number_of_faces() << std::endl;
 
+        // Default target edge length
         float targetEdgeLength = 0.015f;
 
-        // 解析可选参数
+        // Parse optional arguments
         for (int i = 2; i < argc; i++) {
             if (std::strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
                 targetEdgeLength = std::atof(argv[i + 1]);
-                i++; // 跳过数值
+                i++;
             }
         }
         
         std::cout << "  TargetEdgeLength: " << targetEdgeLength << std::endl;
 
-
-        // 统计每条边被多少个面使用
+        // Count how many faces use each edge
         std::map<std::pair<size_t, size_t>, int> edge_use_count;
         for (auto f : faces(mesh)) {
             std::vector<Mesh::Vertex_index> verts;
@@ -74,7 +75,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        // 创建边界约束：只标记使用次数 = 1 的边
+        // Mark boundary edges (edges used only once)
         auto edge_is_constrained = mesh.add_property_map<edge_descriptor, bool>("e:constrained", false).first;
 
         int boundary_edges = 0;
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
 
         std::cout << "Boundary edges (counted manually): " << boundary_edges << std::endl;
 
-        // 重网格化
+        // Perform isotropic remeshing with boundary protection
         CGAL::Polygon_mesh_processing::isotropic_remeshing(
             faces(mesh),
             targetEdgeLength,
@@ -102,9 +103,8 @@ int main(int argc, char** argv) {
 
         std::cout << "✓ Remeshing completed!" << std::endl;
         
+        // Save remeshed output
         std::string output_file = add_suffix_before_extension(input_file, "_remesh");
-
-        // 保存结果
         std::cout << "Saving to: " << output_file << std::endl;
         if (!CGAL::IO::write_OBJ(output_file, mesh)) {
             std::cerr << "Error: cannot write file " << output_file << std::endl;
@@ -120,3 +120,4 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
