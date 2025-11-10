@@ -2,18 +2,19 @@
 #include "edge_dual_normal.h"
 #include "simple_obj_reader.h"
 
-// Example usage:
 #include <iostream>
 #include <set>
 
+// Add a suffix before the file extension
 std::string add_suffix_before_extension(const std::string& filename, const std::string& suffix) {
     size_t dot_pos = filename.find_last_of('.');
     if (dot_pos == std::string::npos) {
-        return filename + suffix; // 没有扩展名
+        return filename + suffix; // No file extension
     }
     return filename.substr(0, dot_pos) + suffix + filename.substr(dot_pos);
 }
 
+// Map geometry edges (from EdgeDualNormalGeometry) to mesh edges based on vertex proximity
 Eigen::MatrixXi mapGeometryEdgesToMesh(
     const EdgeDualNormalGeometry& geometry,
     const Eigen::MatrixXd& meshVertices,
@@ -22,7 +23,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
     
     std::cout << "Mapping geometry edges to mesh with tolerance: " << tolerance << std::endl;
     
-    // 构建网格的边列表
+    // Build the edge list of the mesh
     std::vector<std::pair<int, int>> meshEdgeList;
     std::set<std::pair<int, int>> edgeSet;
     
@@ -31,7 +32,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
             int v1 = meshFaces(f, e);
             int v2 = meshFaces(f, (e + 1) % 3);
             
-            // 确保边的顶点索引按升序排列
+            // Ensure vertex indices are in ascending order
             if (v1 > v2) std::swap(v1, v2);
             
             if (edgeSet.find({v1, v2}) == edgeSet.end()) {
@@ -43,19 +44,19 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
     
     std::cout << "Found " << meshEdgeList.size() << " unique mesh edges" << std::endl;
     
-    // 存储成功映射的边
+    // Store successfully mapped edges
     std::vector<std::pair<int, int>> mappedEdges;
     
     const auto& geomVertices = geometry.getVertices();
     const auto& geomEdges = geometry.getEdges();
     
-    // 对每条几何边寻找匹配
+    // Try to find a matching mesh edge for each geometry edge
     for (size_t i = 0; i < geomEdges.size(); ++i) {
         const auto& geomEdge = geomEdges[i];
         const Point& geomV1 = geomVertices[geomEdge.first];
         const Point& geomV2 = geomVertices[geomEdge.second];
         
-        // 寻找最佳匹配的网格边
+        // Search for the closest mesh edge
         int bestEdgeIdx = -1;
         double bestDistance = std::numeric_limits<double>::max();
         
@@ -66,7 +67,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
             Point meshP1 = meshVertices.row(meshV1);
             Point meshP2 = meshVertices.row(meshV2);
             
-            // 计算两种端点对应方式的距离
+            // Compute distance for both endpoint orderings
             double dist1 = (geomV1 - meshP1).norm() + (geomV2 - meshP2).norm();
             double dist2 = (geomV1 - meshP2).norm() + (geomV2 - meshP1).norm();
             
@@ -78,7 +79,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
             }
         }
         
-        // 检查是否在容差范围内
+        // Check if the match is within tolerance
         if (bestEdgeIdx >= 0 && bestDistance <= tolerance * 2.0) {
             mappedEdges.push_back(meshEdgeList[bestEdgeIdx]);
             
@@ -94,7 +95,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
         }
     }
     
-    // 转换为Eigen矩阵
+    // Convert to Eigen matrix
     if (mappedEdges.empty()) {
         std::cout << "Warning: No edges were successfully mapped!" << std::endl;
         return Eigen::MatrixXi(0, 2);
@@ -110,7 +111,7 @@ Eigen::MatrixXi mapGeometryEdgesToMesh(
     return cutEdges;
 }
 
-
+// Simple unit test
 void test_case(){
     Eigen::MatrixXd V(4,3);
     V << 0,0,0,
@@ -130,14 +131,13 @@ void test_case(){
     std::cout << "V_out:\n" << V_out << std::endl;
     std::cout << "F_out:\n" << F_out << std::endl;
     SimpleOBJReader::writeOBJ("cut_mesh.obj", V_out, F_out);
-
 }
 
-
+// Main function
 int main(int argc, char** argv) {
     if (argc < 3) {
         std::cerr << "Usage: " << argv[0]
-                  << " <normal_file> <surface_file.obj> [-t targetEdgeLength]"
+                  << " <normal_file.normal> <surface_file.obj> [-t targetEdgeLength]"
                   << std::endl;
         return 1;
     }
@@ -145,18 +145,20 @@ int main(int argc, char** argv) {
     const char* normal_file = argv[1];
     const char* surface_file = argv[2];
 
-
     EdgeDualNormalGeometry geometry;
     readEdgeDualNormal(normal_file, geometry);
 
-    // 默认值
-    float targetEdgeLength = 0.015f;
+    // Default value : 0.04f
     
-    // 解析可选参数
+    // This is used because when generate the surfaces.
+    // The edges are resampled when creating the mesh, so need to resample again to match the mesh edges.
+    float targetEdgeLength = 0.04f;
+    
+    // Parse optional argument
     for (int i = 3; i < argc; i++) {
         if (std::strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
             targetEdgeLength = std::atof(argv[i + 1]);
-            i++; // 跳过数值
+            i++; // Skip next argument
         }
     }
     
@@ -170,25 +172,18 @@ int main(int argc, char** argv) {
 
     SimpleOBJReader::readOBJ(surface_file, V, F);
 
-
     Eigen::MatrixXi cut_edges = mapGeometryEdgesToMesh(resampled, V, F);
 
-//    Eigen::MatrixXi cut_edges;
-//    cut_edges << 6,7;
-//
-//    std::cout << cut_edges << std::endl;
     Eigen::MatrixXd V_out;
     Eigen::MatrixXi F_out;
-
 
     cut_mesh_along_edges(V, F, cut_edges, V_out, F_out);
     std::cout << "V_out:\n" << V_out << std::endl;
     std::cout << "F_out:\n" << F_out << std::endl;
 
-    std::string output_file = add_suffix_before_extension(surface_file, "_cut");    
+    std::string output_file = add_suffix_before_extension(surface_file, "_cut");
     SimpleOBJReader::writeOBJ(output_file, V_out, F_out);
 
-
-//    test_case();
+    // test_case();
     return 0;
 }

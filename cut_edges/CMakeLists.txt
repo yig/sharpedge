@@ -1,74 +1,73 @@
 cmake_minimum_required(VERSION 3.16)
 
-# 项目信息
+# Project information
 project(CutMeshProject VERSION 1.0.0 LANGUAGES CXX)
 
-# 设置C++标准
+# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# 编译选项
+# Default build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# 编译器特定的选项
+# Compiler-specific options
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     set(CMAKE_CXX_FLAGS "-Wall -Wextra")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
     set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
 endif()
 
-# 查找Eigen3库
+# Find Eigen3 library
 find_package(Eigen3 3.3 REQUIRED)
 
-# 如果find_package找不到Eigen，可以手动设置路径：
+# If find_package cannot locate Eigen3 manually set the path:
 # set(EIGEN3_INCLUDE_DIR /usr/include/eigen3)
 # if(NOT EXISTS ${EIGEN3_INCLUDE_DIR})
 #     message(FATAL_ERROR "Eigen3 not found. Please install Eigen3 or set EIGEN3_INCLUDE_DIR")
 # endif()
 
-# 收集所有源文件
+# Collect all source files
 set(SOURCES
     main.cpp
-    edge_dual_normal.cpp          # 添加这个源文件
+    edge_dual_normal.cpp          # Add this source file
 )
 
-# 收集头文件（可选，但有助于IDE识别）
+# Collect header files (optional, but useful for IDEs)
 set(HEADERS
     cut_mesh_along_edges.h
     edge_dual_normal.h
-    simple_obj_reader.h           # 如果是header-only，只需要包含头文件
+    simple_obj_reader.h           # If header-only, just include it
 )
 
-# 创建可执行文件，包含所有必要的源文件
+# Create the executable and include all necessary source files
 add_executable(cut_mesh ${SOURCES} ${HEADERS})
 
-# 链接Eigen库
+# Link Eigen library
 target_link_libraries(cut_mesh Eigen3::Eigen)
 
-# 如果使用手动设置的Eigen路径：
+# If using a manually set Eigen path:
 # target_include_directories(cut_mesh PRIVATE ${EIGEN3_INCLUDE_DIR})
 
-# 设置输出目录
+# Set output directory
 set_target_properties(cut_mesh PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# 添加编译定义（可选）
+# Add compile definitions (optional)
 target_compile_definitions(cut_mesh PRIVATE 
     $<$<CONFIG:Debug>:DEBUG>
     $<$<CONFIG:Release>:NDEBUG>
 )
 
-
-# 安装规则（可选）
+# Installation rule (optional)
 install(TARGETS cut_mesh
     RUNTIME DESTINATION bin
 )
 
-# 显示一些有用的信息
+# Display useful build information
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
 message(STATUS "C++ flags: ${CMAKE_CXX_FLAGS}")
