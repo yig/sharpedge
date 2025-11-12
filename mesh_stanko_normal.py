@@ -1,3 +1,18 @@
+"""
+Smooth the surface mesh using the Stanko et al. (2016).
+
+Usage:
+    python smooth_stanko.py <mesh.obj> [normal.normal] [options]
+
+Notes:
+    - Mesh.obj should be cut and remeshed.
+    - Normal.normal: optional.
+    - target-length: The mesh.obj boundary and normal.normal should match
+      the target edge length used during surface generation.
+      Default = 0.04. If a different target length was used when generating
+      the surface, it should be specified here as well.
+"""
+
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -139,7 +154,8 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
     L = cotmatrix(V, F)
     M = igl.massmatrix(V, F, igl.MASSMATRIX_TYPE_VORONOI)
     Minv = sp.sparse.diags(1 / M.diagonal())
-    
+    # Minv = sp.sparse.diags(1/ np.maximum(M.diagonal(), 1e-12))
+
     # Step 1: Smooth normals
     if N is None: N = igl.per_vertex_normals(V, F)
 
@@ -158,11 +174,11 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
 
     # Plot smooth positions and normals
     print( "Plot smooth positions and normals" )
-    plot_normal( V_star, F, N_star )
+    # plot_normal( V_star, F, N_star )
 
     # Step 3: Compute target curvatures
     Hn, H = compute_curvature_stanko( V_star, F, N_star, method = curvature_method )
-    # plot(V, F, H)
+    plot(V, F, H)
 
     if target_curvature_paper:
         target_LM = -2 * ( L.T @ (np.abs(H[:,None]) * N_star) )
@@ -177,6 +193,7 @@ def smooth_stanko(V, F, N = None, constrained = None, target_curvature_paper = T
 
     print( "Plot Stanko output" )
     plot(V, F, H)
+    plot_normal(V, F, N_star)
 
     return V
 
@@ -232,7 +249,7 @@ def extract_boundary_info(faces):
     """
     edge_faces = defaultdict(list)
 
-    # 遍历每个三角形，统计它的三条边属于哪些面
+    # Iterate over each triangle and record which faces each edge belongs to
     for f_idx, face in enumerate(faces):
         for i in range(3):
             v1, v2 = face[i], face[(i+1) % 3]
@@ -244,7 +261,7 @@ def extract_boundary_info(faces):
     edge_to_face = {}
 
     for edge, f_list in edge_faces.items():
-        if len(f_list) == 1:  # 边界边
+        if len(f_list) == 1:  # boundary edge
             boundary_edges.append(edge)
             edge_to_face[edge] = f_list[0]
             boundary_vertices.update(edge)
@@ -274,27 +291,27 @@ def map_boundary_edges_to_sketch_edges(mesh_vertices, boundary_edges, sketch_ver
     
     print(f"Mapping {len(boundary_edges_array)} boundary edges to {len(sketch_edges)} sketch edges")
     
-    # 获取边界边的顶点坐标
+    # Get vertex coordinates of boundary edges
     # boundary_edge_vertices: (n_boundary_edges, 2, 3)
     boundary_edge_vertices = mesh_vertices[boundary_edges_array]
     
-    # 获取所有 sketch edge 的顶点坐标
+    # Get vertex coordinates of all sketch edges
     # sketch_edge_vertices: (n_sketch_edges, 2, 3)
     sketch_edge_vertices = sketch_vertices[sketch_edges]
     
-    # 向量化比较：创建 (n_boundary_edges, n_sketch_edges, 2, 3) 的形状
+    # Vectorized comparison: create shape (n_boundary_edges, n_sketch_edges, 2, 3)
     
     # boundary_edge_vertices_expanded: (n_boundary_edges, 1, 2, 3)
     boundary_edge_vertices_expanded = boundary_edge_vertices[:, np.newaxis, :, :]
     # sketch_edge_vertices_expanded: (1, n_sketch_edges, 2, 3)
     sketch_edge_vertices_expanded = sketch_edge_vertices[np.newaxis, :, :, :]
     
-    # 正向匹配: boundary_edge[0] <-> sketch_edge[0], boundary_edge[1] <-> sketch_edge[1]
+    # Forward match: boundary_edge[0] <-> sketch_edge[0], boundary_edge[1] <-> sketch_edge[1]
     forward_diff = boundary_edge_vertices_expanded - sketch_edge_vertices_expanded
     forward_distances = np.linalg.norm(forward_diff, axis=3)
     forward_match = np.all(forward_distances < tol, axis=2)
     
-    # 反向匹配: boundary_edge[0] <-> sketch_edge[1], boundary_edge[1] <-> sketch_edge[0]
+    # Reverse match: boundary_edge[0] <-> sketch_edge[1], boundary_edge[1] <-> sketch_edge[0]
     sketch_edge_vertices_reversed = sketch_edge_vertices[:, [1, 0], :]
     sketch_edge_vertices_reversed_expanded = sketch_edge_vertices_reversed[np.newaxis, :, :, :]
     
@@ -302,11 +319,11 @@ def map_boundary_edges_to_sketch_edges(mesh_vertices, boundary_edges, sketch_ver
     backward_distances = np.linalg.norm(backward_diff, axis=3)
     backward_match = np.all(backward_distances < tol, axis=2)
     
-    # 总匹配: 正向或反向匹配
-    # match_matrix: (n_boundary_edges, n_sketch_edges) 布尔矩阵
+    # Total match: either forward or reverse
+    # match_matrix: (n_boundary_edges, n_sketch_edges) boolean matrix
     match_matrix = forward_match | backward_match
     
-    # 找到每个 boundary edge 的匹配 sketch edge
+    # Find the matching sketch edge for each boundary edge
     boundary_to_sketch = {}
 
     for boundary_idx, boundary_edge in enumerate(boundary_edges):
@@ -315,12 +332,12 @@ def map_boundary_edges_to_sketch_edges(mesh_vertices, boundary_edges, sketch_ver
             sketch_idx = matching_sketch_indices[0]
             boundary_to_sketch[boundary_edge] = sketch_idx
             
-            # 如果有多个匹配，发出警告
+            # Warn if multiple matches are found
             if len(matching_sketch_indices) > 1:
                 # assert "Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}"
-                print( "Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}" )
+                print("Warning: Boundary edge {boundary_edge} matches multiple sketch edges: {matching_sketch_indices}")
 
-    # every boundary should match to one sketch edge
+    # Every boundary edge should match exactly one sketch edge
     # assert len(boundary_edges) == len(boundary_to_sketch) 
     print(len(boundary_edges) == len(boundary_to_sketch))
 
@@ -524,20 +541,19 @@ def resample_edge_dual_normal(V, E, normals, target_edge_length=0.04):
 
 def add_boundary_flaps_without_normals(v, f, boundary_edges, edge_to_face):
     """
-    在没有边法向量约束的情况下添加边界翼片, use face_normal
-    
+    Add boundary flaps without edge normal constraints (using face normals).
+
     Args:
-        v: 顶点坐标 (n_vertices, 3)
-        f: 面索引 (n_faces, 3)
-        boundary_edges: 边界边列表
-        edge_to_face: 边到面的映射
+        v: vertex positions (n_vertices, 3)
+        f: face indices (n_faces, 3)
+        boundary_edges: list of boundary edges
+        edge_to_face: mapping from edges to adjacent face indices
         
-    
     Returns:
-        v_new: 包含翼片顶点的新顶点数组
-        f_new: 包含翼片面的新面数组
-        flap_vertex_indices: 新添加的翼片顶点索引
-        flap_normals: 翼片顶点的法向量
+        v_new: vertex array including flap vertices
+        f_new: face array including flap faces
+        flap_vertex_indices: indices of newly added flap vertices
+        flap_normals: normals of the flap vertices
     """
     
     face_normals = igl.per_face_normals(v, f, np.array([0.0, 0.0, 1.0]))
@@ -546,7 +562,6 @@ def add_boundary_flaps_without_normals(v, f, boundary_edges, edge_to_face):
     v_extra = []
     f_extra = []
     n_extra = []
-    
     
     for edge in boundary_edges:
         v0, v1 = edge
@@ -559,51 +574,49 @@ def add_boundary_flaps_without_normals(v, f, boundary_edges, edge_to_face):
             print(f"Warning: Skipping degenerate edge {edge} (length: {edge_length})")
             continue
         
-        # 获取相邻面的信息
+        # Get the adjacent face of this boundary edge
         f_idx = edge_to_face[edge]
         face = f[f_idx]
         face_normal = face_normals[f_idx]
         
-        # 找到面的第三个顶点
+        # Find the third vertex of the face
         v2 = list(frozenset(face) - frozenset(edge))[0]
         p2 = v[v2]
         
-        
         flap_normal = face_normal.copy()
-            
         
-        # 计算翼片偏移方向
+        # Compute the flap offset direction
         flap_offset = np.cross(edge_vec, flap_normal)
         flap_offset_norm = np.linalg.norm(flap_offset)
         
         if flap_offset_norm < 1e-8:
-            # 如果叉积为零，使用面法向量作为备选
+            # If the cross product is near zero, fall back to face normal
             print(f"Warning: Cross product near zero for edge {edge}, using face normal")
             flap_offset = face_normal
         else:
             flap_offset /= flap_offset_norm
         
-        # 确保翼片朝向远离原网格的方向
+        # Ensure the flap points away from the original mesh
         edge_midpoint = 0.5 * (p0 + p1)
         if np.dot(flap_offset, p2 - edge_midpoint) > 0:
             flap_offset = -flap_offset
         
-        # 计算翼片顶点位置
+        # Compute flap vertex position
         flap_height = (np.sqrt(3)/2) * edge_length
         p_flap = edge_midpoint + flap_height * flap_offset
         
-        # 添加新顶点
+        # Add new vertex
         flap_vertex_idx = len(v) + len(v_extra)
         v_extra.append(p_flap)
         n_extra.append(flap_normal)
         
-        # 创建翼片面（与原面相反的方向）
+        # Create flap face (reverse orientation to match)
         new_face = list(face)
         new_face[new_face.index(v2)] = flap_vertex_idx
-        new_face.reverse()  # 反向以保持一致的方向
+        new_face.reverse()  # reverse to maintain consistent orientation
         f_extra.append(new_face)
     
-    # 合并几何体
+    # Combine original and new geometry
     v_new = np.vstack([v, np.array(v_extra)]) if v_extra else v
     f_new = np.vstack([f, np.array(f_extra)]) if f_extra else f
     flap_vertex_indices = np.arange(len(v), len(v_new)) if v_extra else np.array([])
