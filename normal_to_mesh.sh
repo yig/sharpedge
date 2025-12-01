@@ -21,7 +21,7 @@ TARGET_REMESH_LENGTH=${3:-0.015}
 # The python file are in current directory 
 
 # met error exit 
-set -e  
+# set -e  
 
 BASENAME=$(basename "$NORMAL_FILE" .normal)
 
@@ -37,8 +37,7 @@ OPTIMIZED_MESH="${DATA_DIR}/${BASENAME}_isosurface_collapsed_cut_remesh_opt.obj"
 # 1. generate the mesh file
 pushd data > /dev/null
 
-# the
-./main_autosave "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
+# ./main "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
 
 popd > /dev/null
 
@@ -58,19 +57,55 @@ popd > /dev/null
 
 echo "Generated mesh: $CUTTED_MESH"
 
-#4. remesh the mesh 
+#  #4. remesh the mesh 
+#  pushd data > /dev/null
+
+#  ./cgal_remesh "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH" 
+
+#  popd > /dev/null
+#  echo "Generated mesh: $REMESHED_MESH"
+
+ # 5. optimize the mesh
+#  python mesh_stanko_normal.py "$REMESHED_MESH" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"
+
+
+# 4. remesh the mesh 
 pushd data > /dev/null
-
-./cgal_remesh "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH" 
-
+if ./cgal_remesh "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH"; then
+    echo "Generated mesh: $REMESHED_MESH"
+    INPUT_FOR_OPT="$REMESHED_MESH"
+else
+    echo "⚠️ Remesh failed, falling back to cut mesh."
+    INPUT_FOR_OPT="$CUTTED_MESH"
+fi
 popd > /dev/null
-echo "Generated mesh: $REMESHED_MESH"
+
+# # 5. optimize the mesh
+# python mesh_stanko_normal.py "$INPUT_FOR_OPT" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"
+# echo "Generated mesh : $OPTIMIZED_MESH"
 
 
-# 5. optimize the mesh
-python mesh_stanko_normal.py "$REMESHED_MESH" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH" 
+# At most 20 seconds
+if timeout 20s python mesh_stanko_normal.py "$INPUT_FOR_OPT" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"; then
+    echo "Generated mesh : $OPTIMIZED_MESH"
+    echo "✅ run 成功"
+else
+    echo "First run exceeded 10s or failed, retrying without -t"
+    # 第二次：不带 -t，同样限时 10s
+    if timeout 20s python mesh_stanko_normal.py "$INPUT_FOR_OPT" ; then
+        echo "Generated mesh (fallback) : $OPTIMIZED_MESH"
+        echo "✅ run 成功"
+    else
+        echo "❌ Fallback run also exceeded 2ç0s or failed"
+        # OPTIMIZED_MESH="$INPUT_FOR_OPT"
+    fi
+fi
 
-echo "Generated mesh : $OPTIMIZED_MESH"
+
+
+# 6. Finally viusalize 
+python sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
+
 
 
 SURFACE_ISOSURFACE_DIR="${DATA_DIR}/surface_isosurface"
@@ -79,7 +114,12 @@ SURFACE_CUT_DIR="${DATA_DIR}/surface_cut"
 SURFACE_REMESHED_DIR="${DATA_DIR}/surface_remeshed"
 SURFACE_OPT_DIR="${DATA_DIR}/surface_opt"
 
+# Ensure category directories exist
+mkdir -p "$SURFACE_ISOSURFACE_DIR" "$SURFACE_COLLAPSED_DIR" \
+         "$SURFACE_CUT_DIR" "$SURFACE_REMESHED_DIR" "$SURFACE_OPT_DIR"
 
+
+trap '{
 # Copy each mesh to its category folder
 cp "$SURFACE_MESH"    "$SURFACE_ISOSURFACE_DIR/"
 cp "$COLLAPSED_MESH"  "$SURFACE_COLLAPSED_DIR/"
@@ -107,11 +147,8 @@ mv "$COLLAPSED_MESH" "$OUTPUT_FOLDER/"
 mv "$CUTTED_MESH" "$OUTPUT_FOLDER/"
 mv "$REMESHED_MESH" "$OUTPUT_FOLDER/"
 mv "$OPTIMIZED_MESH" "$OUTPUT_FOLDER/"
+}' EXIT
 
-OPTIMIZED_MESH="$OUTPUT_FOLDER/$(basename "$OPTIMIZED_MESH")"
-
-# 6. Finally viusalize 
-python sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
 
 
 
