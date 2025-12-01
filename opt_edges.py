@@ -2026,8 +2026,8 @@ if __name__ == "__main__":
 
         estimate_normals = recover_normals(result, Us, Vs, mode='one')
         # still want to save this one normal optimization result for debug
-        export_sketch_normal_gltf(V, E, P, estimate_normals, unconstrained_polylines_indices, filename = f"debug_normals/{curve_name}_1n.gltf")
-        write_normal_data(V, E, estimate_normals, filename = f'debug_normals/{curve_name}_1n.normal')
+        debug.save( export_sketch_normal_gltf, V, E, P, estimate_normals, unconstrained_polylines_indices, filename = f"debug_normals/{curve_name}_1n.gltf")
+        debug.save( write_normal_data, V, E, estimate_normals, filename = f'debug_normals/{curve_name}_1n.normal')
 
         # two_normals_format = {}
         # for idx, normal in estimate_normals.items():
@@ -2088,8 +2088,8 @@ if __name__ == "__main__":
                 scale=0.05, str="One-Normal Optimization Result", block=True
             )
         
-        export_sketch_normal_gltf(V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
-        write_normal_data(V, E, normals, normal_file)
+        debug.save( export_sketch_normal_gltf, V, E, P, normals, unconstrained_polylines_indices, filename = gltf_file)
+        debug.save( write_normal_data, V, E, normals, normal_file)
 
     else:
         # swap the normals

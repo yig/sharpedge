@@ -1,0 +1,7 @@
+name: xue_cycle
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9.18
+prefix: /opt/homebrew/Caskroom/miniconda/base/envs/xue_cycle
