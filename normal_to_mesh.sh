@@ -21,7 +21,7 @@ TARGET_REMESH_LENGTH=${3:-0.015}
 # The python file are in current directory 
 
 # met error exit 
-# set -e  
+set -e  
 
 BASENAME=$(basename "$NORMAL_FILE" .normal)
 
@@ -41,7 +41,7 @@ pushd data > /dev/null
 
 popd > /dev/null
 
-echo "Generated mesh: $SURFACE_MESH"
+
 
 # 2. collapse the mesh file
 python collapse_zero_edges.py "$SURFACE_MESH"
@@ -65,7 +65,7 @@ echo "Generated mesh: $CUTTED_MESH"
 #  popd > /dev/null
 #  echo "Generated mesh: $REMESHED_MESH"
 
- # 5. optimize the mesh
+# #  5. optimize the mesh
 #  python mesh_stanko_normal.py "$REMESHED_MESH" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"
 
 
