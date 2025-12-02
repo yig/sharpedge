@@ -1,0 +1,3 @@
+[submodule "signed-heat-3d"]
+	path = signed-heat-3d
+	url = git@github.com:KrisYu/signed-heat-3d.git

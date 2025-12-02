@@ -4,6 +4,7 @@ NORMAL_FILE=$(realpath "$1")
 TARGET_EDGE_LENGTH=${2:-0.04}
 TARGET_REMESH_LENGTH=${3:-0.015}  
 
+PYTHON="uv run --with-requirements requirements.freeze.txt --python 3.12"
 
 # given a normal
 # need to have ./main ./cut_mesh ./cg_remesh
@@ -44,7 +45,7 @@ popd > /dev/null
 echo "Generated mesh: $SURFACE_MESH"
 
 # 2. collapse the mesh file
-python collapse_zero_edges.py "$SURFACE_MESH"
+${PYTHON} collapse_zero_edges.py "$SURFACE_MESH"
 
 echo "Generated mesh: $COLLAPSED_MESH"
 
@@ -86,13 +87,13 @@ popd > /dev/null
 
 
 # At most 20 seconds
-if timeout 20s python mesh_stanko_normal.py "$INPUT_FOR_OPT" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"; then
+if timeout 20s ${PYTHON} mesh_stanko_normal.py "$INPUT_FOR_OPT" "$NORMAL_FILE" -t "$TARGET_EDGE_LENGTH"; then
     echo "Generated mesh : $OPTIMIZED_MESH"
     echo "✅ run 成功"
 else
     echo "First run exceeded 10s or failed, retrying without -t"
     # 第二次：不带 -t，同样限时 10s
-    if timeout 20s python mesh_stanko_normal.py "$INPUT_FOR_OPT" ; then
+    if timeout 20s ${PYTHON} mesh_stanko_normal.py "$INPUT_FOR_OPT" ; then
         echo "Generated mesh (fallback) : $OPTIMIZED_MESH"
         echo "✅ run 成功"
     else
@@ -104,7 +105,7 @@ fi
 
 
 # 6. Finally viusalize 
-python sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
+${PYTHON} sketch_normal_surface_viewer.py "$NORMAL_FILE" "$OPTIMIZED_MESH" -t "$TARGET_EDGE_LENGTH" 
 
 
 

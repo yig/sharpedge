@@ -1,0 +1,7 @@
+numpy
+scipy
+matplotlib
+polyscope
+jax
+plot2gltf
+libigl
