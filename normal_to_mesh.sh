@@ -37,7 +37,7 @@ OPTIMIZED_MESH="${DATA_DIR}/${BASENAME}_isosurface_collapsed_cut_remesh_opt.obj"
 # 1. generate the mesh file
 pushd data > /dev/null
 
-# ./main "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
+./main "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
 
 popd > /dev/null
 
