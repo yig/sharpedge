@@ -12,7 +12,7 @@ python opt_edges.py sketch/onshape_simple_mouse.obj
 
 With `uv`:
 ```
-uv run --with-requirements requirements.freeze.txt --python 3.12 opt_edges.py sketch/onshape_simple_mouse.obj
+uv run --with-requirements requirements.freeze.minimal.txt --python 3.12 opt_edges.py sketch/onshape_simple_mouse.obj
 ```
 
 The optimized normals will be saved in:
