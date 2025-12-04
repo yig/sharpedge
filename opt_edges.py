@@ -861,7 +861,7 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
     for i, (e1, e2, _) in enumerate(pairwise):
         # Unpack the circulation normal pairing information into a flat array
         if (e1, e2) in e1_normal_indices_dict:
-            print('e1_normal_indices_dict', e1_normal_indices_dict)
+            # print('e1_normal_indices_dict', e1_normal_indices_dict)
             assert (e1, e2) in e2_normal_indices_dict
             e1_normal_indices[i] = e1_normal_indices_dict[ (e1, e2) ]
             e2_normal_indices[i] = e2_normal_indices_dict[ (e1, e2) ]
@@ -1755,10 +1755,10 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
                 normals1.append( normal )
                 plotting_normals[(ei1,1)] = normal
 
-    print('indices0', indices0)
-    print('normals0', normals0)
-    print('indices1', indices1)
-    print('normals1', normals1)
+    debug.log('indices0', indices0)
+    debug.log('normals0', normals0)
+    debug.log('indices1', indices1)
+    debug.log('normals1', normals1)
 
     # Return formats for computation and plotting
     return {
@@ -1838,7 +1838,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--show-plot", action="store_true",
-        default=True, # plot default
+        default=False, # plot default
         help="Show visualization plots"
     )
 
@@ -1918,7 +1918,7 @@ if __name__ == "__main__":
     # only the ones with normal will be in the list 
     edge_constraints = get_sketch_edge_constraints(V, E, tol=2e-2, epsilon=5e-3)
     # print('edge_constraints', edge_constraints)
-    print('len(edge_constraints)', len(edge_constraints))
+    debug.log('len(edge_constraints)', len(edge_constraints))
     
     edge_constraints_map = {edge_idx: normal for edge_idx, normal in edge_constraints}
 
@@ -1949,12 +1949,12 @@ if __name__ == "__main__":
 
 
 
-    print('constrained_polyline_indices', constrained_polyline_indices)
-    print('unconstrained_polylines_indices', unconstrained_polylines_indices)
+    debug.log('constrained_polyline_indices', constrained_polyline_indices)
+    debug.log('unconstrained_polylines_indices', unconstrained_polylines_indices)
 
     vertex_to_edges_map = build_vertex_to_edges_map( E )
 
-    print('vertex_to_edges_map', vertex_to_edges_map)
+    debug.log('vertex_to_edges_map', vertex_to_edges_map)
     # compute distance between edges 
     
     distances = edge_distance_matrix(V, E)
@@ -1998,16 +1998,7 @@ if __name__ == "__main__":
     else:
         callback_fn = None
 
-    # one_normal = [23, 58]
     one_normal = []
-    
-    # for sketches/onshape/onshape_simple_mouse.obj
-    # one_normal = collect_edge_indices_from_strokes([0, 2, 4, 5], polyline_to_edge_map)
-    
-    # # for sketches/onshape/onshape_simple_shape.obj
-    # one_normal = collect_edge_indices_from_strokes([0], polyline_to_edge_map)
-
-    print('one_normal', one_normal)
 
     if normals_per_edge =='one':
         result = optimize_normal_angles(
@@ -2043,10 +2034,10 @@ if __name__ == "__main__":
             
         corner_constraints = vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals)
 
-        print('corner_constraints', corner_constraints)
+        debug.log('corner_constraints', corner_constraints)
 
         
-        debug.plot(plot_edge_constraints_two_normals, V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', filename='debug_normals/' + curve_name + '.png', block=True)
+        debug.plot(plot_edge_constraints_two_normals, V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, str = 'corner constraints', block=True)
             # from utility_plot_viewer import plot_constraints_around_vertex
             # plot_constraints_around_vertex(39, V, E, P, corner_constraints['plotting_normals'], unconstrained_polylines_indices=None, scale=0.08, str_title=None, filename=None, block=True)
         
