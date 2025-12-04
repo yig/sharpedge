@@ -4,6 +4,11 @@ NORMAL_FILE=$(realpath "$1")
 TARGET_EDGE_LENGTH=${2:-0.04}
 TARGET_REMESH_LENGTH=${3:-0.015}  
 
+PYTHON="uv run --with-requirements requirements.freeze.minimal.txt --python 3.12"
+
+SIGNED_HEAT_3D="./signed_heat_3d"
+CUT_MESH="./cut_mesh"
+CGAL_REMESH="./cgal_remesh"
 
 # given a normal
 # need to have ./main ./cut_mesh ./cg_remesh
@@ -37,7 +42,7 @@ OPTIMIZED_MESH="${DATA_DIR}/${BASENAME}_isosurface_collapsed_cut_remesh_opt.obj"
 # 1. generate the mesh file
 pushd data > /dev/null
 
-./signed_heat_3d "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
+"${SIGNED_HEAT_3D}" "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
 
 popd > /dev/null
 
@@ -51,7 +56,7 @@ echo "Generated mesh: $COLLAPSED_MESH"
 # 3. cut the mesh 
 pushd data > /dev/null
 
-./cut_mesh "$NORMAL_FILE" "$COLLAPSED_MESH" -t "$TARGET_EDGE_LENGTH" 
+"${CUT_MESH}" "$NORMAL_FILE" "$COLLAPSED_MESH" -t "$TARGET_EDGE_LENGTH" 
 
 popd > /dev/null
 
@@ -60,7 +65,7 @@ echo "Generated mesh: $CUTTED_MESH"
 #  #4. remesh the mesh 
 #  pushd data > /dev/null
 
-#  ./cgal_remesh "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH" 
+#  "${CGAL_REMESH}" "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH" 
 
 #  popd > /dev/null
 #  echo "Generated mesh: $REMESHED_MESH"
@@ -71,7 +76,7 @@ echo "Generated mesh: $CUTTED_MESH"
 
 # 4. remesh the mesh 
 pushd data > /dev/null
-if ./cgal_remesh "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH"; then
+if "${CGAL_REMESH}" "$CUTTED_MESH" -t "$TARGET_REMESH_LENGTH"; then
     echo "Generated mesh: $REMESHED_MESH"
     INPUT_FOR_OPT="$REMESHED_MESH"
 else

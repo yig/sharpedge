@@ -17,10 +17,20 @@ Example:
 python opt_edges.py sketch/onshape_simple_mouse.obj
 ```
 
-Or run with visualization
+With `uv`:
+```bash
+uv run --with-requirements requirements.freeze.minimal.txt --python 3.12 opt_edges.py sketch/onshape_simple_mouse.obj
+```
+
+Or run with visualization:
 
 ```bash
 python opt_edges.py sketch/onshape_simple_mouse.obj --show-plot
+```
+
+With `uv`:
+```
+uv run --with-requirements requirements.freeze.txt --python 3.12 opt_edges.py sketch/onshape_simple_mouse.obj --show-plot
 ```
 
 The optimized normals will be saved in:
