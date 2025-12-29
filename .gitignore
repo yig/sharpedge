@@ -12,11 +12,11 @@ imgui.ini
 tex_math/
 3d-sketches-dataset/
 debug_normals/
+debug_normals_org/
 debug_normals_gltf/
 debug_normals_w_r/
 iso_figs/
 debug_surfaces/
-made_examples/
 convex_hull_area_surface/
 convex_hull_voronoi_area/
 opt_figs/
@@ -35,10 +35,19 @@ sketches/
 3d-original-objs/
 temp/
 3d-sketches-processing/
-made_examples/
 
 backup_scripts/
 gltf_viewer.html
 gltf_showcase/
 surfaces
 3d-sketches/
+
+data/
+made_examples/
+playground/
+sphere_experiments/
+
+steps/
+cut_edges/build
+cgal_remesh/build
+signed-heat-3d-aside/

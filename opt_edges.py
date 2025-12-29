@@ -1870,6 +1870,10 @@ if __name__ == "__main__":
 
 
     curve_name = Path(curve_file).stem
+    
+    # Ensure output directory exists
+    normal_dir = Path("data/normal")
+    normal_dir.mkdir(parents=True, exist_ok=True)
 
     #region Load Sketch and Plot Sketch
     ####################################

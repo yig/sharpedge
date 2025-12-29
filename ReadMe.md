@@ -16,6 +16,9 @@ The optimized normals will be saved in:
 data/normal/
 ```
 
+(The directory will be created automatically if it does not exist.)
+
+
 ---
 
 ## Generate the Surface
