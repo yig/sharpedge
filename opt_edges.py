@@ -2103,7 +2103,7 @@ if __name__ == "__main__":
 
         debug.plot( plot_edge_constraints_two_normals,
                 V, E, P, normals, unconstrained_polylines_indices=None, 
-                scale=0.05, block=True, filename="sewing_machine_normal", 
+                scale=0.05, block=True, 
             )
 
         normals_view_0 = {k: v if k[1] == 0 else np.zeros(3) for k, v in normals.items()}
