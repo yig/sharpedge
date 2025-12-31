@@ -44,7 +44,7 @@ sh build_tools.sh
 
 The following binaries will be compiled and placed in the `data` directory:
 
--   `signed-heat-3d`
+-   `signed_heat_3d`
     
 -   `cgal_remesh`
     
