@@ -38,6 +38,10 @@ target_include_directories(cgal_remesh PRIVATE
     ${Boost_INCLUDE_DIRS}
 )
 
+install(TARGETS cgal_remesh
+    RUNTIME DESTINATION .
+)
+
 # Compiler warning options
 if(MSVC)
     target_compile_options(cgal_remesh PRIVATE /W4)

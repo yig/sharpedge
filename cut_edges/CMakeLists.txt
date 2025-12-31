@@ -64,7 +64,7 @@ target_compile_definitions(cut_mesh PRIVATE
 
 # Installation rule (optional)
 install(TARGETS cut_mesh
-    RUNTIME DESTINATION bin
+    RUNTIME DESTINATION .
 )
 
 # Display useful build information

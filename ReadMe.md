@@ -1,5 +1,12 @@
 # README
 
+### Clone (private)
+
+```
+git clone --recurse-submodules git@github.com:KrisYu/marching_cube.git
+```
+
+
 ## Optimize Normals
 
 Run `opt_edges.py` and it will show the usage.  
