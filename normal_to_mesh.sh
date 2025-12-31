@@ -16,7 +16,7 @@ TARGET_REMESH_LENGTH=${3:-0.015}
 # 5. optimize the mesh using Stanko's method.
 
 
-# A few notice, the ./main, ./cut_mesh ./cg_remesh are in the data folder.
+# A few notice, the ./signed_heat_3d, ./cut_mesh ./cg_remesh are in the data folder.
 # I want to generate the meshes in the data folder 
 # The python file are in current directory 
 
@@ -37,7 +37,7 @@ OPTIMIZED_MESH="${DATA_DIR}/${BASENAME}_isosurface_collapsed_cut_remesh_opt.obj"
 # 1. generate the mesh file
 pushd data > /dev/null
 
-./main "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
+./signed_heat_3d "$NORMAL_FILE" --t "$TARGET_EDGE_LENGTH" --headless
 
 popd > /dev/null
 

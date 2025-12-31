@@ -2,7 +2,7 @@
 
 ### Clone (private)
 
-```
+```bash
 git clone --recurse-submodules git@github.com:KrisYu/marching_cube.git
 ```
 
@@ -13,19 +13,19 @@ Run `opt_edges.py` and it will show the usage.
 
 Example:
 
-```
+```bash
 python opt_edges.py sketch/onshape_simple_mouse.obj
 ```
 
 Or run with visualization
 
-```
+```bash
 python opt_edges.py sketch/onshape_simple_mouse.obj --show-plot
 ```
 
 The optimized normals will be saved in:
 
-```
+```bash
 data/normal/
 ```
 
@@ -36,7 +36,13 @@ data/normal/
 
 ## Generate the Surface
 
-Make sure the following binaries are compiled and placed in the `data` directory:
+Build tools:
+
+```bash
+sh build_tools.sh
+```
+
+The following binaries will be compiled and placed in the `data` directory:
 
 -   `signed-heat-3d`
     
@@ -53,6 +59,6 @@ sh normal_to_mesh.sh data/normal/onshape_simple_mouse_2n.normal
 
 All generated surface results will appear in:
 
-```
+```bash
 data/onshape_simple_mouse/
 ```

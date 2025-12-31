@@ -33,7 +33,10 @@ echo
 echo "Building signed_heat_3d..."
 cmake -S "$ROOT/signed-heat-3d" -B "$ROOT/signed-heat-3d/build"
 cmake --build "$ROOT/signed-heat-3d/build"
-cmake --install "$ROOT/signed-heat-3d/build" --prefix "$OUT"
+
+# Copy executable explicitly
+cp "$ROOT/signed-heat-3d/build/signed_heat_3d" "$OUT/"
+
 echo
 
 echo "✅ All tools installed to:"
