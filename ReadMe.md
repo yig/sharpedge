@@ -57,6 +57,19 @@ Then run:
 sh normal_to_mesh.sh data/normal/onshape_simple_mouse_2n.normal
 ```
 
+
+Specify target edge lengths for surface generation and target length for remesh:
+
+
+```bash
+sh normal_to_mesh.sh data/normal/bowl_curve_2n.normal 0.05
+sh normal_to_mesh.sh data/normal/bowl_curve_2n.normal 0.06 0.02
+```
+
+- 2nd argument: `TARGET_EDGE_LENGTH` (default: `0.04`)
+- 3rd argument: `TARGET_REMESH_LENGTH` (default: `0.015`)
+
+
 All generated surface results will appear in:
 
 ```bash
