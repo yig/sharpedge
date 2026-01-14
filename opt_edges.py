@@ -11,7 +11,7 @@ from utility_rotate_vector import rotation_matrix_from
 from utility_geometry_tools import compute_edge_tangent, are_parallel_cos
 from utility_debug_options import DebugOptions
 
-from utility_high_valence_sort_edges import compute_edge_circulation_graph_laplacian
+from utility_high_valence_sort_edges import compute_edge_circulation_graph_laplacian, compute_edge_circulation_from_edge_one_normals
 
 import scipy.optimize as opt
 
@@ -785,7 +785,7 @@ def precompute_edge_rotation_map(V, E):
         "has_rotation": has_rot,
     }
 
-def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode = 'one'):
+def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode = 'one', one_normal_estimate = None):
     """
     Preprocess geometric edge pair data into an optimized format for energy computation.
     Produces JAX-compatible arrays specifically designed for efficient computation.
@@ -794,6 +794,7 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
     - E: List of edge vertex indices
     - rotations_data: Dictionary with rotation data between edge pairs
     - vertex_to_edges_map: Dictionary mapping vertex indices to edge indices
+    - one_normal_estimate: Dictionary mapping edge indices to estimated normals from one-normal optimization (only for mode='two')
 
     Returns:
     - Dictionary with JAX arrays containing pre-processed edge pair data ready for computation
@@ -827,7 +828,8 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
             
             elif len(edge_indices) > 2:
 
-                sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
+                # sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
+                sorted_edges = compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_index, E, V, one_normal_estimate)
                 n_sorted_edges = len(sorted_edges)
                 sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
@@ -1410,7 +1412,7 @@ def recover_normals(result, Us, Vs, mode='two'):
 
 # Unified optimization function with different behavior for one/two normals
 def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map, distances, 
-                      mode='two', one_normal=None, callback_fn=None):
+                      mode='two', one_normal=None, callback_fn=None, one_normal_estimate=None):
     """
     Unified JAX-based optimization function for both one-normal and two-normal cases
     
@@ -1424,6 +1426,7 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, rotations_data, ve
     - mode: 'one' for one-normal, 'two' for two-normal optimization
     - one_normal: List of edge indices that should have only one normal (for two-normal mode)
     - callback_fn: Optional callback function for visualization
+    - one_normal_estimate: One-normal optimization normals (used in two-normal mode)
     
     Returns:
     - Optimization result
@@ -1471,7 +1474,7 @@ def optimize_normal_angles(thetas0, Us, Vs, edge_constraints, rotations_data, ve
         
     else:  # Two normals per edge
         # Create initial 2D array of thetas
-        data = preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode)
+        data = preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mode, one_normal_estimate)
 
         num_edges = len(thetas0)
         thetas_2d = np.column_stack((thetas0, thetas0))
@@ -1711,16 +1714,20 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
     normals0 = []
     indices1 = []
     normals1 = []
-
+    
     # Process each vertex with valence 3
     for vertex, edges in vertex_to_edges_map.items():
-
+        # if len(frozenset(edges) & frozenset([78,218,206,27])) > 1:
+        #    import pdb
+        #    pdb.set_trace()
+        
         if len(edges) >= 3:
             # I can dn do higher valence here
             # because edges in the circluar order 
             # every edge will have 2 from cross product 
 
-            sorted_edges = compute_edge_circulation_graph_laplacian(edges, vertex, E, V)
+            # sorted_edges = compute_edge_circulation_graph_laplacian(edges, vertex, E, V)
+            sorted_edges = compute_edge_circulation_from_edge_one_normals(edges, vertex, E, V, estimate_normals)
             n_sorted_edges = len(sorted_edges)
             sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
@@ -1903,7 +1910,7 @@ if __name__ == "__main__":
     # only need points and polyline indices to draw
     # same polyline, same color
     debug.plot(plot_sketch_data, V, P)
-    # debug.plot(plot_edge_info, V, E)
+    debug.plot(plot_edge_info, V, E)
         # plot_edge_info(V, E)
 
     #####################################
@@ -2057,7 +2064,8 @@ if __name__ == "__main__":
 
         result = optimize_normal_angles(
             thetas0, Us, Vs, edge_constraints, rotations_data, vertex_to_edges_map,
-            normals_per_edge, one_normal=one_normal, callback_fn=callback_fn
+            normals_per_edge, one_normal=one_normal, callback_fn=callback_fn,
+            one_normal_estimate = estimate_normals
         )
 
         normals = recover_normals(result, Us, Vs, mode=normals_per_edge)

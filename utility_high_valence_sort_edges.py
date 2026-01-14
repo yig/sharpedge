@@ -90,6 +90,48 @@ def compute_edge_circulation_graph_laplacian(edge_indices, vertex_idx, E, V):
     ordered_edges = [ei for _, ei in projected_vectors]
     return ordered_edges
 
+def compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_idx, E, V, one_normals):
+    """
+    Compute the counter-clockwise circulation ordering of edges around a vertex.
+
+    one_normals: A dictionary from an edge index to its one normal vector.
+    """
+    vertex_pos = V[vertex_idx]
+
+    # Filter for incident edges
+    incident_edges = [ei for ei in edge_indices if vertex_idx in E[ei]]
+    if len(incident_edges) <= 2:
+        return incident_edges
+
+    vectors = []
+    vector_array = np.zeros((len(incident_edges), 3))
+    
+    for i, ei in enumerate(incident_edges):
+        vec = one_normals[ei]
+        vectors.append((vec, ei))
+        vector_array[i] = vec
+
+    N = np.average( vector_array, axis = 0 )
+    N_norm = np.linalg.norm(N)
+    ## If the one normal norm is near 0, fall back to the graph laplacian method.
+    if N_norm < 1e-5:
+        return compute_edge_circulation_graph_laplacian( edge_indices, vertex_idx, E, V )
+    else:
+        N /= N_norm
+        basis_1 = perpendicular_normal( N )
+        basis_2 = np.cross( N, basis_1 )
+
+    projected_vectors = []
+    for unit_vec, ei in vectors:
+        proj_1 = np.dot(unit_vec, basis_1)
+        proj_2 = np.dot(unit_vec, basis_2)
+        angle = np.arctan2(proj_2, proj_1)
+        projected_vectors.append((angle, ei))
+
+    projected_vectors.sort(key=lambda x: x[0])
+    ordered_edges = [ei for _, ei in projected_vectors]
+    return ordered_edges
+
 def plot_sorted_edges(vertex_idx, ordered_edge_indices, E, V, ax=None):
     """
     Plot the ordered edges around a vertex in 3D, labeling each edge with its edge index.
