@@ -51,3 +51,5 @@ steps/
 cut_edges/build
 cgal_remesh/build
 signed-heat-3d-aside/
+
+data_prev/
