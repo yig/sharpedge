@@ -11,7 +11,7 @@ from utility_rotate_vector import rotation_matrix_from
 from utility_geometry_tools import compute_edge_tangent, are_parallel_cos
 from utility_debug_options import DebugOptions
 
-from utility_high_valence_sort_edges import compute_edge_circulation_graph_laplacian, compute_edge_circulation_from_edge_one_normals
+from utility_high_valence_sort_edges import compute_edge_circulation_graph_laplacian, compute_edge_circulation_from_edge_one_normals, plot_sorted_edges_with_circulation, visualize_graph_laplacian_method, visualize_edge_normals_method
 
 import scipy.optimize as opt
 
@@ -828,8 +828,8 @@ def preprocess_edge_pair_data(distances, rotations_data, vertex_to_edges_map, mo
             
             elif len(edge_indices) > 2:
 
-                # sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
-                sorted_edges = compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_index, E, V, one_normal_estimate)
+                sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_index, E, V)
+                # sorted_edges = compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_index, E, V, one_normal_estimate)
                 n_sorted_edges = len(sorted_edges)
                 sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
@@ -1726,8 +1726,13 @@ def vertex_valence_three_constraints(V, E, vertex_to_edges_map, estimate_normals
             # because edges in the circluar order 
             # every edge will have 2 from cross product 
 
-            # sorted_edges = compute_edge_circulation_graph_laplacian(edges, vertex, E, V)
-            sorted_edges = compute_edge_circulation_from_edge_one_normals(edges, vertex, E, V, estimate_normals)
+            sorted_edges = compute_edge_circulation_graph_laplacian(edges, vertex, E, V)
+            # sorted_edges = compute_edge_circulation_from_edge_one_normals(edges, vertex, E, V, estimate_normals)
+
+
+            if 18 in sorted_edges:
+                visualize_graph_laplacian_method(vertex, compute_edge_circulation_graph_laplacian(edges, vertex, E, V), E, V)
+                visualize_edge_normals_method(vertex, compute_edge_circulation_from_edge_one_normals(edges, vertex, E, V, estimate_normals), E, V, estimate_normals )
             n_sorted_edges = len(sorted_edges)
             sorted_pairs = [(sorted_edges[i], sorted_edges[(i + 1) % n_sorted_edges]) for i in range(n_sorted_edges)]
 
@@ -1845,7 +1850,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--show-plot", action="store_true",
-        default=False, # plot default
+        default=True, # plot default
         help="Show visualization plots"
     )
 
@@ -1919,7 +1924,7 @@ if __name__ == "__main__":
     # only need points and polyline indices to draw
     # same polyline, same color
     debug.plot(plot_sketch_data, V, P)
-    # debug.plot(plot_edge_info, V, E)
+    debug.plot(plot_edge_info, V, E)
         # plot_edge_info(V, E)
 
     #####################################
@@ -1996,7 +2001,7 @@ if __name__ == "__main__":
     Us, Vs = create_frames_for_each_polyline( V, E, P )
     
     # show the frame on each edge
-    debug.plot(plot_edge_frames, V, E, P, Us, Vs, scale=0.05)    
+    # debug.plot(plot_edge_frames, V, E, P, Us, Vs, scale=0.05)    
     thetas0 = estimate_initial_thetas(Us, Vs, estimate_normals)
 
 

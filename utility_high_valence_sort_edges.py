@@ -135,40 +135,6 @@ def compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_idx, E, 
 def plot_sorted_edges(vertex_idx, ordered_edge_indices, E, V, ax=None):
     """
     Plot the ordered edges around a vertex in 3D, labeling each edge with its edge index.
-    """
-    if ax is None:
-        fig = plt.figure(figsize=(8,8))
-        ax = fig.add_subplot(111, projection='3d')
-
-    ax.view_init(vertical_axis='y', elev=30, azim=45)
-    ax.set_aspect('equal')
-
-    ax.scatter(V[:,0], V[:,1], V[:,2])
-
-    vertex_pos = V[vertex_idx]
-    ax.scatter(*vertex_pos, color='red', s=100, label=f'Central vertex {vertex_idx}')
-
-    for ei in ordered_edge_indices:
-        v1, v2 = E[ei]
-        other_idx = v2 if v1 == vertex_idx else v1
-        edge_pts = np.array([vertex_pos, V[other_idx]])
-        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], linewidth=2)
-        ax.scatter(*V[other_idx], color='blue', s=60)
-
-        # Annotate with actual edge index
-        mid = (vertex_pos + V[other_idx]) / 2
-        # ax.text(*mid, f'{ei}', fontsize=10, color='black')
-
-    ax.set_title(f"Circulation around vertex {vertex_idx}")
-    ax.legend()
-    
-    plt.axis('off')
-    plt.axis('equal')
-    plt.show()
-
-def plot_sorted_edges_v1(vertex_idx, ordered_edge_indices, E, V, ax=None):
-    """
-    Plot the ordered edges around a vertex in 3D, labeling each edge with its edge index.
     All edges are shown in very light gray, with sorted edges highlighted in color.
     """
     if ax is None:
@@ -208,12 +174,150 @@ def plot_sorted_edges_v1(vertex_idx, ordered_edge_indices, E, V, ax=None):
 
         # Annotate with actual edge index
         mid = (vertex_pos + V[other_idx]) / 2
-    # ax.set_title(f"Circulation around vertex {vertex_idx}")
-    # ax.legend()
+    ax.set_title(f"Circulation around vertex {vertex_idx}")
+    ax.legend()
     
     plt.axis('off')
     plt.axis('equal')
     plt.show()
+
+def plot_sorted_edges_with_circulation(vertex_idx, ordered_edge_indices, E, V, ax=None):
+    """
+    Plot the ordered edges around a vertex in 3D with circulation arrows.
+    Shows edge indices and circulation order clearly.
+    """
+    if ax is None:
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot all edges in very light gray first
+    for ei, (v1, v2) in enumerate(E):
+        edge_pts = np.array([V[v1], V[v2]])
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color='gray', alpha=0.2, linewidth=0.5)
+
+    # Plot all vertices in light gray
+    ax.scatter(V[:,0], V[:,1], V[:,2], color='lightgray', s=10, alpha=0.3)
+
+    # Highlight the central vertex
+    vertex_pos = V[vertex_idx]
+    ax.scatter(*vertex_pos, color='red', s=150, label=f'Vertex {vertex_idx}', zorder=10)
+
+    # Define colors for the circulation
+    colors = plt.cm.tab10(np.linspace(0, 1, len(ordered_edge_indices)))
+    
+    # Plot the sorted edges with colors and labels
+    connected_vertices = []
+    for i, ei in enumerate(ordered_edge_indices):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        connected_vertices.append(V[other_idx])
+        
+        edge_pts = np.array([vertex_pos, V[other_idx]])
+        
+        # Plot the edge with color
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color=colors[i], linewidth=3, alpha=0.8, zorder=5)
+        
+        # Highlight the connected vertex
+        ax.scatter(*V[other_idx], color=colors[i], s=80, zorder=8)
+        
+        # Add edge index label near the connected vertex
+        offset = 0.1 * (V[other_idx] - vertex_pos) / np.linalg.norm(V[other_idx] - vertex_pos)
+        label_pos = V[other_idx] + offset
+        ax.text(label_pos[0], label_pos[1], label_pos[2], f'{ei}', 
+                fontsize=12, fontweight='bold', 
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+    # Draw circulation arrows between consecutive edges
+    draw_circulation_arrows(ax, vertex_pos, connected_vertices, colors)
+    
+    ax.set_title(f"Edge Circulation around Vertex {vertex_idx}\n"
+                f"Order: {' → '.join(map(str, ordered_edge_indices))}", fontsize=14)
+    ax.legend()
+    
+    # Remove axis for cleaner look
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    
+    plt.tight_layout()
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+def draw_circulation_arrows(ax, center, connected_vertices, colors):
+    """
+    Draw curved arrows showing the circulation order between edges
+    """
+    n = len(connected_vertices)
+    if n < 2:
+        return
+    
+    # Create circulation arrows
+    for i in range(n):
+        # Current and next vertex (with wraparound)
+        current_vertex = connected_vertices[i]
+        next_vertex = connected_vertices[(i + 1) % n]
+        
+        # Create a curved arrow between consecutive edges
+        draw_curved_arrow_3d(ax, center, current_vertex, next_vertex, 
+                           colors[i], colors[(i + 1) % n])
+
+def draw_curved_arrow_3d(ax, center, start_vertex, end_vertex, start_color, end_color):
+    """
+    Draw a curved arrow in 3D space showing circulation from one edge to the next
+    """
+    # Calculate vectors from center to vertices
+    vec_start = start_vertex - center
+    vec_end = end_vertex - center
+    
+    # Normalize vectors
+    vec_start_norm = vec_start / np.linalg.norm(vec_start)
+    vec_end_norm = vec_end / np.linalg.norm(vec_end)
+    
+    # Create intermediate points for the curved arrow
+    # Use shorter radius for the circulation arrow
+    radius = 0.3 * min(np.linalg.norm(vec_start), np.linalg.norm(vec_end))
+    
+    # Calculate the arc between the two directions
+    cross_product = np.cross(vec_start_norm, vec_end_norm)
+    if np.linalg.norm(cross_product) > 1e-6:  # Not parallel
+        # Create arc points
+        n_points = 20
+        t_values = np.linspace(0, 1, n_points)
+        
+        arc_points = []
+        for t in t_values:
+            # Spherical interpolation (slerp)
+            angle = np.arccos(np.clip(np.dot(vec_start_norm, vec_end_norm), -1, 1))
+            if angle > 1e-6:  # Not the same direction
+                interp_vec = (np.sin((1-t) * angle) * vec_start_norm + 
+                            np.sin(t * angle) * vec_end_norm) / np.sin(angle)
+            else:
+                interp_vec = vec_start_norm
+            
+            arc_point = center + radius * interp_vec
+            arc_points.append(arc_point)
+        
+        arc_points = np.array(arc_points)
+        
+        # Plot the curved arrow
+        ax.plot(arc_points[:, 0], arc_points[:, 1], arc_points[:, 2], 
+                color='purple', alpha=0.6, linewidth=2, linestyle='--')
+        
+        # Add arrowhead at the end
+        if len(arc_points) > 1:
+            arrow_start = arc_points[-2]
+            arrow_end = arc_points[-1]
+            arrow_dir = arrow_end - arrow_start
+            arrow_dir = arrow_dir / np.linalg.norm(arrow_dir)
+            
+            # Create simple arrowhead (just a point for now in 3D)
+            ax.scatter(*arrow_end, color='purple', s=30, marker='>', alpha=0.8)
 
 def build_vertex_to_edges_map(edges):
     '''
@@ -484,46 +588,293 @@ def plot_projection_plane_and_points(vertex_idx, edge_indices, E, V, auto_detect
     return fig, ax
 
 
-if __name__ == "__main__":
+
+
+def visualize_graph_laplacian_method(vertex_idx, ordered_edge_indices, E, V, ax = None):
+    """
+    Visualize the Graph Laplacian method components
+    """
+    if ax is None:
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot all edges in very light gray first
+    for ei, (v1, v2) in enumerate(E):
+        edge_pts = np.array([V[v1], V[v2]])
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color='gray', alpha=0.2, linewidth=0.5)
+
+    # Plot all vertices in light gray
+    ax.scatter(V[:,0], V[:,1], V[:,2], color='lightgray', s=10, alpha=0.3)
+
+    # Highlight the central vertex
+    vertex_pos = V[vertex_idx]
+    ax.scatter(*vertex_pos, color='red', s=150, label=f'Vertex {vertex_idx}', zorder=10)
+
+    # Define colors for the circulation
+    colors = plt.cm.tab10(np.linspace(0, 1, len(ordered_edge_indices)))
+    
+    # Plot the sorted edges with colors and labels
+    connected_vertices = []
+    for i, ei in enumerate(ordered_edge_indices):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        connected_vertices.append(V[other_idx])
+        
+        edge_pts = np.array([vertex_pos, V[other_idx]])
+        
+        # Plot the edge with color
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color=colors[i], linewidth=3, alpha=0.8, zorder=5)
+        
+        # Highlight the connected vertex
+        ax.scatter(*V[other_idx], color=colors[i], s=80, zorder=8)
+        
+        # Add edge index label near the connected vertex
+        offset = 0.1 * (V[other_idx] - vertex_pos) / np.linalg.norm(V[other_idx] - vertex_pos)
+        label_pos = V[other_idx] + offset
+        ax.text(label_pos[0], label_pos[1], label_pos[2], f'{ei}', 
+                fontsize=12, fontweight='bold', 
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+    ax.set_title(f"Edge Circulation around Vertex {vertex_idx} using Graph Laplacian\n"
+                f"Order: {' → '.join(map(str, ordered_edge_indices))}", fontsize=14)
+    ax.legend()
+
+    vertex_pos = V[vertex_idx]
+    incident_edges = [ei for ei in ordered_edge_indices if vertex_idx in E[ei]]
+    
+    # Calculate edge direction vectors
+    edge_directions = []
+    for ei in incident_edges:
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        direction = V[other_idx] - vertex_pos
+        unit_direction = direction / np.linalg.norm(direction)
+        edge_directions.append(unit_direction)
+
+    
+    # Calculate and show Hn (average direction)
+    Hn = np.average(edge_directions, axis=0)
+    Hn_norm = np.linalg.norm(Hn)
+    
+    if Hn_norm > 1e-5:
+        Hn_normalized = Hn / Hn_norm
+        
+        # Draw Hn vector (blue arrow)
+        ax.quiver(vertex_pos[0], vertex_pos[1], vertex_pos[2],
+                 Hn_normalized[0] * 0.8, Hn_normalized[1] * 0.8, Hn_normalized[2] * 0.8,
+                 color='blue', alpha=0.9, arrow_length_ratio=0.15, linewidth=3)
+        
+        # Label Hn
+        hn_label_pos = vertex_pos + 0.9 * Hn_normalized
+        ax.text(hn_label_pos[0], hn_label_pos[1], hn_label_pos[2], 'Hn\n(projection\nnormal)', 
+               fontsize=12, color='blue', fontweight='bold', ha='center')
+        
+        # Draw projection plane
+        draw_projection_plane(ax, vertex_pos, Hn_normalized, 'blue', alpha=0.2)
+        
+        # Add method info
+        ax.text2D(0.02, 0.95, f'Hn norm: {Hn_norm:.3f}', transform=ax.transAxes, 
+                 fontsize=10, bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.8))
+    else:
+        ax.text2D(0.02, 0.95, f'Hn ≈ 0 (saddle point!)', transform=ax.transAxes, 
+                 fontsize=10, color='red', fontweight='bold',
+                 bbox=dict(boxstyle='round', facecolor='pink', alpha=0.8))
+    
+    
+    # Remove axis for cleaner look
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    
+    plt.tight_layout()
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+def draw_projection_plane(ax, center, normal, color, alpha=0.05, size=0.5):
+    """
+    Draw a projection plane given center point and normal vector
+    """
+    # Create two perpendicular vectors in the plane
+    if abs(normal[0]) < 0.9:
+        v1 = np.array([1, 0, 0])
+    else:
+        v1 = np.array([0, 1, 0])
+    
+    # Make v1 perpendicular to normal
+    v1 = v1 - np.dot(v1, normal) * normal
+    v1 = v1 / np.linalg.norm(v1)
+    
+    # Second perpendicular vector
+    v2 = np.cross(normal, v1)
+    
+    # Create plane mesh
+    u = np.linspace(-size, size, 10)
+    v = np.linspace(-size, size, 10)
+    U, V = np.meshgrid(u, v)
+    
+    # Plane points
+    X = center[0] + U * v1[0] + V * v2[0]
+    Y = center[1] + U * v1[1] + V * v2[1]  
+    Z = center[2] + U * v1[2] + V * v2[2]
+    
+    # Plot the plane
+    ax.plot_surface(X, Y, Z, color=color, alpha=alpha)
+
+def visualize_edge_normals_method(vertex_idx, ordered_edge_indices, E, V, one_normals, ax = None):
+    """
+    Visualize the Edge One Normals method components
+    """
+    if ax is None:
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+    ax.view_init(vertical_axis='y', elev=30, azim=45)
+    ax.set_aspect('equal')
+
+    # Plot all edges in very light gray first
+    for ei, (v1, v2) in enumerate(E):
+        edge_pts = np.array([V[v1], V[v2]])
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color='gray', alpha=0.2, linewidth=0.5)
+
+    # Plot all vertices in light gray
+    ax.scatter(V[:,0], V[:,1], V[:,2], color='lightgray', s=10, alpha=0.3)
+
+    # Highlight the central vertex
+    vertex_pos = V[vertex_idx]
+    ax.scatter(*vertex_pos, color='red', s=150, label=f'Vertex {vertex_idx}', zorder=10)
+
+    # Define colors for the circulation
+    colors = plt.cm.tab10(np.linspace(0, 1, len(ordered_edge_indices)))
+    
+    # Plot the sorted edges with colors and labels
+    connected_vertices = []
+    for i, ei in enumerate(ordered_edge_indices):
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        connected_vertices.append(V[other_idx])
+        
+        edge_pts = np.array([vertex_pos, V[other_idx]])
+        
+        # Plot the edge with color
+        ax.plot(edge_pts[:, 0], edge_pts[:, 1], edge_pts[:, 2], 
+                color=colors[i], linewidth=3, alpha=0.8, zorder=5)
+        
+        # Highlight the connected vertex
+        ax.scatter(*V[other_idx], color=colors[i], s=80, zorder=8)
+        
+        # Add edge index label near the connected vertex
+        offset = 0.1 * (V[other_idx] - vertex_pos) / np.linalg.norm(V[other_idx] - vertex_pos)
+        label_pos = V[other_idx] + offset
+        ax.text(label_pos[0], label_pos[1], label_pos[2], f'{ei}', 
+                fontsize=12, fontweight='bold', 
+                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.8))
+
+    ax.set_title(f"Edge Circulation around Vertex {vertex_idx} using One Normal\n"
+                f"Order: {' → '.join(map(str, ordered_edge_indices))}", fontsize=14)
+    ax.legend()
+
+    vectors = []
+    vector_array = np.zeros((len(ordered_edge_indices), 3))
+    
+    for i, ei in enumerate(ordered_edge_indices):
+        vec = one_normals[ei]
+        vectors.append((vec, ei))
+        vector_array[i] = vec
+
+
+    N = np.average( vector_array, axis = 0 )
+
+    N_norm = np.linalg.norm(N)
+    
+    if N_norm > 1e-5:
+        N_normalized = N / N_norm
+        
+        # Draw averaged normal vector (red arrow)
+        ax.quiver(vertex_pos[0], vertex_pos[1], vertex_pos[2],
+                 N_normalized[0] * 0.9, N_normalized[1] * 0.9, N_normalized[2] * 0.9,
+                 color='red', alpha=0.9, arrow_length_ratio=0.15, linewidth=3)
+        
+        # Label averaged normal
+        n_label_pos = vertex_pos + 1.0 * N_normalized
+        ax.text(n_label_pos[0], n_label_pos[1], n_label_pos[2], 'N_avg\n(projection\nnormal)', 
+               fontsize=12, color='red', fontweight='bold', ha='center')
+        
+        # Draw projection plane
+        draw_projection_plane(ax, vertex_pos, N_normalized, 'red', alpha=0.2)
+        
+        # Add method info
+        ax.text2D(0.02, 0.95, f'N norm: {N_norm:.3f}', transform=ax.transAxes, 
+                 fontsize=10, bbox=dict(boxstyle='round', facecolor='lightcoral', alpha=0.8))
+    else:
+        ax.text2D(0.02, 0.95, f'N ≈ 0 (degenerate!)', transform=ax.transAxes, 
+                 fontsize=10, color='red', fontweight='bold',
+                 bbox=dict(boxstyle='round', facecolor='pink', alpha=0.8))
+    
+
+     # Remove axis for cleaner look
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_zticks([])
+    
+    plt.tight_layout()
+    plt.axis('off')
+    plt.axis('equal')
+    plt.show()
+
+
+
+
+
+# if __name__ == "__main__":
 
      
-    parser = argparse.ArgumentParser(description='Optimize edges to get normals')
-    parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
+#     parser = argparse.ArgumentParser(description='Optimize edges to get normals')
+#     parser.add_argument('curve_file', nargs='?', help='The curve sketch to load.')
 
-    args = parser.parse_args()
+#     args = parser.parse_args()
 
-    curve_file = args.curve_file
+#     curve_file = args.curve_file
 
-    if curve_file is None:
-        curve_file = '3d-sketches/good/onshape_simple_mouse.obj'
-    V, E, P = load_sketch_polyline_data(curve_file)
+#     if curve_file is None:
+#         curve_file = 'sketch/onshape_simple_mouse.obj'
+#     V, E, P = load_sketch_polyline_data(curve_file)
     
-    vertex_to_edges_map = build_vertex_to_edges_map(E)
-    print('Loaded vertex_to_edges_map:', vertex_to_edges_map)
+#     vertex_to_edges_map = build_vertex_to_edges_map(E)
+#     print('Loaded vertex_to_edges_map:', vertex_to_edges_map)
     
-    vertices_to_check = [idx for idx, edges in vertex_to_edges_map.items() if len(edges) >= 3]
+#     vertices_to_check = [idx for idx, edges in vertex_to_edges_map.items() if len(edges) >= 3]
+#     print('vertices_to_check', vertices_to_check)
 
-    for vertex_idx in vertices_to_check:
-        print(f"\nVisualizing vertex {vertex_idx} with {len(vertex_to_edges_map[vertex_idx])} edges.")
-        edge_indices = vertex_to_edges_map[vertex_idx]
-        sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_idx, E, V)
-        print(f"  Sorted edge indices: {sorted_edges}")
-        print(f"  Original edges:")
-        for ei in edge_indices:
-            print(f"    {ei}: {E[ei]}")
+#     for vertex_idx in vertices_to_check:
+#         print(f"\nVisualizing vertex {vertex_idx} with {len(vertex_to_edges_map[vertex_idx])} edges.")
+#         edge_indices = vertex_to_edges_map[vertex_idx]
+#         sorted_edges = compute_edge_circulation_graph_laplacian(edge_indices, vertex_idx, E, V)
+#         print(f"  Sorted edge indices: {sorted_edges}")
+#         print(f"  Original edges:")
+#         for ei in edge_indices:
+#             print(f"    {ei}: {E[ei]}")
             
-        # First plot: show the sorted edges
-        fig1 = plt.figure(figsize=(8, 8))
-        ax1 = fig1.add_subplot(111, projection='3d')
-        plot_sorted_edges_v1(vertex_idx, sorted_edges, E, V, ax=ax1)
-        plt.tight_layout()
-        plt.show()
+#         # First plot: show the sorted edges
+#         fig1 = plt.figure(figsize=(8, 8))
+#         ax1 = fig1.add_subplot(111, projection='3d')
+#         # plot_sorted_edges_with_circulation(vertex_idx, sorted_edges, E, V, ax=ax1)
+#         # plot_sorted_edges_with_circulation(vertex_idx, sorted_edges, E, V)
+#         visualize_graph_laplacian_method(vertex_idx, sorted_edges,E, V, ax1)
+#         plt.tight_layout()
+#         plt.show()
         
-        # # Second plot: visualize the projection plane and points
-        # fig2, ax2 = plot_projection_plane_and_points(vertex_idx, edge_indices, E, V)
-        # plt.show()
+#         # # Second plot: visualize the projection plane and points
+#         # fig2, ax2 = plot_projection_plane_and_points(vertex_idx, edge_indices, E, V)
+#         # plt.show()
         
-        # Optional: Add a prompt to continue to the next vertex
-        if vertex_idx != vertices_to_check[-1]:  # If not the last vertex
-            input("Press Enter to continue to the next vertex...")
+#         # Optional: Add a prompt to continue to the next vertex
+#         if vertex_idx != vertices_to_check[-1]:  # If not the last vertex
+#             input("Press Enter to continue to the next vertex...")
 
