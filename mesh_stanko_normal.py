@@ -79,6 +79,8 @@ def solve_system_with_constraints_hard( A, b, constraint_indices, constraint_val
 
 
     x = sp.sparse.linalg.spsolve( A, b_prime )
+    # Use the line below and comment out the assert if spsolve raises a singular matrix warning.
+    # x = sp.sparse.linalg.spsolve( A + 1e-5*sp.sparse.eye(A.shape[0]), b_prime )
     assert np.abs( x[constraint_indices] - constraint_values ).max() < 1e-9
     return x
 
