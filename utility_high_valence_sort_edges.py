@@ -103,15 +103,23 @@ def compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_idx, E, 
     if len(incident_edges) <= 2:
         return incident_edges
 
-    vectors = []
-    vector_array = np.zeros((len(incident_edges), 3))
+    normal_vectors = []
+    normal_vector_array = np.zeros((len(incident_edges), 3))
     
-    for i, ei in enumerate(incident_edges):
-        vec = one_normals[ei]
-        vectors.append((vec, ei))
-        vector_array[i] = vec
+    edge_vectors = []
 
-    N = np.average( vector_array, axis = 0 )
+    for i, ei in enumerate(incident_edges):
+        normal_vec = one_normals[ei]
+        normal_vectors.append((normal_vec, ei))
+        normal_vector_array[i] = normal_vec
+
+        v1, v2 = E[ei]
+        other_idx = v2 if v1 == vertex_idx else v1
+        edge_vec = V[other_idx] - vertex_pos
+        unit_edge_vec = edge_vec / np.linalg.norm(edge_vec)
+        edge_vectors.append((unit_edge_vec, ei))
+
+    N = np.average( normal_vector_array, axis = 0 )
     N_norm = np.linalg.norm(N)
     ## If the one normal norm is near 0, fall back to the graph laplacian method.
     if N_norm < 1e-5:
@@ -122,9 +130,9 @@ def compute_edge_circulation_from_edge_one_normals(edge_indices, vertex_idx, E, 
         basis_2 = np.cross( N, basis_1 )
 
     projected_vectors = []
-    for unit_vec, ei in vectors:
-        proj_1 = np.dot(unit_vec, basis_1)
-        proj_2 = np.dot(unit_vec, basis_2)
+    for unit_edge_vec, ei in edge_vectors:
+        proj_1 = np.dot(unit_edge_vec, basis_1)
+        proj_2 = np.dot(unit_edge_vec, basis_2)
         angle = np.arctan2(proj_2, proj_1)
         projected_vectors.append((angle, ei))
 
