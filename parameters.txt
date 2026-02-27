@@ -1,0 +1,15 @@
+
+sh normal_to_mesh.sh data/normal/spherecylinder_2n.normal 0.06 0.02
+sh normal_to_mesh.sh data/normal/bowl_curve_2n.normal 0.06 0.02
+
+
+Toothpaste example: 
+
+./signed_heat_3d normal/toothpaste_curves_2n.normal --t 0.06
+with perturbation 0.06 when exporting isosurface.
+
+
+Espresso example:
+./signed_heat_3d normal/toothpaste_curves_2n.normal --t 0.046
+
+
