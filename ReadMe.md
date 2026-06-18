@@ -1,9 +1,9 @@
 # README
 
-### Clone (private)
+### Clone 
 
 ```bash
-git clone --recurse-submodules git@github.com:KrisYu/marching_cube.git
+git clone --recurse-submodules git@github.com:KrisYu/SharpEdge.git
 ```
 
 
